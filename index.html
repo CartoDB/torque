@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Layer exploration app for GFW</title>
+    <link rel="shortcut icon" href="http://cartodb.com/favicon/favicon_32x32.ico" />
+    <link href="http://code.google.com/apis/maps/documentation/javascript/examples/default.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="lib/cartodb.css">
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+    <script type="text/javascript" src="lib/wax.g.js"></script>
+    <script type="text/javascript" src="lib/cartodb-gmapsv3.js"></script>
+    <script type="text/javascript" src="lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="lib/underscore-min.js"></script>
+    <script type="text/javascript" src="lib/backbone.js"></script>
+    <script type="text/javascript" src="lib/class.js"></script>
+    <script type="text/javascript" src="lib/backbone.cartodb.js"></script>
+    <script type="text/javascript" src="src/wri.js"></script>
+    <script type="text/javascript">
+        var gui;
+        function initialize() {
+            
+            // initialise the google map
+            var map = new google.maps.Map(document.getElementById('map_canvas'), {
+                center: new google.maps.LatLng(0,110),
+                zoom: 5,
+                mapTypeId: google.maps.MapTypeId.SATELLITE,
+                mapTypeControl: false
+            });
+            
+            dat.GUI.DEFAULT_WIDTH = 300;
+            gui  = new dat.GUI();
+            
+            WRI(function(env) {
+              WRI.app = new env.app.Instance(map, {
+                    user       : 'wri-01',
+                    layerTable : 'layerinfo',
+                    logging    : true
+                });
+              WRI.app.run();
+              WRI.env = env;
+            });
+            
+        }
+
+    </script>
+</head>
+<body onload="initialize()">
+<div id="map_canvas"></div>
+<a class="cartodb_logo" href="http://www.cartodb.com" target="_blank">CartoDB</a>
+</body>
+</html>

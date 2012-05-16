@@ -1,0 +1,72 @@
+#forma_zoom_polys{
+   line-color:#FFFFFF;
+   line-width:0;
+   line-opacity:1;
+   polygon-opacity:0;
+   [zoom>=10][z=16]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=9][z=15]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=8][z=14]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=7][z=13]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=6][z=12]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=5][z=11]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=4][z=10]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+  [zoom=3][z=9]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=2][z=8]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=1][z=7]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+   [zoom=0][z=6]{
+   line-width:0.1;
+   polygon-opacity:0.8;
+}
+
+}
+#forma_zoom_polys[alerts>alerts] {
+   polygon-fill:#662506
+}
+#forma_zoom_polys[alerts<=5000] {
+   polygon-fill:#993404
+}
+#forma_zoom_polys[alerts<=500] {
+   polygon-fill:#EC7014
+}
+#forma_zoom_polys[alerts<=50] {
+   polygon-fill:#FE9929
+}
+#forma_zoom_polys[alerts<=5] {
+   polygon-fill:#FEC44F
+}
+#forma_zoom_polys[alerts<=2] {
+   polygon-fill:#FEE391
+}
+#forma_zoom_polys[alerts<=1] {
+   polygon-fill:#FFF7BC
+}
