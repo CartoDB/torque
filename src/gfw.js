@@ -140,19 +140,19 @@ GFW.modules.maplayer = function(gfw) {
             this._bounds = new google.maps.LatLngBounds(sw, ne);
             gfw.log.info(this._options.getTileUrl({x: 3, y: 4},3));
             this._displayed = false; 
-            this._addControll();
             this._maptype = new google.maps.ImageMapType(this._options);
             
             this._tileindex = this._map.overlayMapTypes.length;
             this._map.overlayMapTypes.setAt(this._tileindex, null); 
             this._setupListeners();
             
-            this._handleLayer();
-            
             if (this.layer.get('title') != 'FORMA'){
                 this.layer.attributes['visible'] = false;
-                this._toggleLayer();
+                //this._toggleLayer();
             }
+            this._addControll();
+            this._handleLayer();
+            
         },
         _setupListeners: function(){
             var that = this;
