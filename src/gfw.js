@@ -1,50 +1,50 @@
-function WRI() {
+function GFW() {
   var args = Array.prototype.slice.call(arguments),
   callback = args.pop(),
   modules = (args[0] && typeof args[0] === "string") ? args : args[0],
   config,
   i;
 
-  if (!(this instanceof WRI)) {
-    return new WRI(modules, callback);
+  if (!(this instanceof GFW)) {
+    return new GFW(modules, callback);
   }
 
   if (!modules || modules === '*') {
     modules = [];
-    for (i in WRI.modules) {
-      if (WRI.modules.hasOwnProperty(i)) {
+    for (i in GFW.modules) {
+      if (GFW.modules.hasOwnProperty(i)) {
         modules.push(i);
       }
     }
   }
 
   for (i = 0; i < modules.length; i += 1) {
-    WRI.modules[modules[i]](this);
+    GFW.modules[modules[i]](this);
   }
 
   callback(this);
   return this;
 };
 
-WRI.modules = {};
+GFW.modules = {};
 
 
 
-WRI.modules.app = function(wri) {
+GFW.modules.app = function(gfw) {
 
-  wri.app = {};
+  gfw.app = {};
 
-  wri.app.Instance = Class.extend(
+  gfw.app.Instance = Class.extend(
     {
     init: function(map, options) {
         this.options = _.defaults(options, {
-            user       : 'wri-01',
+            user       : 'gfw-01',
             layerTable : 'layerinfo',
         });
         
         this._precision = 2;
         
-        wri.log.enabled = options ? options.logging: false;
+        gfw.log.enabled = options ? options.logging: false;
         
         this._map = map; 
         
@@ -54,7 +54,7 @@ WRI.modules.app = function(wri) {
         
         this._cartodb = Backbone.CartoDB({user: this.options.user});
         
-        this.datalayers = new wri.datalayers.Engine(this._cartodb, options.layerTable, this._map);
+        this.datalayers = new gfw.datalayers.Engine(this._cartodb, options.layerTable, this._map);
         
         this._setHash();
         
@@ -63,13 +63,11 @@ WRI.modules.app = function(wri) {
     run: function() {
         this._setupListeners();
         this.update();
-        wri.log.info('App is now running!');
+        gfw.log.info('App is now running!');
     },
     _setHash: function(){
         if (location.hash.split("/").length != 3){
             var hash = "#5/0/110"
-            console.log("HASH RESET");
-            console.log(location.hash);
             location.replace(hash);
             this.lastHash = hash;
         }
@@ -127,20 +125,20 @@ WRI.modules.app = function(wri) {
   );
 };
 
-WRI.modules.maplayer = function(wri) {
-    wri.maplayer = {};
-    wri.maplayer.Engine = Class.extend(
+GFW.modules.maplayer = function(gfw) {
+    gfw.maplayer = {};
+    gfw.maplayer.Engine = Class.extend(
         {
         init: function(layer, map) {
             this.layer = layer;
             this._map = map;
-            this._bindDisplay(new wri.maplayer.Display());
+            this._bindDisplay(new gfw.maplayer.Display());
             this._options = this._display.getOptions(this.layer.get('tileurl'), this.layer.get('ispng'));
             // this._boundingbox = this.layer.get('the_geom');
             var sw = new google.maps.LatLng(this.layer.get('ymin'), this.layer.get('xmin'));
             var ne = new google.maps.LatLng(this.layer.get('ymax'),this.layer.get('xmax'));
             this._bounds = new google.maps.LatLngBounds(sw, ne);
-            wri.log.info(this._options.getTileUrl({x: 3, y: 4},3));
+            gfw.log.info(this._options.getTileUrl({x: 3, y: 4},3));
             this._displayed = false; 
             this._addControll();
             this._maptype = new google.maps.ImageMapType(this._options);
@@ -150,6 +148,11 @@ WRI.modules.maplayer = function(wri) {
             this._setupListeners();
             
             this._handleLayer();
+            
+            if (this.layer.get('title') != 'FORMA'){
+                this.layer.attributes['visible'] = false;
+                this._toggleLayer();
+            }
         },
         _setupListeners: function(){
             var that = this;
@@ -205,11 +208,11 @@ WRI.modules.maplayer = function(wri) {
             if(this.layer.get('visible') && !this._displayed && this._inView()){
                 this._displayed = true;
                 this._map.overlayMapTypes.setAt(this._tileindex, this._maptype); 
-                wri.log.info(this.layer.get('title')+ " added at "+this._tileindex)
+                gfw.log.info(this.layer.get('title')+ " added at "+this._tileindex)
             } else if (this._displayed && !this._inView()){
                 this._displayed = false;
                 this._map.overlayMapTypes.setAt(this._tileindex, null); 
-                wri.log.info(this.layer.get('title')+ " removed at "+this._tileindex)
+                gfw.log.info(this.layer.get('title')+ " removed at "+this._tileindex)
             } 
         },
         _addControll: function(){
@@ -220,7 +223,7 @@ WRI.modules.maplayer = function(wri) {
             this.toggle
                     .add(this.layer.attributes, 'visible')
                     .onChange(function(value) {
-                        wri.log.info(value);
+                        gfw.log.info(value);
                         that._toggleLayer();
                     });
             this.toggle
@@ -248,11 +251,11 @@ WRI.modules.maplayer = function(wri) {
         _toggleLayer: function(){
             var that = this;
             if (this.layer.get('visible') == false){
-                wri.log.info('LAYER OFF');
+                gfw.log.info('LAYER OFF');
                 this._map.overlayMapTypes.setAt(this._tileindex, null); 
                 //this._map.overlayMapTypes.setAt(this._tileindex, null); 
             } else {
-                wri.log.info('LAYER ON');
+                gfw.log.info('LAYER ON');
                 if(this._inView()){
                     this._displayed = true;
                     this._map.overlayMapTypes.setAt(this._tileindex, this._maptype); 
@@ -260,13 +263,13 @@ WRI.modules.maplayer = function(wri) {
             }
         }
     });
-    wri.maplayer.Display = Class.extend(
+    gfw.maplayer.Display = Class.extend(
         {
             /**
              * Constructs a new Display with the given DOM element.
              */
             init: function() {
-                wri.log.info('displayed');
+                gfw.log.info('displayed');
             },
             
             /**
@@ -302,9 +305,9 @@ WRI.modules.maplayer = function(wri) {
     );
 }
 
-WRI.modules.datalayers = function(wri) {
-  wri.datalayers = {};
-  wri.datalayers.Engine = Class.extend(
+GFW.modules.datalayers = function(gfw) {
+  gfw.datalayers = {};
+  gfw.datalayers.Engine = Class.extend(
     {
     init: function(CartoDB, layerTable, map) {
         this._map = map;
@@ -328,9 +331,9 @@ WRI.modules.datalayers = function(wri) {
         });
     },
     _addLayer: function(p){
-        wri.log.warn('only showing baselayers for now');
+        gfw.log.warn('only showing baselayers for now');
         //if (p.get('category')=='baselayer'){
-            var layer = new wri.maplayer.Engine(p, this._map);
+            var layer = new gfw.maplayer.Engine(p, this._map);
             this._dataarray.push(layer);
             this._bycartodbid[p.get('cartodb_id')] = layer;
             this._bytitle[p.get('title')] = layer;
@@ -340,33 +343,33 @@ WRI.modules.datalayers = function(wri) {
 };
 
 /**
- * Logging module that writes log messages to the console and to the Speed
+ * Logging module that gfwtes log messages to the console and to the Speed
  * Tracer API. It contains convenience methods for info(), warn(), error(),
  * and todo().
  *
 */
-WRI.modules.log = function(wri) {
-  wri.log = {};
+GFW.modules.log = function(gfw) {
+  gfw.log = {};
 
-  wri.log.info = function(msg) {
-    wri.log._write('INFO: ' + msg);
+  gfw.log.info = function(msg) {
+    gfw.log._gfwte('INFO: ' + msg);
   };
 
-  wri.log.warn = function(msg) {
-    wri.log._write('WARN: ' + msg);
+  gfw.log.warn = function(msg) {
+    gfw.log._gfwte('WARN: ' + msg);
   };
 
-  wri.log.error = function(msg) {
-    wri.log._write('ERROR: ' + msg);
+  gfw.log.error = function(msg) {
+    gfw.log._gfwte('ERROR: ' + msg);
   };
 
-  wri.log.todo = function(msg) {
-    wri.log._write('TODO: '+ msg);
+  gfw.log.todo = function(msg) {
+    gfw.log._gfwte('TODO: '+ msg);
   };
 
-  wri.log._write = function(msg) {
+  gfw.log._gfwte = function(msg) {
     var logger = window.console;
-    if (wri.log.enabled) {
+    if (gfw.log.enabled) {
       if (logger && logger.markTimeline) {
         logger.markTimeline(msg);
       }

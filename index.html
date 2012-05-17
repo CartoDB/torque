@@ -16,7 +16,7 @@
     <script type="text/javascript" src="lib/backbone.js"></script>
     <script type="text/javascript" src="lib/class.js"></script>
     <script type="text/javascript" src="lib/backbone.cartodb.js"></script>
-    <script type="text/javascript" src="src/wri.js"></script>
+    <script type="text/javascript" src="src/gfw.js"></script>
     <script type="text/javascript">
         var gui;
         function initialize() {
@@ -32,14 +32,14 @@
             dat.GUI.DEFAULT_WIDTH = 300;
             gui  = new dat.GUI();
             
-            WRI(function(env) {
-              WRI.app = new env.app.Instance(map, {
+            GFW(function(env) {
+              GFW.app = new env.app.Instance(map, {
                     user       : 'wri-01',
                     layerTable : 'layerinfo',
                     logging    : true
                 });
-              WRI.app.run();
-              WRI.env = env;
+              GFW.app.run();
+              GFW.env = env;
             });
             
         }
