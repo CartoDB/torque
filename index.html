@@ -29,8 +29,55 @@
                 mapTypeControl: false
             });
             
+            var forestHeight = new google.maps.ImageMapType({
+              getTileUrl: function(ll, z) {
+                var X = ll.x % (1 << z);  // wrap
+                return "http://api.tiles.mapbox.com/v3/cartodb.Forest-Height-Test/" + z + "/" + X + "/" + ll.y + ".png";
+              },
+              tileSize: new google.maps.Size(256, 256),
+              isPng: true,
+              maxZoom: 7,
+              name: "Forest Height",
+              alt: "Global forest height"
+            });
+            
+            map.mapTypes.set('forests', forestHeight);
+            var Road = function(){
+                this.Road = function(){
+                    map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                    map.setOptions({styles: null});
+                }
+            }
+            var Satellite = function(){
+                this.Satellite = function(){
+                    map.setMapTypeId(google.maps.MapTypeId.SATELLITE);
+                    map.setOptions({styles: null});
+                }
+            }
+            var Forest = function(){
+                this.Forest = function(){
+                    map.setMapTypeId('forests');
+                    map.setOptions({styles: null});
+                }
+            }
+            
+            var map_style = {};
+            map_style.google_maps_customization_style = [ { stylers: [ { saturation: -65 }, { gamma: 1.52 } ] }, { featureType: "administrative", stylers: [ { saturation: -95 },{ gamma: 2.26 } ] }, { featureType: "water", elementType: "labels", stylers: [ { visibility: "off" } ] }, { featureType: "administrative.locality", stylers: [ { visibility: 'off' } ] }, { featureType: "road", stylers: [ { visibility: "simplified" }, { saturation: -99 }, { gamma: 2.22 } ] }, { featureType: "poi", elementType: "labels", stylers: [ { visibility: "off" } ] }, { featureType: "road.arterial", stylers: [ { visibility: 'off' } ] }, { featureType: "road.local", elementType: "labels", stylers: [ { visibility: 'off' } ] }, { featureType: "transit", stylers: [ { visibility: 'off' } ] }, { featureType: "road", elementType: "labels", stylers: [ { visibility: 'off' } ] },{ featureType: "poi", stylers: [ { saturation: -55 } ] } ];
+            
+            var Soft = function(){
+                this.Soft = function(){
+                    map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                    map.setOptions({styles: map_style.google_maps_customization_style});
+                }
+            }
+            
             dat.GUI.DEFAULT_WIDTH = 300;
             gui  = new dat.GUI();
+            var bl = gui.addFolder("Basemap Style");
+            bl.add(new Road(), 'Road');
+            bl.add(new Satellite(), 'Satellite');
+            bl.add(new Soft(), 'Soft').name('Soft toned');
+            bl.add(new Forest(), 'Forest').name('Global forest height');
             
             GFW(function(env) {
               GFW.app = new env.app.Instance(map, {

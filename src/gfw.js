@@ -219,7 +219,7 @@ GFW.modules.maplayer = function(gfw) {
             var that = this;
             
             this._opacity = {alpha: 100};
-            this.toggle = gui.addFolder(this.layer.get('title'));;
+            this.toggle = gui.addFolder(this.layer.get('title'));
             this.toggle
                     .add(this.layer.attributes, 'visible')
                     .onChange(function(value) {
