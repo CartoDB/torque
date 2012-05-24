@@ -40,8 +40,20 @@
               name: "Forest Height",
               alt: "Global forest height"
             });
+            var forestSoft = new google.maps.ImageMapType({
+              getTileUrl: function(ll, z) {
+                var X = ll.x % (1 << z);  // wrap
+                return "http://api.tiles.mapbox.com/v3/cartodb.global-forest-height/" + z + "/" + X + "/" + ll.y + ".png";
+              },
+              tileSize: new google.maps.Size(256, 256),
+              isPng: true,
+              maxZoom: 7,
+              name: "Forest Height",
+              alt: "Global forest height"
+            });
             
             map.mapTypes.set('forests', forestHeight);
+            map.mapTypes.set('forests_soft', forestSoft);
             var Road = function(){
                 this.Road = function(){
                     map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
@@ -57,6 +69,12 @@
             var Forest = function(){
                 this.Forest = function(){
                     map.setMapTypeId('forests');
+                    map.setOptions({styles: null});
+                }
+            }
+            var ForestSoft = function(){
+                this.ForestSoft = function(){
+                    map.setMapTypeId('forests_soft');
                     map.setOptions({styles: null});
                 }
             }
@@ -77,7 +95,8 @@
             bl.add(new Road(), 'Road');
             bl.add(new Satellite(), 'Satellite');
             bl.add(new Soft(), 'Soft').name('Soft toned');
-            bl.add(new Forest(), 'Forest').name('Global forest height');
+            bl.add(new Forest(), 'Forest').name('Forest height');
+            bl.add(new ForestSoft(), 'ForestSoft').name('Forest height (soft)');
             
             map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
             map.setOptions({styles: map_style.google_maps_customization_style});
