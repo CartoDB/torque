@@ -79,6 +79,8 @@
             bl.add(new Soft(), 'Soft').name('Soft toned');
             bl.add(new Forest(), 'Forest').name('Global forest height');
             
+            map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+            map.setOptions({styles: map_style.google_maps_customization_style});
             GFW(function(env) {
               GFW.app = new env.app.Instance(map, {
                     user       : 'wri-01',
