@@ -20,296 +20,297 @@
     <script type="text/javascript" src="src/grid_layer.js"></script>
     <script type="text/javascript" src="src/torque.js"></script>
     <script type="text/javascript">
-        var gui;
-        function initialize() {
-            // initialise the google map
-            var map = new google.maps.Map(document.getElementById('map_canvas'), {
-                center: new google.maps.LatLng( 30.95940879245423, -0.609375),
-                zoom: 2,
-                mapTypeId: google.maps.MapTypeId.SATELLITE,
-                mapTypeControl: false,
-        				minZoom: 1
-            });
-            
-            var map_style = {};
-            map_style.google_maps_customization_style = [
-			  {
-			    stylers: [
-			      { invert_lightness: true },
-			      { weight: 1 },
-			      { saturation: -100 },
-			      { lightness: -40 }
-			    ]
-			  },{
-			    elementType: "labels",
-			    stylers: [
-			      { visibility: "simplified" }
-			    ]
-			  }
-			];
-            
-            var Soft = function(){
-                this.Soft = function(){
-                    map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-                    map.setOptions({styles: map_style.google_maps_customization_style});
-                }
+    var gui;
+    function initialize() {
+        // initialise the google map
+        var map = new google.maps.Map(document.getElementById('map_canvas'), {
+            center:new google.maps.LatLng(30.95940879245423, -0.609375),
+            zoom:2,
+            mapTypeId:google.maps.MapTypeId.SATELLITE,
+            mapTypeControl:false,
+            minZoom:1
+        });
+
+        var map_style = {};
+        map_style.google_maps_customization_style = [
+            {
+                stylers:[
+                    { invert_lightness:true },
+                    { weight:1 },
+                    { saturation:-100 },
+                    { lightness:-40 }
+                ]
+            },
+            {
+                elementType:"labels",
+                stylers:[
+                    { visibility:"simplified" }
+                ]
             }
-            
-            
-            map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-            map.setOptions({styles: map_style.google_maps_customization_style});
-			
-      var TorqueOptions = {
-        user       : 'viz2',
-        table      : 'ow',
-        column     : 'date',
-        steps      : 750,
-        resolution : 2, 
-        cumulative : false, 
-        clock      : true,
-        fps        : 20,
-        fitbounds  : false,
-        blendmode  : 'lighter',
-        trails     : true,
-        point_type : 'circle',
-        cellsize   : 1
-      }
-			
-			var torque = null;
-			Torque(function(env) {
-                  Torque.app = new env.app.Instance();
-				  torque = new Torque.app.addLayer(map, TorqueOptions);
-                  Torque.env = env;
-            });
+        ];
 
-      var blend_modes = [
-                          "lighter",
-                          "source-over",
-                          "copy",
-                          "destination-atop",
-                          "destination-in",
-                          "destination-out",
-                          "destination-over",
-                          "source-atop",
-                          "source-in",
-                          "source-out",
-                          "xor"
-                        ];
-			
-			var tablename = 'ow';
-
-      dat.GUI.DEFAULT_WIDTH = 300;
-      var toggle  = new dat.GUI();
-      toggle.add(TorqueOptions, 'user').listen();
-      toggle.add(TorqueOptions, 'table').listen();
-      toggle.add(TorqueOptions, 'column').listen();
-      toggle.add(TorqueOptions, 'resolution', [1,2,4,8,16,32]).listen();
-      toggle.add(TorqueOptions, 'cellsize', 0, 50 ).listen();
-      toggle.add(TorqueOptions, 'cumulative').listen();
-      toggle.add(TorqueOptions, 'trails').listen();
-      toggle.add(TorqueOptions, 'steps', 10, 750 ).listen();
-      toggle.add(TorqueOptions, 'fps', 0.05, 48, false).listen();
-      toggle.add(TorqueOptions, 'blendmode', blend_modes).listen();
-      toggle.add(TorqueOptions, 'point_type', ['circle','square']).listen();
-
-			var that = this;
-      var updateTorque = function(){
-        this.updateTorque = function(){
-      		if (TorqueOptions.table != tablename){
-      			tablename = TorqueOptions.table;
-      			TorqueOptions.fitbounds = true;
-      		} else {
-      			TorqueOptions.fitbounds = false;
-      		}
-      		torque.setOptions(TorqueOptions);
-        }
-      }
-      toggle.add(new updateTorque(), 'updateTorque');
-      
-      var pause = function(){
-        this.pause = function(){
-          torque.pause();
-        }
-      } 
-      toggle.add(new pause(), 'pause');
-
-			var PresetOptions = function(){
-        this.old_weather_agg = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "ow";
-          TorqueOptions.column = "date";
-          TorqueOptions.blendmode = 'source-over';
-          TorqueOptions.trails = false;
-          TorqueOptions.point_type = 'square';
-          TorqueOptions.cumulative = true;
-          TorqueOptions.resolution = 2;
-          TorqueOptions.steps = 750;
-          TorqueOptions.fps = 30;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions)
-        }
-        this.old_weather_live = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "ow";
-          TorqueOptions.column = "date";
-          TorqueOptions.cumulative = false;
-          TorqueOptions.resolution = 2;
-          TorqueOptions.steps = 750;
-          TorqueOptions.fps = 30;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          TorqueOptions.blendmode = 'lighter';
-          TorqueOptions.trails = true;
-          TorqueOptions.point_type = 'circle';
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions)
+        var Soft = function () {
+            this.Soft = function () {
+                map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                map.setOptions({styles:map_style.google_maps_customization_style});
+            }
         }
 
-        this.ny_bus = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "ny_bus";
-          TorqueOptions.column = "timestamp";
-          TorqueOptions.cumulative = false;
-          TorqueOptions.resolution = 4;
-          TorqueOptions.steps = 500;
-          TorqueOptions.fps = 4;
-          TorqueOptions.fitbounds = 2;
-          TorqueOptions.clock = true;
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions)
+
+        map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+        map.setOptions({styles:map_style.google_maps_customization_style});
+
+        var TorqueOptions = {
+            user:'viz2',
+            table:'ow',
+            column:'date',
+            steps:750,
+            resolution:2,
+            cumulative:false,
+            clock:true,
+            fps:20,
+            fitbounds:false,
+            blendmode:'lighter',
+            trails:true,
+            point_type:'circle',
+            cellsize:1
         }
-        this.us_postoffices = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "us_po_offices";
-          TorqueOptions.column = "built";
-          TorqueOptions.cumulative = true;
-          TorqueOptions.resolution = 2;
-          TorqueOptions.steps = 250;
-          TorqueOptions.fps = 32;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          TorqueOptions.blendmode = 'source-over';
-          TorqueOptions.trails = false;
-          TorqueOptions.point_type = 'square';
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions)
+
+        var torque = null;
+        Torque(function (env) {
+            Torque.app = new env.app.Instance();
+            torque = new Torque.app.addLayer(map, TorqueOptions);
+            Torque.env = env;
+        });
+
+        var blend_modes = [
+            "lighter",
+            "source-over",
+            "copy",
+            "destination-atop",
+            "destination-in",
+            "destination-out",
+            "destination-over",
+            "source-atop",
+            "source-in",
+            "source-out",
+            "xor"
+        ];
+
+        var tablename = 'ow';
+
+        dat.GUI.DEFAULT_WIDTH = 300;
+        var toggle = new dat.GUI();
+        toggle.add(TorqueOptions, 'user').listen();
+        toggle.add(TorqueOptions, 'table').listen();
+        toggle.add(TorqueOptions, 'column').listen();
+        toggle.add(TorqueOptions, 'resolution', [1, 2, 4, 8, 16, 32]).listen();
+        toggle.add(TorqueOptions, 'cellsize', 0, 50).listen();
+        toggle.add(TorqueOptions, 'cumulative').listen();
+        toggle.add(TorqueOptions, 'trails').listen();
+        toggle.add(TorqueOptions, 'steps', 10, 750).listen();
+        toggle.add(TorqueOptions, 'fps', 0.05, 48, false).listen();
+        toggle.add(TorqueOptions, 'blendmode', blend_modes).listen();
+        toggle.add(TorqueOptions, 'point_type', ['circle', 'square']).listen();
+
+        var that = this;
+        var updateTorque = function () {
+            this.updateTorque = function () {
+                if (TorqueOptions.table != tablename) {
+                    tablename = TorqueOptions.table;
+                    TorqueOptions.fitbounds = true;
+                } else {
+                    TorqueOptions.fitbounds = false;
+                }
+                torque.setOptions(TorqueOptions);
+            }
         }
-        this.stop_frisk = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "sfrisk_dates";
-          TorqueOptions.column = "datestop";
-          TorqueOptions.cumulative = true;
-          TorqueOptions.resolution = 4;
-          TorqueOptions.steps = 200;
-          TorqueOptions.fps = 16;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          TorqueOptions.blendmode = 'source-over';
-          TorqueOptions.trails = false;
-          TorqueOptions.point_type = 'square';
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions)
+        toggle.add(new updateTorque(), 'updateTorque');
+
+        var pause = function () {
+            this.pause = function () {
+                torque.pause();
+            }
         }
-        this.stop_frisk_live = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "sfrisk_dates";
-          TorqueOptions.column = "datestop";
-          TorqueOptions.cumulative = false;
-          TorqueOptions.blendmode = 'lighter';
-          TorqueOptions.trails = true;
-          TorqueOptions.point_type = 'circle';
-          TorqueOptions.resolution = 2;
-          TorqueOptions.steps = 200;
-          TorqueOptions.fps = 50;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions)
+        toggle.add(new pause(), 'pause');
+
+        var PresetOptions = function () {
+            this.old_weather_agg = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "ow";
+                TorqueOptions.column = "date";
+                TorqueOptions.blendmode = 'source-over';
+                TorqueOptions.trails = false;
+                TorqueOptions.point_type = 'square';
+                TorqueOptions.cumulative = true;
+                TorqueOptions.resolution = 2;
+                TorqueOptions.steps = 750;
+                TorqueOptions.fps = 30;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions)
+            }
+            this.old_weather_live = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "ow";
+                TorqueOptions.column = "date";
+                TorqueOptions.cumulative = false;
+                TorqueOptions.resolution = 2;
+                TorqueOptions.steps = 750;
+                TorqueOptions.fps = 30;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                TorqueOptions.blendmode = 'lighter';
+                TorqueOptions.trails = true;
+                TorqueOptions.point_type = 'circle';
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions)
+            }
+
+            this.ny_bus = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "ny_bus";
+                TorqueOptions.column = "timestamp";
+                TorqueOptions.cumulative = false;
+                TorqueOptions.resolution = 4;
+                TorqueOptions.steps = 500;
+                TorqueOptions.fps = 4;
+                TorqueOptions.fitbounds = 2;
+                TorqueOptions.clock = true;
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions)
+            }
+            this.us_postoffices = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "us_po_offices";
+                TorqueOptions.column = "built";
+                TorqueOptions.cumulative = true;
+                TorqueOptions.resolution = 2;
+                TorqueOptions.steps = 250;
+                TorqueOptions.fps = 32;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                TorqueOptions.blendmode = 'source-over';
+                TorqueOptions.trails = false;
+                TorqueOptions.point_type = 'square';
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions)
+            }
+            this.stop_frisk = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "sfrisk_dates";
+                TorqueOptions.column = "datestop";
+                TorqueOptions.cumulative = true;
+                TorqueOptions.resolution = 4;
+                TorqueOptions.steps = 200;
+                TorqueOptions.fps = 16;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                TorqueOptions.blendmode = 'source-over';
+                TorqueOptions.trails = false;
+                TorqueOptions.point_type = 'square';
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions)
+            }
+            this.stop_frisk_live = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "sfrisk_dates";
+                TorqueOptions.column = "datestop";
+                TorqueOptions.cumulative = false;
+                TorqueOptions.blendmode = 'lighter';
+                TorqueOptions.trails = true;
+                TorqueOptions.point_type = 'circle';
+                TorqueOptions.resolution = 2;
+                TorqueOptions.steps = 200;
+                TorqueOptions.fps = 50;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions)
+            }
+            this.jatorre_flights = function () {
+                TorqueOptions.user = "osm2";
+                TorqueOptions.table = "openpaths_segments";
+                TorqueOptions.column = "end_timestamp";
+                TorqueOptions.cumulative = true;
+                TorqueOptions.resolution = 2;
+                TorqueOptions.steps = 500;
+                TorqueOptions.fps = 24;
+                TorqueOptions.fitbounds = -1;
+                TorqueOptions.clock = true;
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions);
+            }
+            this.quake_total = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "quksigx020";
+                TorqueOptions.column = "quakedate";
+                TorqueOptions.cumulative = true;
+                TorqueOptions.resolution = 8;
+                TorqueOptions.steps = 441;
+                TorqueOptions.fps = 21;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                TorqueOptions.countby = 'sum(mmio)';
+                TorqueOptions.blendmode = 'source-over';
+                TorqueOptions.trails = false;
+                TorqueOptions.point_type = 'square';
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions);
+            }
+            this.quake_size = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "quakesize";
+                TorqueOptions.column = "quakedate";
+                TorqueOptions.cumulative = true;
+                TorqueOptions.resolution = 1;
+                TorqueOptions.steps = 441;
+                TorqueOptions.fps = 21;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                TorqueOptions.blendmode = 'source-over';
+                TorqueOptions.trails = false;
+                TorqueOptions.point_type = 'square';
+                //TorqueOptions.countby = 'sum(mmio)';
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions);
+            }
+            this.african_honey_bee = function () {
+                TorqueOptions.user = "viz2";
+                TorqueOptions.table = "africanhoneybee";
+                TorqueOptions.column = "first_year";
+                TorqueOptions.cumulative = true;
+                TorqueOptions.resolution = 1;
+                TorqueOptions.steps = 29;
+                TorqueOptions.fps = 2;
+                TorqueOptions.fitbounds = 1;
+                TorqueOptions.clock = true;
+                TorqueOptions.blendmode = 'source-over';
+                TorqueOptions.trails = false;
+                TorqueOptions.point_type = 'square';
+                tablename = TorqueOptions.table;
+                torque.setOptions(TorqueOptions)
+            }
         }
-        this.jatorre_flights = function(){
-          TorqueOptions.user = "osm2";
-          TorqueOptions.table = "openpaths_segments";
-          TorqueOptions.column = "end_timestamp";
-          TorqueOptions.cumulative = true;
-          TorqueOptions.resolution = 2;
-          TorqueOptions.steps = 500;
-          TorqueOptions.fps = 24;
-          TorqueOptions.fitbounds = -1;
-          TorqueOptions.clock = true;
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions);
-        }
-        this.quake_total = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "quksigx020";
-          TorqueOptions.column = "quakedate";
-          TorqueOptions.cumulative = true;
-          TorqueOptions.resolution = 8;
-          TorqueOptions.steps = 441;
-          TorqueOptions.fps = 21;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          TorqueOptions.countby = 'sum(mmio)';
-          TorqueOptions.blendmode = 'source-over';
-          TorqueOptions.trails = false;
-          TorqueOptions.point_type = 'square';
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions);
-        }
-        this.quake_size = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "quakesize";
-          TorqueOptions.column = "quakedate";
-          TorqueOptions.cumulative = true;
-          TorqueOptions.resolution = 1;
-          TorqueOptions.steps = 441;
-          TorqueOptions.fps = 21;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          TorqueOptions.blendmode = 'source-over';
-          TorqueOptions.trails = false;
-          TorqueOptions.point_type = 'square';
-          //TorqueOptions.countby = 'sum(mmio)';
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions);
-        }
-        this.african_honey_bee = function(){
-          TorqueOptions.user = "viz2";
-          TorqueOptions.table = "africanhoneybee";
-          TorqueOptions.column = "first_year";
-          TorqueOptions.cumulative = true;
-          TorqueOptions.resolution = 1;
-          TorqueOptions.steps = 29;
-          TorqueOptions.fps = 2;
-          TorqueOptions.fitbounds = 1;
-          TorqueOptions.clock = true;
-          TorqueOptions.blendmode = 'source-over';
-          TorqueOptions.trails = false;
-          TorqueOptions.point_type = 'square';
-          tablename = TorqueOptions.table;
-          torque.setOptions(TorqueOptions)
-        }
-      }
-      var ps = new PresetOptions();
-            var presets = toggle.addFolder("Other examples",false);
-            presets.add(ps, 'us_postoffices');
-            presets.add(ps, 'african_honey_bee');
-            presets.add(ps, 'quake_total');
-            presets.add(ps, 'quake_size');
-            presets.add(ps, 'stop_frisk');
-            presets.add(ps, 'stop_frisk_live');            
-            presets.add(ps, 'jatorre_flights');
-            presets.add(ps, 'ny_bus');
-            presets.add(ps, 'old_weather_agg');
-            presets.add(ps, 'old_weather_live');
+        var ps = new PresetOptions();
+        var presets = toggle.addFolder("Other examples", false);
+        presets.add(ps, 'us_postoffices');
+        presets.add(ps, 'african_honey_bee');
+        presets.add(ps, 'quake_total');
+        presets.add(ps, 'quake_size');
+        presets.add(ps, 'stop_frisk');
+        presets.add(ps, 'stop_frisk_live');
+        presets.add(ps, 'jatorre_flights');
+        presets.add(ps, 'ny_bus');
+        presets.add(ps, 'old_weather_agg');
+        presets.add(ps, 'old_weather_live');
     }
     </script>
 </head>
 <body onload="initialize()">
-<div id="map_canvas"></div>
-<div class="torque_time" ></div>
-<a class="cartodb_logo" href="http://www.cartodb.com" target="_blank">CartoDB</a>
+    <div id="map_canvas"></div>
+    <div class="torque_time"></div>
+    <a class="cartodb_logo" href="http://www.cartodb.com" target="_blank">CartoDB</a>
 </body>
 </html>
