@@ -1,3 +1,14 @@
+// iOS fix
+if(Function.prototype.bind == undefined){
+  Function.prototype.bind = function (bind) {
+      var self = this;
+      return function () {
+          var args = Array.prototype.slice.call(arguments);
+          return self.apply(bind || null, args);
+      };
+  };   
+}
+
 function Torque() {
   var args = Array.prototype.slice.call(arguments),
   callback = args.pop(),
@@ -49,18 +60,22 @@ Torque.modules.layer = function(torque) {
     torque.layer.Engine = Class.extend({
         init: function(map, options) {
             this._defaults = {
-                user       : 'viz2',
-                table      : 'ny_bus',
-                column     : 'timestamp',
-                steps      : 250,
-                resolution : 3, 
-                cumulative : false, 
-    	        fps        : 125,
-    	        autoplay   : true,
-    	        clock      : false,
-    	        zindex     : 0,
-    	        fitbounds  : false,
-    	        countby    : 'count(i.cartodb_id)'
+              user       : 'viz2',
+              table      : 'ny_bus',
+              column     : 'timestamp',
+              steps      : 250,
+              resolution : 3,
+              cumulative : false,
+              fps        : 24,
+              autoplay   : true,
+              clock      : false,
+              zindex     : 0,
+              fitbounds  : false,
+              countby    : 'count(i.cartodb_id)',
+              blendmode  : 'source-over',
+              trails     : false,
+              point_type : 'square',
+              subtitles  : false
             }
             this.options = _.defaults(options, this._defaults);
             
@@ -78,6 +93,14 @@ Torque.modules.layer = function(torque) {
             torque.clock.set('loading...');
             
             this.getDeltas();
+        },
+        pause: function(){
+          if (this.running == true){
+            this.running = false;
+          } else {
+            this.running = true;
+            this.play();
+          }
         },
         setOptions: function(new_options){
             
@@ -108,9 +131,14 @@ Torque.modules.layer = function(torque) {
             
             this.fitBounds(this.options.fitbounds);
             
-            this.running = true;
+            this.running = false;
             torque.clock.clear();
-            this.play();
+
+            if(this.options.autoplay){
+              this.running = true;
+              this.play();
+            }
+
             torque.log.info('Layer is now running!');
         },
         _setupListeners: function(){
@@ -170,9 +198,17 @@ Torque.modules.layer = function(torque) {
             } else {
                 this._current = this.start;
             }
-            torque.clock.set((new Date(this._current*1000)).toString().substr(4).split(' ').slice(0, 4).join(' '))
+
+            var date = new Date(this._current*1000);
+            var date_arry = date.toString().substr(4).split(' ');
+            torque.clock.set('<span id="month">' + date_arry[0] + '</span> <span id="year">' + date_arry[2] + '</span>');
+
+            if(this.options.subtitles){
+              torque.subtitles.set(date);  
+            }
+            
             this._display.set_time((this._current-this.start)/this._step);
-    
+  
             if (this.running){
                 setTimeout(function(){this.play()}.bind(this), pause + 1000*1/this.options.fps); 
             }         
@@ -194,6 +230,68 @@ Torque.modules.clock = function(torque) {
     if (torque.clock.enabled) {
       $('.torque_time').html(msg);
     } 
+  };
+};
+
+Torque.modules.subtitles = function(torque) {
+  torque.subtitles = {
+    subs: [
+            {
+              from: new Date("March 01, 1913 00:00:00"),
+              to:   new Date("July 01, 1914 00:00:00"),
+              sub: "Pre war"
+            },
+            {
+              from: new Date("August 01, 1914 00:00:00"),
+              to:   new Date("February 01, 1915 00:00:00"),
+              sub: "War begins with Germany"
+            },
+            {
+              from: new Date("February 02, 1915 00:00:00"),
+              to:   new Date("October 01, 1916 00:00:00"),
+              sub: "North Sea naval blockade"
+            },
+            {
+              from: new Date("October 02, 1917 00:00:00"),
+              to:   new Date("April 01, 1917 00:00:00"),
+              sub: "Atlantic U-boat warfare"
+            },
+            {
+              from: new Date("April 02, 1917 00:00:00"),
+              to:   new Date("September 01, 1917 00:00:00"),
+              sub: "USA enters war"
+            },
+            {
+              from: new Date("September 02, 1917 00:00:00"),
+              to:   new Date("November 01, 1918 00:00:00"),
+              sub: "Destroyers begin to escort convoys in Atlantic"
+            },
+            {
+              from: new Date("November 02, 1918 00:00:00"),
+              to:   new Date("August 01, 1920 00:00:00"),
+              sub: "End of WWI"
+            },
+            {
+              from: new Date("August 02, 1920 00:00:00"),
+              to:   new Date("August 01, 1925 00:00:00"),
+              sub: "Trade routes resume"
+            }
+
+          ]
+  };
+
+  torque.subtitles.clear = function() {
+    $('.torque_subs').html('');
+  };
+  torque.subtitles.set = function(date) {
+    $.each(this.subs, function(){
+      if(this.from < date && this.to > date){
+        torque.subtitles._update(this.sub);
+      }
+    });
+  };
+  torque.subtitles._update = function(msg) {
+    $('.torque_subs').html(msg);
   };
 };
 

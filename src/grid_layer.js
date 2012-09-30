@@ -12,6 +12,7 @@ function TimePlayer(min_date, end, step, options) {
     this.MIN_DATE = min_date;
     this.MAX_UNITS = options.steps+2;
     this.MAX_VALUE = 0;
+    this.MAX_VALUE_LOG = 0;
     this.BASE_UNIT = 0;
     this.canvas_setup = this.get_time_data;
     this.render = this.render_time;
@@ -20,8 +21,7 @@ function TimePlayer(min_date, end, step, options) {
     this.user = options.user;
     this.t_column = options.column;
     this.resolution = options.resolution;
-    this.countby = options.countby
-    //this.base_url = 'http://sql.wri-01.cartodb.com/api/v2/sql';
+    this.countby = options.countby    
     this.base_url = 'http://'+this.user+'.cartodb.com/api/v2/sql';
     this.options = options;
 }
@@ -39,6 +39,7 @@ TimePlayer.prototype.set_time = function(t) {
 };
 TimePlayer.prototype.reset_max_value = function() {
     this.MAX_VALUE = 0;
+    this.MAX_VALUE_LOG = 0;
 };
 /**
  * change table where the data is choosen
@@ -89,8 +90,7 @@ TimePlayer.prototype.pre_cache_months = function(rows, coord, zoom) {
         xcoords = [];
         ycoords = [];
         values = [];
-        // array buffer set by default to 0
-        // fucking javascript arrays not
+        // array buffer set by default to 0        
         for(var i = 0; i < rows.length*this.MAX_UNITS; ++i){
             values[i] = 0;
         }
@@ -111,6 +111,7 @@ TimePlayer.prototype.pre_cache_months = function(rows, coord, zoom) {
         values[base_idx + row.dates[j]] = row.vals[j];
         if (row.vals[j] > this.MAX_VALUE) {
             this.MAX_VALUE = row.vals[j];
+            this.MAX_VALUE_LOG = Math.log(this.MAX_VALUE);
         }
           
       };
@@ -119,6 +120,7 @@ TimePlayer.prototype.pre_cache_months = function(rows, coord, zoom) {
             values[base_idx + j] += values[base_idx + j - 1];
             if (values[base_idx + j] > this.MAX_VALUE) {
                 this.MAX_VALUE = values[base_idx + j];
+                this.MAX_VALUE_LOG = Math.log(this.MAX_VALUE);
             }
           }
       }
@@ -158,7 +160,7 @@ TimePlayer.prototype.get_time_data = function(tile, coord, zoom) {
                 "    x, y, array_agg(c) vals, array_agg(d) dates "+ 
                 " FROM ( "+ 
                 "    SELECT "+ 
-                "      st_xmax(hgrid.cell) x, st_ymax(hgrid.cell) y, " + 
+                "      round(CAST (st_xmax(hgrid.cell) AS numeric),4) x, round(CAST (st_ymax(hgrid.cell) AS numeric),4) y, " +
                 "      {0} c, floor((date_part('epoch',{1})- {2})/{3}) d ".format(this.countby, this.t_column, this.MIN_DATE, this.step) + 
                 "    FROM "+ 
                 "        hgrid, {0} i ".format(this.table) + 
@@ -213,41 +215,127 @@ TimePlayer.prototype.render_time = function(tile, coord, zoom) {
     ];
 
     var fillStyle;
-    
-    //ctx.fillStyle = '#000';
-    // clear canvas
+    // clear canvas    
     tile.canvas.width = w;
+    
     var ci = 0;
     var cu = 0;
     ctx.strokeStyle = ctx.fillStyle = colors[cu];
-    
+    ctx.globalCompositeOperation = this.options.blendmode;
     var xc = cells.xcoords;
     var yc = cells.ycoords;
     var vals = cells.values;
     var dz = 256 / Math.pow(2,zoom)
     
     // render cells
-    //var data = ctx.getImageData(0, 0, w, h);
-    //var pixels = data.data;
-    var len = cells.length;
-    var pixel_size = cells.size;
-    var pixel_size = this.resolution ;
-    var numTiles = 1 << zoom;
-    
-    for(i = 0; i < len; ++i) {
-      //var idx = (4*(256*yc[i] + xc[i]))>>0;
-      // set pixel by hand
-      // faster than doing fill rect (below)
-      if(cells.values[this.MAX_UNITS*i + month]) {
-          ci = cells.values[this.MAX_UNITS*i + month] == 0 ? 0 : Math.floor((colors.length-1) * (Math.log(cells.values[this.MAX_UNITS*i + month])/Math.log(this.MAX_VALUE)));
-          if (ci != cu) {
-              cu = ci < colors.length? ci : cu;
-              ctx.strokeStyle = ctx.fillStyle = colors[cu];
-          }
-          ctx.fillRect(xc[i] - Math.floor((pixel_size-1)/2), yc[i] - Math.floor((pixel_size-1)/2), pixel_size, pixel_size);
-      }
+    var len = cells.length;  
+    var pixel_size = this.resolution//*this.options.cellsize;
+    var pixel_size_trail_circ = pixel_size*2;
+    var pixel_size_trail_squa = pixel_size*1.5;
+    var offset     = Math.floor((pixel_size-1)/2);
+    var tau        = Math.PI*2;
+
+    // memoize sprite canvases
+    if(self.sprite_1 == undefined){
+      self.sprite_1 = [];
+      $(colors).each(function(){
+        var canvas      = document.createElement('canvas');    
+        var ctx    = canvas.getContext('2d');
+        ctx.width  = canvas.width = pixel_size*2;
+        ctx.height = canvas.height = pixel_size*2;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = this.toString();      
+        ctx.beginPath();
+        ctx.arc(pixel_size, pixel_size, pixel_size, 0, tau, true, true);
+        ctx.closePath();
+        ctx.fill();
+        self.sprite_1.push(canvas);      
+      });
     }
-    //ctx.putImageData(data, 0, 0);
+    
+    if(self.sprite_2 == undefined){
+      self.sprite_2 = [];
+      $(colors).each(function(){
+        var canvas      = document.createElement('canvas');    
+        var ctx    = canvas.getContext('2d');
+        ctx.width  = canvas.width = pixel_size_trail_circ*2;
+        ctx.height = canvas.height = pixel_size_trail_circ*2;
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = this.toString();
+        ctx.beginPath();
+        ctx.arc(pixel_size_trail_circ, pixel_size_trail_circ, pixel_size_trail_circ, 0, tau, true, true);
+        ctx.closePath();
+        ctx.fill();
+        self.sprite_2.push(canvas);      
+      });
+    }
+
+    if(self.sprite_3 == undefined){
+      self.sprite_3 = [];
+      $(colors).each(function(){
+        var canvas      = document.createElement('canvas');    
+        var ctx    = canvas.getContext('2d');
+        ctx.width  = canvas.width = pixel_size*2;
+        ctx.height = canvas.height = pixel_size*2;
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = this.toString();
+        ctx.beginPath();
+        ctx.arc(pixel_size, pixel_size, pixel_size, 0, tau, true, true);
+        ctx.closePath();
+        ctx.fill();
+        self.sprite_3.push(canvas);         
+      });
+    }
+
+
+    var numTiles = 1 << zoom;
+    for(i = 0; i < len; ++i) {
+      var cell = cells.values[this.MAX_UNITS*i + month];
+      if(cell) {
+        ci = cell == 0 ? 0 : Math.floor((colors.length-1) * (Math.log(cell)/this.MAX_VALUE_LOG));
+        if (ci != cu) {
+          cu = ci < colors.length? ci : cu;
+          ctx.fillStyle = colors[cu];
+        }        
+        if(this.options.point_type == 'circle'){
+          ctx.drawImage(self.sprite_1[cu],xc[i]-pixel_size, yc[i]-pixel_size)
+        } else if(this.options.point_type == 'square') {
+          ctx.fillRect(xc[i]-offset, yc[i]-offset, pixel_size, pixel_size);
+        }          
+      }
+
+      if(this.options.trails == true){
+        
+        cell = cells.values[this.MAX_UNITS*i + month-1];
+        if(cell) {
+          ci = cell == 0 ? 0 : Math.floor((colors.length-1) * (Math.log(cell)/this.MAX_VALUE_LOG));
+          if (ci != cu) {
+            cu = ci < colors.length? ci : cu;
+            ctx.fillStyle = colors[cu];
+          }
+          if(this.options.point_type == 'circle'){
+            //alignment hack - sorry to the gods of graphics
+            ctx.drawImage(self.sprite_2[cu],xc[i]-pixel_size_trail_squa-1, yc[i]-pixel_size_trail_squa-1)
+          } else if(this.options.point_type == 'square') {
+            ctx.fillRect(xc[i]-offset, yc[i]-offset, pixel_size_trail_squa, pixel_size_trail_squa);            
+          }        
+        }  
+  
+        cell = cells.values[this.MAX_UNITS*i + month-2];              
+        if(cell) {
+          ci = cell == 0 ? 0 : Math.floor((colors.length-1) * (Math.log(cell)/this.MAX_VALUE_LOG));
+          if (ci != cu) {
+            cu = ci < colors.length? ci : cu;
+            ctx.fillStyle = colors[cu];
+          }
+          if(this.options.point_type == 'circle'){
+            ctx.drawImage(self.sprite_3[cu],xc[i]-pixel_size, yc[i]-pixel_size)
+          } else if(this.options.point_type == 'square') {
+            ctx.fillRect(xc[i]-offset, yc[i]-offset, pixel_size, pixel_size);            
+          }          
+        }        
+      }      
+    }  
 };
 
 
@@ -271,7 +359,7 @@ String.prototype.format = (function(i, safe, arg) {
       }
       return str;
   }
-  format.native = String.prototype.format;
+  //format.native = String.prototype.format;
   return format;
 })();
 

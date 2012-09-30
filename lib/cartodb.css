@@ -23,4 +23,4 @@ div.cartodb_infowindow div.bottom a:hover {background:linear-gradient(-90deg, #C
   background:-moz-linear-gradient(-90deg, #CACBCE, #FFFFFF); background: -o-linear-gradient(#CACBCE,#FFFFFF); filter:  progid:DXImageTransform.Microsoft.gradient(GradientType=0,startColorstr='#CACBCE', endColorstr='#FFFFFF'); cursor:pointer;}
 a.cartodb_logo {position:absolute; bottom:8px; left:75px; display:block; width:69px; height:27px; background:url('http://cartodb.s3.amazonaws.com/embed/embed_sprite.png') no-repeat -61px 0;
         text-indent:-9999px; line-height:0; font-size:0;}
-div.torque_time {position:absolute; bottom:28px; right:15px; display:block; width:189px; height:27px;}
+div.torque_time {position:absolute; bottom:28px; right:15px; display:block; width:189px; height:27px;color:white;}
