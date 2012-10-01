@@ -1,4 +1,10 @@
-function CanvasTileLayer(canvas_setup, render) {
+/*
+ ====================
+ canvas setup for drawing tiles
+ ====================
+ */
+
+ function CanvasTileLayer(canvas_setup, render) {
     this.tileSize = new google.maps.Size(256, 256);
     this.maxZoom = 19;
     this.name = "Tile #s";

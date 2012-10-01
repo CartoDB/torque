@@ -1,6 +1,6 @@
 /*
  ====================
- this class renders deforestation data in a given time
+ this class renders tile data in a given time
  ====================
  */
 
