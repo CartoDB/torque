@@ -7,4 +7,4 @@ CartoDB users can use this code right away. Specify your username/tablename and 
 
 Have fun!
 
-Demos: http://andrewxhill.github.com/torque
+Demo: http://andrewxhill.github.com/torque/examples/uspo.html
