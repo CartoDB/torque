@@ -24,8 +24,8 @@
     function initialize() {
         // initialise the google map
         var map = new google.maps.Map(document.getElementById('map_canvas'), {
-            center: new google.maps.LatLng(38.27268853598097,-88.2421875),
-            zoom: 5,
+            center: new google.maps.LatLng(40.4166909, -3.7003454),
+            zoom: 10,
             mapTypeId:google.maps.MapTypeId.SATELLITE,
             mapTypeControl:false,
             minZoom:1
@@ -62,18 +62,17 @@
 
         var TorqueOptions = {
             user: "viz2",
-            table: "us_po_offices",
-            column: "built",
-            cumulative: true,
+            table: "madrid_osm_line",
+            column: "fake_date",
+            cumulative: false,
             resolution: 2,
-            steps: 250,
+            steps: 750,
             fps: 24,
             fitbounds: false,
-            clock: true,
-            blendmode: 'source-over',
+            clock: false,
+            blendmode: 'lighter',
             trails: true,
-            point_type:'circle',
-            cellsize:2
+            point_type:'circle'
         }
 
         var torque = null;

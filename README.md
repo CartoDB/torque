@@ -7,4 +7,5 @@ CartoDB users can use this code right away. Specify your username/tablename and 
 
 Have fun!
 
-Demo: http://cartodb.github.com/torque/examples/uspo.html
+USPO creation over time: http://cartodb.github.com/torque/examples/uspo.html
+OpenStreetMap edits in Madrid over time: http://cartodb.github.com/torque/examples/osm.html
