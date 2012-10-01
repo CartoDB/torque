@@ -1,3 +1,15 @@
+/**
+ *
+ * Torque library
+ * 
+ * A tool for mapping temporal data from CartoDB
+ * Still in development and being finalized for
+ * CartoDB 2.0
+ *
+ * Authors: Andrew Hill, Simon Tokumine, Javier Santana
+ *
+ */
+
 // iOS fix
 if (Function.prototype.bind == undefined) {
     Function.prototype.bind = function (bind) {
