@@ -119,6 +119,13 @@ TimePlayer.prototype.pre_cache_months = function (rows, coord, zoom) {
         if (this.options.cumulative) {
             for (var j = 1; j < this.MAX_UNITS; ++j) {
                 values[base_idx + j] += values[base_idx + j - 1];
+                if (this.options.cumulative_expires) {
+                    for ( var u = 0; u < row.dates_end.length; ++u ) {
+                        if ( row.dates_end[u] != null && row.dates_end[u] < (j+1) ) {
+                            values[base_idx + j - 1 ] -= row.vals[u]
+                        }
+                    }
+                }
                 if (values[base_idx + j] > this.MAX_VALUE) {
                     this.MAX_VALUE = values[base_idx + j];
                     this.MAX_VALUE_LOG = Math.log(this.MAX_VALUE);
@@ -149,8 +156,35 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
     // se contains the deforestation for each entry in sd
     // take se and sd as a matrix [se|sd]
     var numTiles = 1 << zoom;
-
-    var sql = "WITH hgrid AS ( " +
+    var sql = ""
+    if ( this.options.cumulative_expires == true) {
+        sql = "WITH hgrid AS ( " +
+            "    SELECT CDB_RectangleGrid( " +
+            "       CDB_XYZ_Extent({0}, {1}, {2}), ".format(coord.x, coord.y, zoom) +
+            "       CDB_XYZ_Resolution({0}) * {1}, ".format(zoom, this.resolution) +
+            "       CDB_XYZ_Resolution({0}) * {1} ".format(zoom, this.resolution) +
+            "    ) as cell " +
+            " ) " +
+            " SELECT  " +
+            "    x, y, array_agg(c) vals, array_agg(d) dates , array_agg(de) dates_end" +
+            " FROM ( " +
+            "    SELECT " +
+            "      round(CAST (st_xmax(hgrid.cell) AS numeric),4) x, " +
+            "      round(CAST (st_ymax(hgrid.cell) AS numeric),4) y, " +
+            "      {0} c, ".format(this.countby) +
+            "      floor((date_part('epoch',{0})- {1})/{2}) d, ".format(this.t_column, this.MIN_DATE, this.step) +
+            "      floor((date_part('epoch',{0})- {1})/{2}) de ".format(this.options.expiration_column, this.MIN_DATE, this.step) +
+            "    FROM " +
+            "        hgrid, {0} i ".format(this.table) +
+            "    WHERE " +
+            "        ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
+            "    GROUP BY " +
+            "        hgrid.cell, " +
+            "        floor((date_part('epoch',{0})- {1})/{2}), ".format(this.t_column, this.MIN_DATE, this.step) + 
+            "        floor((date_part('epoch',{0})- {1})/{2})".format(this.options.expiration_column, this.MIN_DATE, this.step) +
+            " ) f GROUP BY x, y";
+    } else {
+        sql = "WITH hgrid AS ( " +
         "    SELECT CDB_RectangleGrid( " +
         "       CDB_XYZ_Extent({0}, {1}, {2}), ".format(coord.x, coord.y, zoom) +
         "       CDB_XYZ_Resolution({0}) * {1}, ".format(zoom, this.resolution) +
@@ -170,6 +204,7 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
         "    GROUP BY " +
         "        hgrid.cell, floor((date_part('epoch',{0})- {1})/{2})".format(this.t_column, this.MIN_DATE, this.step) +
         " ) f GROUP BY x, y";
+    }
 
     var prof = Profiler.get('tile fetch');
     prof.start();
