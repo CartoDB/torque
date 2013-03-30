@@ -348,37 +348,6 @@ function init_slider( that ){
         }
     });
 
-    // // Setup the slider with backbone.js
-    // var SliderModel = Backbone.Model.extend({});
-    // var SliderView = Backbone.View.extend({
-    //     el : $("#slider"),
-    //     events : {
-    //         "slide" : "updateVal"
-    //     },
-    //     updateVal : function(event, ui) {
-    //         var val = ui.value;
-    //         this.model.set({slidervalue : val});
-    //     }
-    // });
-
-    // var ValueView = Backbone.View.extend({
-    //     initialize: function(args) {
-    //         _.bindAll(this, 'updateValue');
-    //         this.model.bind('change:slidervalue', this.updateValue);
-    //     },
-    //     updateValue: function() {
-    //         var value = this.model.get('slidervalue');
-    //         var date_s = new Date(value*1000);
-    //         console.log(date_s.toString())
-    //         // $("#sliderVal").val(value +' ' + date_s.toString());
-    //         that.scrub(value);
-    //     }
-    // });
-
-    // var sliderModel = new SliderModel;
-
-    // var sliderView = new SliderView({model : sliderModel });
-    // var valView = new ValueView({model : sliderModel});
 };
 
 /**
