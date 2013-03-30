@@ -241,7 +241,6 @@ Torque.modules.layer = function (torque) {
         },
         scrub:function(scrub_current){
             this._current = scrub_current;
-            console.log('current', new Date(this._current*1000))
             var date = new Date(this._current * 1000);
             var date_arry = date.toString().substr(4).split(' ');
             torque.clock.set('<span id="month">' + date_arry[0] + '</span> <span id="year">' + date_arry[2] + '</span>');
