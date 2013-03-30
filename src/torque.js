@@ -153,7 +153,8 @@ Torque.modules.layer = function (torque) {
             if (this.options.scrub){
                 this.options.autoplay = false;
                 this.options.trails   = false;
-                $("#slider").show();
+                $('body').append('<div id="torque-slider"></div>');
+
             }
 
             if (this.options.autoplay) {
@@ -338,7 +339,7 @@ function init_slider( that ){
     var that_opts = that.options;
 
     // Init jQuery UI options
-    $("#slider").slider({
+    $("#torque-slider").slider({
         min: Math.round(that_opts.start),
         max: Math.round(that_opts.end),
         value: Math.round(that_opts.start),
