@@ -1,7 +1,7 @@
 /**
  *
  * Torque library
- * 
+ *
  * A tool for mapping temporal data from CartoDB
  * Still in development and being finalized for
  * CartoDB 2.0
@@ -88,7 +88,8 @@ Torque.modules.layer = function (torque) {
                 blendmode:'source-over',
                 trails:false,
                 point_type:'square',
-                subtitles:false
+                subtitles:false,
+                scrub:false
             }
             this.options = _.defaults(options, this._defaults);
 
@@ -128,6 +129,7 @@ Torque.modules.layer = function (torque) {
 
             this._map.overlayMapTypes.setAt(this._index, null);
             this.getDeltas();
+
         },
         run:function () {
             this.start = new Date(this.options.start).getTime();
@@ -147,10 +149,19 @@ Torque.modules.layer = function (torque) {
             this.running = false;
             torque.clock.clear();
 
+            // If scrubbable, override other options that may have been set
+            if (this.options.scrub){
+                this.options.autoplay = false;
+                this.options.trails   = false;
+                $("#slider").show();
+            }
+
             if (this.options.autoplay) {
                 this.running = true;
                 this.play();
             }
+
+            init_slider(this);
 
             torque.log.info('Layer is now running!');
         },
@@ -195,7 +206,7 @@ Torque.modules.layer = function (torque) {
         },
         advance:function () {
             if (this._current < this.end) {
-                this._current = this._current + this._step
+                this._current = this._current + this._step;
             } else {
                 this._current = this.start;
             }
@@ -227,6 +238,20 @@ Torque.modules.layer = function (torque) {
                     this.play()
                 }.bind(this), pause + 1000 * 1 / this.options.fps);
             }
+        },
+        scrub:function(scrub_current){
+            this._current = scrub_current;
+            console.log('current', new Date(this._current*1000))
+            var date = new Date(this._current * 1000);
+            var date_arry = date.toString().substr(4).split(' ');
+            torque.clock.set('<span id="month">' + date_arry[0] + '</span> <span id="year">' + date_arry[2] + '</span>');
+
+            if (this.options.subtitles) {
+                torque.subtitles.set(date);
+            }
+
+            this._display.set_time((this._current - this.start) / this._step);
+
         }
     });
 }
@@ -308,6 +333,53 @@ Torque.modules.subtitles = function (torque) {
     torque.subtitles._update = function (msg) {
         $('.torque_subs').html(msg);
     };
+};
+
+function init_slider( that ){
+    var that_opts = that.options;
+
+    // Init jQuery UI options
+    $("#slider").slider({
+        min: Math.round(that_opts.start),
+        max: Math.round(that_opts.end),
+        value: Math.round(that_opts.start),
+        step: that._step,
+        slide: function(event, ui){
+            that.scrub(ui.value);
+        }
+    });
+
+    // // Setup the slider with backbone.js
+    // var SliderModel = Backbone.Model.extend({});
+    // var SliderView = Backbone.View.extend({
+    //     el : $("#slider"),
+    //     events : {
+    //         "slide" : "updateVal"
+    //     },
+    //     updateVal : function(event, ui) {
+    //         var val = ui.value;
+    //         this.model.set({slidervalue : val});
+    //     }
+    // });
+
+    // var ValueView = Backbone.View.extend({
+    //     initialize: function(args) {
+    //         _.bindAll(this, 'updateValue');
+    //         this.model.bind('change:slidervalue', this.updateValue);
+    //     },
+    //     updateValue: function() {
+    //         var value = this.model.get('slidervalue');
+    //         var date_s = new Date(value*1000);
+    //         console.log(date_s.toString())
+    //         // $("#sliderVal").val(value +' ' + date_s.toString());
+    //         that.scrub(value);
+    //     }
+    // });
+
+    // var sliderModel = new SliderModel;
+
+    // var sliderView = new SliderView({model : sliderModel });
+    // var valView = new ValueView({model : sliderModel});
 };
 
 /**
