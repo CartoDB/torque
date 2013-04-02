@@ -151,8 +151,8 @@ Torque.modules.layer = function (torque) {
 
             // If scrubbable, override other options that may have been set
             if (this.options.scrub){
-                this.options.autoplay = false;
-                this.options.trails   = false;
+                // this.options.autoplay = false;
+                // this.options.trails   = false;
                 $('body').append('<div id="torque-slider"></div>');
 
             }
@@ -234,6 +234,9 @@ Torque.modules.layer = function (torque) {
 
             this._display.set_time((this._current - this.start) / this._step);
 
+            if (this.options.scrub==true){
+                $( "#torque-slider" ).slider({ value: this._current });
+            }
             if (this.running) {
                 setTimeout(function () {
                     this.play()
@@ -337,11 +340,10 @@ Torque.modules.subtitles = function (torque) {
 
 function init_slider( that ){
     var that_opts = that.options;
-
     // Init jQuery UI options
     $("#torque-slider").slider({
         min: Math.round(that_opts.start),
-        max: Math.round(that_opts.end),
+        max: Math.floor(that_opts.end),
         value: Math.round(that_opts.start),
         step: that._step,
         slide: function(event, ui){
