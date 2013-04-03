@@ -240,20 +240,7 @@ Torque.modules.layer = function (torque) {
                     this.play()
                 }.bind(this), pause + 1000 * 1 / this.options.fps);
             }
-        },
-        // scrub:function(scrub_current){
-        //     this._current = scrub_current;
-        //     var date = new Date(this._current * 1000);
-        //     var date_arry = date.toString().substr(4).split(' ');
-        //     torque.clock.set('<span id="month">' + date_arry[0] + '</span> <span id="year">' + date_arry[2] + '</span>');
-
-        //     if (this.options.subtitles) {
-        //         torque.subtitles.set(date);
-        //     }
-
-        //     this._display.set_time((this._current - this.start) / this._step);
-
-        // }
+        }
     });
 }
 
