@@ -350,7 +350,6 @@ function init_slider( that ){
             that.scrub(ui.value);
         }
     });
-
 };
 
 /**

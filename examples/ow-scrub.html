@@ -15,6 +15,25 @@
             right:25px;
             width:300px;
         }
+        #torque-pause{
+            position:absolute;
+            bottom:12px;
+            right:345px;
+            width:28px;
+            height: 26px;
+            padding: 1px 2px 2px 2px;
+            z-index: 1000;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .playing {background-color: white; background-image: url(../img/pause.png); background-repeat:no-repeat; background-position:center; }
+        .paused { background-color: white; background-image: url(../img/play.png);background-repeat:no-repeat; background-position:center;}
+/*        #torque-pause .playing {
+            background-image: url('../img/pause.png');
+        }
+        #torque-pause .paused{
+            background-image: url('../img/play.png');
+        }*/
     </style>
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
@@ -84,7 +103,7 @@
             trails:true,
             point_type:'circle',
             cellsize:1,
-            scrub: true
+            scrub: true,
         }
 
         var torque = null;
@@ -92,7 +111,25 @@
             Torque.app = new env.app.Instance();
             torque = new Torque.app.addLayer(map, TorqueOptions);
             Torque.env = env;
+
+            // TODO pause method needs to be added to Torque UI options
+            var pause = $('<a></a>');
+            $(pause).attr('id','torque-pause')
+            $(pause).addClass("playing");
+            $('body').append(pause);
+            $(pause).click(function(){
+                if($(this).hasClass('paused')){
+                    torque.pause();
+                    $(this).removeClass("paused");
+                    $(this).addClass("playing");
+                } else {
+                    $(this).removeClass("playing");
+                    $(this).addClass("paused");
+                    torque.pause();
+                }
+            });
         });
+
 
     }
     </script>
