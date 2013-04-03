@@ -151,10 +151,9 @@ Torque.modules.layer = function (torque) {
 
             // If scrubbable, override other options that may have been set
             if (this.options.scrub){
+                this.options.scrub(this);
                 // this.options.autoplay = false;
                 // this.options.trails   = false;
-                $('body').append('<div id="torque-slider"></div>');
-
             }
 
             if (this.options.autoplay) {
@@ -162,7 +161,6 @@ Torque.modules.layer = function (torque) {
                 this.play();
             }
 
-            init_slider(this);
 
             torque.log.info('Layer is now running!');
         },
@@ -234,8 +232,8 @@ Torque.modules.layer = function (torque) {
 
             this._display.set_time((this._current - this.start) / this._step);
 
-            if (this.options.scrub==true){
-                $( "#torque-slider" ).slider({ value: this._current });
+            if (this.options.scrub_move){
+                this.options.scrub_move(this)
             }
             if (this.running) {
                 setTimeout(function () {
@@ -243,19 +241,19 @@ Torque.modules.layer = function (torque) {
                 }.bind(this), pause + 1000 * 1 / this.options.fps);
             }
         },
-        scrub:function(scrub_current){
-            this._current = scrub_current;
-            var date = new Date(this._current * 1000);
-            var date_arry = date.toString().substr(4).split(' ');
-            torque.clock.set('<span id="month">' + date_arry[0] + '</span> <span id="year">' + date_arry[2] + '</span>');
+        // scrub:function(scrub_current){
+        //     this._current = scrub_current;
+        //     var date = new Date(this._current * 1000);
+        //     var date_arry = date.toString().substr(4).split(' ');
+        //     torque.clock.set('<span id="month">' + date_arry[0] + '</span> <span id="year">' + date_arry[2] + '</span>');
 
-            if (this.options.subtitles) {
-                torque.subtitles.set(date);
-            }
+        //     if (this.options.subtitles) {
+        //         torque.subtitles.set(date);
+        //     }
 
-            this._display.set_time((this._current - this.start) / this._step);
+        //     this._display.set_time((this._current - this.start) / this._step);
 
-        }
+        // }
     });
 }
 
@@ -336,20 +334,6 @@ Torque.modules.subtitles = function (torque) {
     torque.subtitles._update = function (msg) {
         $('.torque_subs').html(msg);
     };
-};
-
-function init_slider( that ){
-    var that_opts = that.options;
-    // Init jQuery UI options
-    $("#torque-slider").slider({
-        min: Math.round(that_opts.start),
-        max: Math.floor(that_opts.end),
-        value: Math.round(that_opts.start),
-        step: that._step,
-        slide: function(event, ui){
-            that.scrub(ui.value);
-        }
-    });
 };
 
 /**

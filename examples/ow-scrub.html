@@ -89,6 +89,28 @@
         map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
         map.setOptions({styles:map_style.google_maps_customization_style});
 
+
+        function init_slider( that ){
+            var that_opts = that.options;
+            $('body').append('<div id="torque-slider"></div>');
+            // Init jQuery UI options
+            $("#torque-slider").slider({
+                min: Math.round(that_opts.start),
+                max: Math.floor(that_opts.end),
+                value: Math.round(that_opts.start),
+                step: that._step,
+                slide: function(event, ui){
+                    that._current = ui.value;
+                    var date = new Date(that._current * 1000);
+                    var date_arry = date.toString().substr(4).split(' ');
+                    that._display.set_time((that._current - that.start) / that._step);                    
+                }
+            });
+        };
+        function on_move (that) {
+            $( "#torque-slider" ).slider({ value: that._current });
+        }
+
         var TorqueOptions = {
             user:'viz2',
             table:'ow',
@@ -103,7 +125,8 @@
             trails:true,
             point_type:'circle',
             cellsize:1,
-            scrub: true,
+            scrub: init_slider,
+            scrub_move: on_move
         }
 
         var torque = null;
