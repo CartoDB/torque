@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>CartoDB + Time</title>
+    <link rel="shortcut icon" href="http://cartodb.com/favicon/favicon_32x32.ico" />
+    <link href="http://code.google.com/apis/maps/documentation/javascript/examples/default.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="../lib/cartodb.css">
+    <link rel="stylesheet" href="css/time-dataview.css">
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://libs.cartocdn.com/cartodb.js/v2/cartodb.js"></script>
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+    <script src="http://code.jquery.com/ui/1.10.2/jquery-ui.js"></script>
+    <script type="text/javascript" src="../lib/wax.g.js"></script>
+    <script type="text/javascript" src="../lib/cartodb-gmapsv3.js"></script>
+    <script type="text/javascript" src="../lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="../lib/underscore-min.js"></script>
+    <script type="text/javascript" src="../lib/backbone.js"></script>
+    <script type="text/javascript" src="../lib/class.js"></script>
+    <script type="text/javascript" src="../lib/backbone.cartodb.js"></script>
+    <script type="text/javascript" src="../src/canvas_tile_layer.js"></script>
+    <script type="text/javascript" src="../src/grid_layer.js"></script>
+    <script type="text/javascript" src="../src/torque.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="slider-container">
+        <div id="graph" class="aGraph" style=""></div>
+    </div>
+    <div id="slider-spark" class="ui-widget-content">
+        <div class="head"></div>
+        <div class="pin"></div>
+    </div>
+
+    <script type="text/javascript">
+        var user_name = 'viz2';
+        var sql = new cartodb.SQL({ user: user_name});
+        var table_name = 'ow';
+        var date_col = 'date';
+        var steps = 500;
+
+        var map = new google.maps.Map(document.getElementById('map'), {
+            center:new google.maps.LatLng(30.95940879245423, -0.609375),
+            zoom:2,
+            mapTypeId:google.maps.MapTypeId.SATELLITE,
+            mapTypeControl:false,
+            minZoom:1
+        });
+
+        var map_style = {};
+        map_style.google_maps_customization_style = [
+            {
+                stylers:[
+                    { invert_lightness:true },
+                    { weight:1 },
+                    { saturation:-100 },
+                    { lightness:-40 }
+                ]
+            },
+            {
+                elementType:"labels",
+                stylers:[
+                    { visibility:"simplified" }
+                ]
+            }
+        ];
+
+        var Soft = function () {
+            this.Soft = function () {
+                map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                map.setOptions({styles:map_style.google_maps_customization_style});
+            }
+        }
+
+        map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+        map.setOptions({styles:map_style.google_maps_customization_style});
+
+
+
+        var wm = 10; //left/right margins
+
+        sql.execute("WITH extents AS (SELECT max({{date_col}}) mx, min({{date_col}}) mn FROM {{table_name}} WHERE the_geom IS NOT NULL) SELECT count(*) count, mn + i*(mx - mn)/{{steps}} frame FROM {{table_name}}, GENERATE_SERIES(1,{{steps}}) i, extents WHERE mn + (i-1)*(mx - mn)/{{steps}} < {{date_col}} AND {{date_col}} < mn + (i)*(mx - mn)/{{steps}} GROUP BY mn, mx, i ORDER BY mn + i*(mx - mn)/{{steps}} ASC", {table_name: table_name, date_col: date_col, steps: steps})
+            .error(function(e){console.log(e)})
+            .done(function(data){
+                console.log(data)
+                var m = 20;
+                var w = $('#slider-container').width();
+                var h = $('#slider-container').height()-2*m;
+                data = data.rows;
+                var mxY = data[0].count, mnY = data[0].count;
+                $.each(data,function(i,d){
+                    if (d.count < mnY) mnY = d.count;
+                    if (mxY < d.count) mxY = d.count;
+                })
+
+                var x = d3.scale.linear().domain([0, data.length]).range([0, w - 2*wm ]);
+                var y = d3.scale.linear().domain([mnY, mxY]).range([h, 0]);
+
+                var line = d3.svg.line()
+
+                .x(function(d,i) { 
+                    return x(i); 
+                })
+                .y(function(d) { 
+                    return y(d.count); 
+                })
+
+                // Add an SVG element with the desired dimensions and margin.
+                var graph = d3.select("#graph").append("svg:svg")
+                      .attr("width", w - 2*wm)
+                      .attr("height", h + m)
+                    .append("svg:g");
+
+                graph.append("svg:path").attr("d", line(data));
+
+                var TorqueOptions = {
+                    user:user_name,
+                    table:table_name,
+                    column:date_col,
+                    steps:steps,
+                    resolution:2,
+                    cumulative:false,
+                    clock:true,
+                    fps:20,
+                    fitbounds:false,
+                    blendmode:'lighter',
+                    trails:true,
+                    point_type:'circle',
+                    cellsize:1,
+                    scrub: function(that){
+                        var minDate = that.start;
+                        var maxDate = that.end;
+                        var fullW = $('#graph').width();
+                        var lastS;
+                        $('#slider-spark').draggable({
+                            axis: "x",
+                            start: function( event, ui ) {
+                                if (that.options.autoplay){
+                                    that.pause();   
+                                }
+                            },
+                            stop: function( event, ui ) {
+                                if (that.options.autoplay){
+                                    that.pause();   
+                                }
+                            },
+                            drag : function(e, ui){
+                                var o = (ui.position.left + wm - 8) / fullW;
+                                var s = 1.0/steps;
+                                // var cs = Math.floor(o/s);
+                                var cs = Math.floor(o * steps);
+                                console.log(cs)
+                                if (cs != lastS){
+                                    lastS = cs;
+                                    that._current = (cs * that._step) + that.start;
+                                    that._display.set_time(cs);
+                                }
+                            }
+                        });
+                        $('#slider-spark').css('left', wm - 6 + "px");
+                    },
+                    scrub_move: function(that){
+                        // if (that._current > that.end) that._current = that.start;
+                        // if (that._current < that.start) that._current = that.start;
+                        var p = (that._current - that.start) / (that.end - that.start);
+                        var w = $('#graph').width();
+
+                        var newm = Math.floor(w * p) + wm - 8;
+                        // if (newm > 100) newm = 0;
+                        $('#slider-spark').css('left', newm + "px");
+                    }
+                }
+
+                var torque = null;
+                Torque(function (env) {
+                    Torque.app = new env.app.Instance();
+                    torque = new Torque.app.addLayer(map, TorqueOptions);
+                    Torque.env = env;
+                });
+
+            });
+
+    </script>
+</body>
+</html>
