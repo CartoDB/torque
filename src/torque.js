@@ -204,8 +204,10 @@ Torque.modules.layer = function (torque) {
             });
         },
         advance:function () {
-            if (this._current < this.end) {
+            if (this._current + this._step < this.end) {
                 this._current = this._current + this._step;
+            // } else if (this._current < this.end) {
+            //     this._current = this.end;
             } else {
                 this._current = this.start;
             }
@@ -216,7 +218,7 @@ Torque.modules.layer = function (torque) {
             if (this._current < this.end) {
                 this._current = this._current + this._step
                 if (this.end < this._current) {
-                    pause = 2500;
+                    pause = 500;
                 }
             } else {
                 this._current = this.start;
