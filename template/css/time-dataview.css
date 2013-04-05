@@ -28,13 +28,15 @@ body {
     height: 220px;
     background: transparent;
     width: 14px;
+    z-index: 2000;
+    cursor: pointer;
 }
 #slider-spark .head {
     position: relative;
     background: transparent;
     border: 2px solid steelblue;
     width: 10px; height: 10px;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
 }
 #slider-spark .pin {
