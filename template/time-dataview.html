@@ -38,7 +38,7 @@
         var sql = new cartodb.SQL({ user: user_name});
         var table_name = 'ow';
         var date_col = 'date';
-        var steps = 500;
+        var steps = 750;
 
         var map = new google.maps.Map(document.getElementById('map'), {
             center:new google.maps.LatLng(30.95940879245423, -0.609375),
@@ -80,7 +80,7 @@
 
         var wm = 10; //left/right margins
 
-        sql.execute("WITH extents AS (SELECT max({{date_col}}) mx, min({{date_col}}) mn FROM {{table_name}} WHERE the_geom IS NOT NULL) SELECT count(*) count, mn + i*(mx - mn)/{{steps}} frame FROM {{table_name}}, GENERATE_SERIES(1,{{steps}}) i, extents WHERE mn + (i-1)*(mx - mn)/{{steps}} < {{date_col}} AND {{date_col}} < mn + (i)*(mx - mn)/{{steps}} GROUP BY mn, mx, i ORDER BY mn + i*(mx - mn)/{{steps}} ASC", {table_name: table_name, date_col: date_col, steps: steps})
+        sql.execute("WITH extents AS (SELECT max({{date_col}}) mx, min({{date_col}}) mn FROM {{table_name}} WHERE the_geom IS NOT NULL) SELECT count(*) count, mn + i*(mx - mn)/{{steps}} frame FROM {{table_name}}, extents, GENERATE_SERIES(1,{{steps}}) i  WHERE mn + (i-1)*(mx - mn)/{{steps}} < {{date_col}} AND {{date_col}} < mn + (i)*(mx - mn)/{{steps}} GROUP BY mn + i*(mx - mn)/{{steps}} ORDER BY mn + i*(mx - mn)/{{steps}}  ASC", {table_name: table_name, date_col: date_col, steps: steps})
             .error(function(e){console.log(e)})
             .done(function(data){
                 console.log(data)
