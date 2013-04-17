@@ -76,6 +76,7 @@ Torque.modules.layer = function (torque) {
                 user:'viz2',
                 table:'ny_bus',
                 column:'timestamp',
+                istime: true,
                 steps:250,
                 resolution:3,
                 cumulative:false,
@@ -185,7 +186,14 @@ Torque.modules.layer = function (torque) {
         },
         getDeltas:function (options) {
             var that = this;
-            var sql = "SELECT st_xmax(st_envelope(st_collect(the_geom))) xmax,st_ymax(st_envelope(st_collect(the_geom))) ymax, st_xmin(st_envelope(st_collect(the_geom))) xmin, st_ymin(st_envelope(st_collect(the_geom))) ymin, date_part('epoch',max({0})) max, date_part('epoch',min({0})) min FROM {1}".format(this.options.column, this.options.table);
+            if (this.options.istime == true){
+                var max_col = "date_part('epoch',max({0}))".format(this.options.column);
+                var min_col = "date_part('epoch',min({0}))".format(this.options.column);
+            } else {
+                var max_col = "max({0})".format(this.options.column);
+                var min_col = "min({0})".format(this.options.column);
+            }
+            var sql = "SELECT st_xmax(st_envelope(st_collect(the_geom))) xmax,st_ymax(st_envelope(st_collect(the_geom))) ymax, st_xmin(st_envelope(st_collect(the_geom))) xmin, st_ymin(st_envelope(st_collect(the_geom))) ymin, {0} max, {1} min FROM {2}".format(max_col, min_col, this.options.table);
 
             var timeExtents = this._cartodb.CartoDBCollection.extend({
                 sql:sql

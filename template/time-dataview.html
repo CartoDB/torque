@@ -38,7 +38,9 @@
         var sql = new cartodb.SQL({ user: user_name});
         var table_name = 'ow';
         var date_col = 'date';
+        var date_format = 'year' //year, time or date
         var steps = 750;
+        var wm = 10; //left/right margins
 
         var map = new google.maps.Map(document.getElementById('map'), {
             center:new google.maps.LatLng(30.95940879245423, -0.609375),
@@ -78,29 +80,30 @@
 
 
 
-        var wm = 10; //left/right margins
-
         sql.execute("WITH extents AS (SELECT max({{date_col}}) mx, min({{date_col}}) mn FROM {{table_name}} WHERE the_geom IS NOT NULL) SELECT count(*) count, mn + i*(mx - mn)/{{steps}} frame FROM {{table_name}}, extents, GENERATE_SERIES(1,{{steps}}) i  WHERE mn + (i-1)*(mx - mn)/{{steps}} < {{date_col}} AND {{date_col}} < mn + (i)*(mx - mn)/{{steps}} GROUP BY mn + i*(mx - mn)/{{steps}} ORDER BY mn + i*(mx - mn)/{{steps}}  ASC", {table_name: table_name, date_col: date_col, steps: steps})
-            .error(function(e){console.log(e)})
+            .error(function(e){ })
             .done(function(data){
-                console.log(data)
                 var m = 20;
                 var w = $('#slider-container').width();
                 var h = $('#slider-container').height()-2*m;
                 data = data.rows;
+
+                var mxX = new Date(data[data.length-1].frame); var mnX = new Date(data[0].frame);
                 var mxY = data[0].count, mnY = data[0].count;
+
                 $.each(data,function(i,d){
                     if (d.count < mnY) mnY = d.count;
                     if (mxY < d.count) mxY = d.count;
                 })
 
-                var x = d3.scale.linear().domain([0, data.length]).range([0, w - 2*wm ]);
+                var x = d3.scale.linear().domain([mnX, mxX]).range([0, w - 2*wm ]);
+                // var x = d3.scale.linear().domain([0, data.length]).range([0, w - 2*wm ]);
                 var y = d3.scale.linear().domain([mnY, mxY]).range([h, 0]);
 
                 var line = d3.svg.line()
 
                 .x(function(d,i) { 
-                    return x(i); 
+                    return x(new Date(d.frame)); 
                 })
                 .y(function(d) { 
                     return y(d.count); 
@@ -111,6 +114,28 @@
                       .attr("width", w - 2*wm)
                       .attr("height", h + m)
                     .append("svg:g");
+
+                graph.selectAll(".xLabel")
+                    .data(x.ticks(10))
+                    .enter().append("svg:text")
+                    .attr("class", "xLabel")
+                    .text(function(i, d) {  
+                        // if (d==0) {return null} 
+                        if (date_format == 'time'){
+                            return new Date(i).toTimeString().split(' ')[0];
+                        }
+                        else if (date_format == 'year') {
+                            return new Date(i).getFullYear();
+                        }
+                        else {
+                            var d = new Date(i).toDateString().split(' ');
+                            return d.slice(1, 4).join(' ')
+                        }
+                    })
+                    .attr("x", function(d) { return x(new Date(d)) })
+                    .attr("y", h+18)
+                    .attr("text-anchor", "middle")
+
 
                 graph.append("svg:path").attr("d", line(data));
 

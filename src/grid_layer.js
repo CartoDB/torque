@@ -157,6 +157,17 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
     // take se and sd as a matrix [se|sd]
     var numTiles = 1 << zoom;
     var sql = ""
+    var column_conv = "";
+    var expir_conv = "";
+
+    if (this.options.istime == true){
+        column_conv = "date_part('epoch',{0})".format(this.t_column);
+        expir_conv = "date_part('epoch',{0})".format(this.options.expiration_column);
+    } else {
+        column_conv = this.t_column;
+        expir_conv = this.options.expiration_column;
+    }
+
     if ( this.options.cumulative_expires == true) {
         sql = "WITH hgrid AS ( " +
             "    SELECT CDB_RectangleGrid( " +
@@ -172,16 +183,16 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
             "      round(CAST (st_xmax(hgrid.cell) AS numeric),4) x, " +
             "      round(CAST (st_ymax(hgrid.cell) AS numeric),4) y, " +
             "      {0} c, ".format(this.countby) +
-            "      floor((date_part('epoch',{0})- {1})/{2}) d, ".format(this.t_column, this.MIN_DATE, this.step) +
-            "      floor((date_part('epoch',{0})- {1})/{2}) de ".format(this.options.expiration_column, this.MIN_DATE, this.step) +
+            "      floor(({0}- {1})/{2}) d, ".format(column_conv, this.MIN_DATE, this.step) +
+            "      floor(({0}- {1})/{2}) de ".format(expir_conv, this.MIN_DATE, this.step) +
             "    FROM " +
             "        hgrid, {0} i ".format(this.table) +
             "    WHERE " +
             "        ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
             "    GROUP BY " +
             "        hgrid.cell, " +
-            "        floor((date_part('epoch',{0})- {1})/{2}), ".format(this.t_column, this.MIN_DATE, this.step) + 
-            "        floor((date_part('epoch',{0})- {1})/{2})".format(this.options.expiration_column, this.MIN_DATE, this.step) +
+            "        floor(({0}- {1})/{2}), ".format(column_conv, this.MIN_DATE, this.step) + 
+            "        floor(({0}- {1})/{2})".format(expir_conv, this.MIN_DATE, this.step) +
             " ) f GROUP BY x, y";
     } else {
         sql = "WITH hgrid AS ( " +
@@ -196,13 +207,13 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
         " FROM ( " +
         "    SELECT " +
         "      round(CAST (st_xmax(hgrid.cell) AS numeric),4) x, round(CAST (st_ymax(hgrid.cell) AS numeric),4) y, " +
-        "      {0} c, floor((date_part('epoch',{1})- {2})/{3}) d ".format(this.countby, this.t_column, this.MIN_DATE, this.step) +
+        "      {0} c, floor(({1}- {2})/{3}) d ".format(this.countby, column_conv, this.MIN_DATE, this.step) +
         "    FROM " +
         "        hgrid, {0} i ".format(this.table) +
         "    WHERE " +
         "        ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
         "    GROUP BY " +
-        "        hgrid.cell, floor((date_part('epoch',{0})- {1})/{2})".format(this.t_column, this.MIN_DATE, this.step) +
+        "        hgrid.cell, floor(({0} - {1})/{2})".format(column_conv, this.MIN_DATE, this.step) +
         " ) f GROUP BY x, y";
     }
 
