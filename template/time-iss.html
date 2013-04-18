@@ -39,12 +39,12 @@
         var table_name = 'iss_photo_locations';
         var date_col = 'image_n';
         var date_format = 'year' //year, time or date
-        var steps = 400;
+        var steps = 500;
         var wm = 10; //left/right margins
 
         var map = new google.maps.Map(document.getElementById('map'), {
-            center:new google.maps.LatLng(30.95940879245423, -0.609375),
-            zoom:2,
+            center:new google.maps.LatLng(0, -35),
+            zoom:3,
             mapTypeId:google.maps.MapTypeId.SATELLITE,
             mapTypeControl:false,
             minZoom:1
@@ -145,10 +145,10 @@
                     column:date_col,
                     istime: false,
                     steps:steps,
-                    resolution:4,
+                    resolution:2,
                     cumulative:false,
                     clock:true,
-                    fps:20,
+                    fps:10,
                     fitbounds:false,
                     blendmode:'lighter',
                     trails:true,
