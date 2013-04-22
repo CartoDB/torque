@@ -36,10 +36,10 @@
     <script type="text/javascript">
         var user_name = 'viz2';
         var sql = new cartodb.SQL({ user: user_name});
-        var table_name = 'ow';
-        var date_col = 'date';
+        var table_name = 'us_po_offices';
+        var date_col = 'built';
         var date_format = 'year' //year, time or date
-        var steps = 750;
+        var steps = 500;
         var wm = 10; //left/right margins
 
         var map = new google.maps.Map(document.getElementById('map'), {
@@ -143,16 +143,16 @@
                     user:user_name,
                     table:table_name,
                     column:date_col,
-                    steps:steps,
-                    resolution:2,
-                    cumulative:false,
-                    clock:true,
-                    fps:20,
-                    fitbounds:false,
-                    blendmode:'lighter',
-                    trails:true,
+                    cumulative: true,
+                    resolution: 2,
+                    steps: steps,
+                    fps: 24,
+                    fitbounds: false,
+                    clock: true,
+                    blendmode: 'source-over',
+                    trails: true,
                     point_type:'circle',
-                    cellsize:1,
+                    cellsize:2,
                     scrub: function(that){
                         var minDate = that.start;
                         var maxDate = that.end;
