@@ -188,7 +188,8 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
             "    FROM " +
             "        hgrid, {0} i ".format(this.table) +
             "    WHERE " +
-            "        ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
+            "        i.the_geom_webmercator && CDB_XYZ_Extent({0}, {1}, {2}) " +
+            "        AND ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
             "    GROUP BY " +
             "        hgrid.cell, " +
             "        floor(({0}- {1})/{2}), ".format(column_conv, this.MIN_DATE, this.step) + 
@@ -211,7 +212,8 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
         "    FROM " +
         "        hgrid, {0} i ".format(this.table) +
         "    WHERE " +
-        "        ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
+        "        i.the_geom_webmercator && CDB_XYZ_Extent({0}, {1}, {2}) " +
+        "        AND ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
         "    GROUP BY " +
         "        hgrid.cell, floor(({0} - {1})/{2})".format(column_conv, this.MIN_DATE, this.step) +
         " ) f GROUP BY x, y";
