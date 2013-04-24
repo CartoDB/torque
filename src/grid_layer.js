@@ -169,19 +169,24 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
     }
 
     if ( this.options.cumulative_expires == true) {
-        sql = "WITH hgrid AS ( " +
+        sql = "WITH grid AS ( " +
             "    SELECT CDB_RectangleGrid( " +
             "       CDB_XYZ_Extent({0}, {1}, {2}), ".format(coord.x, coord.y, zoom) +
             "       CDB_XYZ_Resolution({0}) * {1}, ".format(zoom, this.resolution) +
             "       CDB_XYZ_Resolution({0}) * {1} ".format(zoom, this.resolution) +
             "    ) as cell " +
+            " ), " +
+            " hgrid AS ( " +
+            "    SELECT cell, " +
+            "      round(CAST (st_xmax(cell) AS numeric),4) x, " +
+            "      round(CAST (st_ymax(cell) AS numeric),4) y  " +
+            "    FROM grid " +
             " ) " +
             " SELECT  " +
             "    x, y, array_agg(c) vals, array_agg(d) dates , array_agg(de) dates_end" +
             " FROM ( " +
             "    SELECT " +
-            "      round(CAST (st_xmax(hgrid.cell) AS numeric),4) x, " +
-            "      round(CAST (st_ymax(hgrid.cell) AS numeric),4) y, " +
+            "      hgrid.x, hgrid.y, " +
             "      {0} c, ".format(this.countby) +
             "      floor(({0}- {1})/{2}) d, ".format(column_conv, this.MIN_DATE, this.step) +
             "      floor(({0}- {1})/{2}) de ".format(expir_conv, this.MIN_DATE, this.step) +
@@ -191,23 +196,29 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
             "        i.the_geom_webmercator && CDB_XYZ_Extent({0}, {1}, {2}) ".format(coord.x, coord.y, zoom) +
             "        AND ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
             "    GROUP BY " +
-            "        hgrid.cell, " +
+            "        hgrid.x, hgrid.y, " +
             "        floor(({0}- {1})/{2}), ".format(column_conv, this.MIN_DATE, this.step) + 
             "        floor(({0}- {1})/{2})".format(expir_conv, this.MIN_DATE, this.step) +
             " ) f GROUP BY x, y";
     } else {
-        sql = "WITH hgrid AS ( " +
+        sql = "WITH grid AS ( " +
         "    SELECT CDB_RectangleGrid( " +
         "       CDB_XYZ_Extent({0}, {1}, {2}), ".format(coord.x, coord.y, zoom) +
         "       CDB_XYZ_Resolution({0}) * {1}, ".format(zoom, this.resolution) +
         "       CDB_XYZ_Resolution({0}) * {1} ".format(zoom, this.resolution) +
         "    ) as cell " +
+        " ), " +
+        " hgrid AS ( " +
+        "    SELECT cell, " +
+        "      round(CAST (st_xmax(cell) AS numeric),4) x, " +
+        "      round(CAST (st_ymax(cell) AS numeric),4) y  " +
+        "    FROM grid " +
         " ) " +
         " SELECT  " +
         "    x, y, array_agg(c) vals, array_agg(d) dates " +
         " FROM ( " +
         "    SELECT " +
-        "      round(CAST (st_xmax(hgrid.cell) AS numeric),4) x, round(CAST (st_ymax(hgrid.cell) AS numeric),4) y, " +
+        "      hgrid.x, hgrid.y, " +
         "      {0} c, floor(({1}- {2})/{3}) d ".format(this.countby, column_conv, this.MIN_DATE, this.step) +
         "    FROM " +
         "        hgrid, {0} i ".format(this.table) +
@@ -215,7 +226,7 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
         "        i.the_geom_webmercator && CDB_XYZ_Extent({0}, {1}, {2}) ".format(coord.x, coord.y, zoom) +
         "        AND ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
         "    GROUP BY " +
-        "        hgrid.cell, floor(({0} - {1})/{2})".format(column_conv, this.MIN_DATE, this.step) +
+        "        hgrid.x, hgrid.y, floor(({0} - {1})/{2})".format(column_conv, this.MIN_DATE, this.step) +
         " ) f GROUP BY x, y";
     }
 
