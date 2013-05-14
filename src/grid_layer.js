@@ -61,7 +61,9 @@ TimePlayer.prototype.set_table = function (table, size) {
 // get data from cartodb
 TimePlayer.prototype.sql = function (sql, callback) {
     var self = this;
-    $.getJSON(this.base_url + "?q=" + encodeURIComponent(sql), function (data) {
+    var uri  = this.base_url + "?q=" + encodeURIComponent(sql);
+    //uri += '&t=' + Date.now() + Math.random();
+    $.getJSON(uri, function (data) {
         callback(data);
     });
 };
@@ -168,67 +170,41 @@ TimePlayer.prototype.get_time_data = function (tile, coord, zoom) {
         expir_conv = this.options.expiration_column;
     }
 
-    if ( this.options.cumulative_expires == true) {
-        sql = "WITH grid AS ( " +
-            "    SELECT CDB_RectangleGrid( " +
-            "       CDB_XYZ_Extent({0}, {1}, {2}), ".format(coord.x, coord.y, zoom) +
-            "       CDB_XYZ_Resolution({0}) * {1}, ".format(zoom, this.resolution) +
-            "       CDB_XYZ_Resolution({0}) * {1} ".format(zoom, this.resolution) +
-            "    ) as cell " +
-            " ), " +
-            " hgrid AS ( " +
-            "    SELECT cell, " +
-            "      round(CAST (st_xmax(cell) AS numeric),4) x, " +
-            "      round(CAST (st_ymax(cell) AS numeric),4) y  " +
-            "    FROM grid " +
-            " ) " +
-            " SELECT  " +
-            "    x, y, array_agg(c) vals, array_agg(d) dates , array_agg(de) dates_end" +
-            " FROM ( " +
-            "    SELECT " +
-            "      hgrid.x, hgrid.y, " +
-            "      {0} c, ".format(this.countby) +
-            "      floor(({0}- {1})/{2}) d, ".format(column_conv, this.MIN_DATE, this.step) +
-            "      floor(({0}- {1})/{2}) de ".format(expir_conv, this.MIN_DATE, this.step) +
-            "    FROM " +
-            "        hgrid, {0} i ".format(this.table) +
-            "    WHERE " +
-            "        i.the_geom_webmercator && CDB_XYZ_Extent({0}, {1}, {2}) ".format(coord.x, coord.y, zoom) +
-            "        AND ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
-            "    GROUP BY " +
-            "        hgrid.x, hgrid.y, " +
-            "        floor(({0}- {1})/{2}), ".format(column_conv, this.MIN_DATE, this.step) + 
-            "        floor(({0}- {1})/{2})".format(expir_conv, this.MIN_DATE, this.step) +
-            " ) f GROUP BY x, y";
-    } else {
-        sql = "WITH grid AS ( " +
-        "    SELECT CDB_RectangleGrid( " +
-        "       CDB_XYZ_Extent({0}, {1}, {2}), ".format(coord.x, coord.y, zoom) +
-        "       CDB_XYZ_Resolution({0}) * {1}, ".format(zoom, this.resolution) +
-        "       CDB_XYZ_Resolution({0}) * {1} ".format(zoom, this.resolution) +
-        "    ) as cell " +
-        " ), " +
-        " hgrid AS ( " +
-        "    SELECT cell, " +
-        "      round(CAST (st_xmax(cell) AS numeric),4) x, " +
-        "      round(CAST (st_ymax(cell) AS numeric),4) y  " +
-        "    FROM grid " +
-        " ) " +
-        " SELECT  " +
-        "    x, y, array_agg(c) vals, array_agg(d) dates " +
-        " FROM ( " +
-        "    SELECT " +
-        "      hgrid.x, hgrid.y, " +
-        "      {0} c, floor(({1}- {2})/{3}) d ".format(this.countby, column_conv, this.MIN_DATE, this.step) +
-        "    FROM " +
-        "        hgrid, {0} i ".format(this.table) +
-        "    WHERE " +
-        "        i.the_geom_webmercator && CDB_XYZ_Extent({0}, {1}, {2}) ".format(coord.x, coord.y, zoom) +
-        "        AND ST_Intersects(i.the_geom_webmercator, hgrid.cell) " +
-        "    GROUP BY " +
-        "        hgrid.x, hgrid.y, floor(({0} - {1})/{2})".format(column_conv, this.MIN_DATE, this.step) +
-        " ) f GROUP BY x, y";
+    var  z_resolution = function(z) {
+      var earth_circumference = 40075017;
+      var tile_size = 256;
+      var full_resolution = earth_circumference/tile_size;
+      return full_resolution / (Math.pow(2,z));
+    };
+
+    sql = "WITH cte AS ( " +
+            "SELECT ST_SnapToGrid(i.the_geom_webmercator, " +
+                                  "CDB_XYZ_Resolution({0})*{1}) g"
+                                  . format(zoom, this.resolution) +
+            ", {0} c " .format(this.countby) +
+            ", floor(({0}- {1})/{2}) d" .format(column_conv, this.MIN_DATE, this.step);
+
+    if ( this.options.cumulative_expires ) {
+      sql += ", floor(({0}- {1})/{2}) de".format(expir_conv, this.MIN_DATE, this.step);
     }
+
+    sql += " FROM {0} i\n".format(this.options.table) +
+           "WHERE i.the_geom_webmercator && CDB_XYZ_Extent({0}, {1}, {2}) "
+              .format(coord.x, coord.y, zoom) +
+           " GROUP BY g, d";
+
+    if ( this.options.cumulative_expires ) {
+      sql += ", de";
+    }
+
+    sql += ") SELECT st_x(g) x, st_y(g) y, array_agg(c) vals, array_agg(d) dates ";
+
+    if ( this.options.cumulative_expires ) {
+      sql += ", array_agg(de) dates_end";
+    }
+
+    sql += " FROM cte GROUP BY x,y";
+
 
     var prof = Profiler.get('tile fetch');
     prof.start();
