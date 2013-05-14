@@ -246,9 +246,13 @@ Torque.modules.layer = function (torque) {
                 this.options.scrub_move(this)
             }
             if (this.running) {
-                setTimeout(function () {
-                    this.play()
-                }.bind(this), pause + 1000 * 1 / this.options.fps);
+                if ( this.options.fps ) {
+                  var ms = pause + 1000 * 1 / this.options.fps;
+                  //console.log("play timeout: " + ms + " ms (pause:" + pause + ", fps:" + this.options.fps + ")");
+                  setTimeout(function () {
+                      this.play()
+                  }.bind(this), ms);
+                }
             }
         }
     });
