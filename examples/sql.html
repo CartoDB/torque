@@ -1,0 +1,14 @@
+<pre>
+WITH cte AS 
+    ( SELECT 
+        ST_SnapToGrid(i.the_geom_webmercator, CDB_XYZ_Resolution(3)*2) g, 
+        count(i.cartodb_id) c , 
+        floor((date_part('epoch',toc)- 1369291843)/132) d 
+    FROM ship_flight_recorder i
+    WHERE i.the_geom_webmercator && CDB_XYZ_Extent(1, 3, 3)  
+GROUP BY g, d) 
+
+SELECT st_x(g) x, st_y(g) y, array_agg(c) vals, array_agg(d) dates  
+FROM cte GROUP BY x,y
+
+</pre>
