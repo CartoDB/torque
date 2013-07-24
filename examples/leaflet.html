@@ -15,14 +15,15 @@
     <script src="../lib/torque/leaflet/canvas_layer.js"></script>
     <script src="../lib/torque/renderer/point.js"></script>
     <script src="../lib/torque/provider.json.js"></script>
+    <script src="../lib/torque/provider.jsonarray.js"></script>
 
 
     <script>
       var map = new L.Map('map', {
         zoomControl: true,
-        //center: [43, 0],
-        center: [60.20639271653636, 25.004882812],
-        zoom: 13
+        center: [0, 0],
+        //center: [60.20639271653636, 25.004882812],
+        zoom: 3
       });
 
 
@@ -34,7 +35,8 @@
           this.key = 0;
 
           L.CanvasLayer.prototype.initialize.call(this, options);
-          this.provider = new torque.providers.json(options);
+          //this.provider = new torque.providers.json(options);
+          this.provider = new torque.providers.JsonArray(options);
           this.renderer = new torque.renderer.Point(this.getCanvas(), options);
           
           // for each tile shown on the map request the data
@@ -71,9 +73,14 @@
         attribution: 'Stamen'
       }).addTo(map);
 
+      //type=DATASET
+//var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=1&x={x}&y={y}&z={z}&type=TAXON'
+      var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=7bd65a7a-f762-11e1-a439-00145eb45e9a&x={x}&y={y}&z={z}&type=DATASET'
       var torqueLayer = new L.TorqueLayer({
-        url: 'http://development.localhost.lan:8080/api/v1/sql',
-        resolution: 1,
+        //url: 'http://development.localhost.lan:8080/api/v1/sql',
+        url: GBIF_URL,
+        resolution: 4,
+        cummulative: true,
         start_date: 0,
         end_date: 220,
         step: 1,
@@ -85,11 +92,11 @@
 
       torqueLayer.addTo(map);
 
-        torqueLayer.setKey(1);
+      torqueLayer.setKey(2);
       var t = 0;
       setInterval(function() {
-        torqueLayer.setKey(t++%200);
-      }, 16);
+        torqueLayer.setKey(2 + (t++%11));
+      }, 500);
     
     </script>
   </body>
