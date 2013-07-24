@@ -22,9 +22,10 @@
     <script>
       var map = new L.Map('map', {
         zoomControl: true,
-        center: [0, 0],
+        //center: [0, 0],
+        center: [36.60670888641815,  38.627929687],
         //center: [60.20639271653636, 25.004882812],
-        zoom: 3
+        zoom: 6
       });
 
 
@@ -54,33 +55,51 @@
           canvas.width = canvas.width;
           var ctx = canvas.getContext('2d');
 
+          for(var t in this._tiles) {
+            var tile = this._tiles[t];
+            var pos = this.getTilePos(tile.coord);
+            var accum = this.renderer.accumulate(tile, this.key);
+            ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
+            this.renderer.renderTileAccum(accum, 0, 0);
+            //ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
+          }
+
+
           //ctx.clearRect(0, 0, canvas.width, canvas.height);
+          /*
           for(var t in this._tiles) {
             var tile = this._tiles[t];
             var pos = this.getTilePos(tile.coord);
             ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
             this.renderer.renderTile(tile, this.key, pos.x, pos.y);
-          }
+          }*/
         },
 
         setKey: function(t) {
+          this.key = [t];
+          this.redraw();
+        },
+        setKeys: function(t) {
           this.key = t;
           this.redraw();
-        }
+        },
+
+
+
 
       });
 
-      L.tileLayer('http://tile.stamen.com/toner/{z}/{x}/{y}.png', {
+      L.tileLayer('http://b.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/999/256/{z}/{x}/{y}.png', {
         attribution: 'Stamen'
       }).addTo(map);
 
       //type=DATASET
-var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=1&x={x}&y={y}&z={z}&type=TAXON'
-      //var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=1&x={x}&y={y}&z={z}&type=DATASET'
+//var GBIF_URL = 'http://apidev.gbif.org/map/density/tile.tcjson?key=8575f23e-f762-11e1-a439-00145eb45e9a&x={x}&y={y}&z={z}&type=DATASET'
+     var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=1&x={x}&y={y}&z={z}&type=TAXON'
       var torqueLayer = new L.TorqueLayer({
         //url: 'http://development.localhost.lan:8080/api/v1/sql',
         url: GBIF_URL,
-        resolution: 2,
+        resolution: 4,
         cummulative: true,
         start_date: 0,
         end_date: 220,
@@ -93,7 +112,7 @@ var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=
 
       torqueLayer.addTo(map);
 
-      torqueLayer.setKey(0);
+      torqueLayer.setKeys([11]);
       var t = 0;
       setInterval(function() {
         //torqueLayer.setKey(2 + (t++%11));
