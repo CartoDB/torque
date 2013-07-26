@@ -1,0 +1,74 @@
+
+<html>
+  <link rel="stylesheet" href="../vendor/leaflet.css" />
+  <style>
+    #map, html, body {
+      width: 100%; height: 100%; padding: 0; margin: 0;
+    }
+  </style>
+  <body>
+    <div id="map"></div>
+
+    <script src="../vendor/leaflet.js"></script>
+    <script src="../lib/torque/request.js"></script>
+    <script src="../lib/torque/leaflet/leaflet_tileloader_mixin.js"></script>
+    <script src="../lib/torque/leaflet/canvas_layer.js"></script>
+    <script src="../lib/torque/renderer/point.js"></script>
+    <script src="../lib/torque/renderer/rectangle.js"></script>
+    <script src="../lib/torque/provider.json.js"></script>
+    <script src="../lib/torque/provider.jsonarray.js"></script>
+    <script src="../lib/torque/leaflet/torque.js"></script>
+
+
+    <script>
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        //center: [36.60670888641815,  38.627929687],
+        zoom: 3
+      });
+
+      L.tileLayer('http://b.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/999/256/{z}/{x}/{y}.png', {
+        attribution: 'Stamen'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        //url: 'http://development.localhost.lan:8080/api/v1/sql',
+        provider: 'sql_api',
+        user       : 'viz2',
+        table      : 'ow',
+        column     : 'date',
+        countby    : 'count(cartodb_id)',
+        resolution: 2,
+        start_date: 0,
+        end_date: 220,
+        is_time: true,
+        steps: 750,
+        pixel_size: 3,
+        blendmode  : 'lighter'
+      });
+
+      /*steps      : 750,
+      resolution : 2,
+      cumulative : false,
+      clock      : true,
+      fps        : 24,
+      fitbounds  : false,
+      blendmode  : 'lighter',
+      trails     : true,
+      point_type : 'circle',
+      cellsize   : 1,
+      autoplay   : false
+
+      */
+
+      torqueLayer.addTo(map);
+      var t = 0;
+      setInterval(function() {
+        torqueLayer.setKey((t++%750));
+      }, 100);
+    
+    </script>
+  </body>
+</html>
+
