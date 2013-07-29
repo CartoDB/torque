@@ -35,7 +35,7 @@
       //type=DATASET
 //var GBIF_URL = 'http://apidev.gbif.org/map/density/tile.tcjson?key=8575f23e-f762-11e1-a439-00145eb45e9a&x={x}&y={y}&z={z}&type=DATASET'
      var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=1&x={x}&y={y}&z={z}&type=TAXON'
-      var torqueLayer = new L.TorqueLayer({
+      var torqueLayer = new L.TiledTorqueLayer({
         //url: 'http://development.localhost.lan:8080/api/v1/sql',
         provider: 'url_template',
         url: GBIF_URL,

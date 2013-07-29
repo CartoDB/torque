@@ -31,7 +31,7 @@
         zoom: 3
       });
 
-      L.tileLayer('http://b.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/999/256/{z}/{x}/{y}.png', {
+      L.tileLayer('http://tile.stamen.com/toner/{z}/{x}/{y}.png', {
         attribution: 'Stamen'
       }).addTo(map);
 
@@ -42,9 +42,7 @@
         table      : 'ow',
         column     : 'date',
         countby    : 'count(cartodb_id)',
-        resolution: 2,
-        start_date: 0,
-        end_date: 220,
+        resolution: 1,
         is_time: true,
         steps: 750,
         pixel_size: 3,
