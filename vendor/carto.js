@@ -1,4 +1,11 @@
 
+var assert = {
+  ok: function(value, message) {
+    message = message || '';
+    if(!value) throw new Error("assertion failed", message);
+  }
+}
+
 var carto_initialize = function(carto, uri, callback) {
   callback();
 };
@@ -2936,9 +2943,7 @@ tree.Comment.prototype = {
 
 })(require('../tree'));
 (function(tree) {
-var assert = require('assert') || {
-    ok: function() { }
-};
+var assert = require('assert');
 
 tree.Definition = function Definition(selector, rules) {
     this.elements = selector.elements;
@@ -3842,14 +3847,19 @@ tree.Quoted.prototype = {
 
 
 var _ = require('underscore');
-var mapnik_reference = require('mapnik-reference');
+var reference = require('mapnik-reference');
 
 tree.Reference = {
-    data: mapnik_reference.version.latest
+    data: reference.version.latest
+};
+
+tree.Reference.set = function(ref, version) {
+    reference = ref;
+    tree.Reference.setVersion(version || 'latest');
 };
 
 tree.Reference.setVersion = function(version) {
-    tree.Reference.data = mapnik_reference.version[version];
+    tree.Reference.data = reference.version[version];
 };
 
 tree.Reference.required_prop_list_cache = {};
