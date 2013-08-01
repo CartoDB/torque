@@ -1,74 +1,487 @@
-// =================
-// profiler
-// =================
-//
-// Counters
-//   pendingJobs.inc();
-//   pendingJobs.dec();
-//
-// Meters
-//  A meter measures the rate of events over time
-//  requests.mark();
-//
-// Histograms
-//  responseSizes.update(response.getContent().length);
-//
-// Timers
-//  private final Timer responses = metrics.timer(name(RequestHandler.class, "responses"));
-// 
-//  final Timer.Context context = responses.time();
-    //try {
-        //return "OK";
-    //} finally {
-        //context.stop();
-    //}
+(function(exports) {
 
-// Health Checks
-//
-function Profiler() {
-}
-Profiler.times = {};
-Profiler.new_time = function (type, time) {
-    var t = Profiler.times[type] = Profiler.times[type] || {
-        max:0,
-        min:10000000,
-        avg:0,
-        total:0,
-        count:0
-    };
+exports.torque = exports.torque || {};
 
-    t.max = Math.max(t.max, time);
-    t.total += time;
-    t.min = Math.min(t.min, time);
-    ++t.count;
-    t.avg = t.total / t.count;
-};
-
-Profiler.print_stats = function () {
-    for (k in Profiler.times) {
-        var t = Profiler.times[k];
-        console.log(" === " + k + " === ");
-        console.log(" max: " + t.max);
-        console.log(" min: " + t.min);
-        console.log(" avg: " + t.avg);
-        console.log(" total: " + t.total);
+var _torque_reference_latest = {
+    "version": "1.0.0",
+    "style": {
+        "comp-op": {
+            "css": "comp-op",
+            "default-value": "src-over",
+            "default-meaning": "add the current layer on top of other layers",
+            "doc": "Composite operation. This defines how this layer should behave relative to layers atop or below it.",
+            "type": [
+                "src", //
+                "src-over", //
+                "dst-over", //
+                "src-in", //
+                "dst-in", //
+                "src-out", //
+                "dst-out", //
+                "src-atop", //
+                "dst-atop", //
+                "xor", //
+                "darken", //
+                "lighten" //
+            ]
+        }
+    },
+    "symbolizers" : {
+        "*": {
+            "comp-op": {
+                "css": "comp-op",
+                "default-value": "src-over",
+                "default-meaning": "add the current layer on top of other layers",
+                "doc": "Composite operation. This defines how this layer should behave relative to layers atop or below it.",
+                "type": [
+                  "src", //
+                  "src-over", //
+                  "dst-over", //
+                  "src-in", //
+                  "dst-in", //
+                  "src-out", //
+                  "dst-out", //
+                  "src-atop", //
+                  "dst-atop", //
+                  "xor", //
+                  "darken", //
+                  "lighten" //
+                ]
+            },
+            "opacity": {
+                "css": "opacity",
+                "type": "float",
+                "doc": "An alpha value for the style (which means an alpha applied to all features in separate buffer and then composited back to main buffer)",
+                "default-value": 1,
+                "default-meaning": "no separate buffer will be used and no alpha will be applied to the style after rendering"
+            }
+        },
+        "polygon": {
+            "fill": {
+                "css": "polygon-fill",
+                "type": "color",
+                "default-value": "rgba(128,128,128,1)",
+                "default-meaning": "gray and fully opaque (alpha = 1), same as rgb(128,128,128)",
+                "doc": "Fill color to assign to a polygon"
+            },
+            "fill-opacity": {
+                "css": "polygon-opacity",
+                "type": "float",
+                "doc": "The opacity of the polygon",
+                "default-value": 1,
+                "default-meaning": "opaque"
+            }
+        },
+        "line": {
+            "stroke": {
+                "css": "line-color",
+                "default-value": "rgba(0,0,0,1)",
+                "type": "color",
+                "default-meaning": "black and fully opaque (alpha = 1), same as rgb(0,0,0)",
+                "doc": "The color of a drawn line"
+            },
+            "stroke-width": {
+                "css": "line-width",
+                "default-value": 1,
+                "type": "float",
+                "doc": "The width of a line in pixels"
+            },
+            "stroke-opacity": {
+                "css": "line-opacity",
+                "default-value": 1,
+                "type": "float",
+                "default-meaning": "opaque",
+                "doc": "The opacity of a line"
+            },
+            "stroke-linejoin": {
+                "css": "line-join",
+                "default-value": "miter",
+                "type": [
+                    "miter",
+                    "round",
+                    "bevel"
+                ],
+                "doc": "The behavior of lines when joining"
+            },
+            "stroke-linecap": {
+                "css": "line-cap",
+                "default-value": "butt",
+                "type": [
+                    "butt",
+                    "round",
+                    "square"
+                ],
+                "doc": "The display of line endings"
+            }
+        },
+        "markers": {
+            "file": {
+                "css": "marker-file",
+                "doc": "An SVG file that this marker shows at each placement. If no file is given, the marker will show an ellipse.",
+                "default-value": "",
+                "default-meaning": "An ellipse or circle, if width equals height",
+                "type": "uri"
+            },
+            "opacity": {
+                "css": "marker-opacity",
+                "doc": "The overall opacity of the marker, if set, overrides both the opacity of both the fill and stroke",
+                "default-value": 1,
+                "default-meaning": "The stroke-opacity and fill-opacity will be used",
+                "type": "float"
+            },
+            "fill-opacity": {
+                "css": "marker-fill-opacity",
+                "doc": "The fill opacity of the marker",
+                "default-value": 1,
+                "default-meaning": "opaque",
+                "type": "float"
+            },
+            "stroke": {
+                "css": "marker-line-color",
+                "doc": "The color of the stroke around a marker shape.",
+                "default-value": "black",
+                "type": "color"
+            },
+            "stroke-width": {
+                "css": "marker-line-width",
+                "doc": "The width of the stroke around a marker shape, in pixels. This is positioned on the boundary, so high values can cover the area itself.",
+                "type": "float"
+            },
+            "stroke-opacity": {
+                "css": "marker-line-opacity",
+                "default-value": 1,
+                "default-meaning": "opaque",
+                "doc": "The opacity of a line",
+                "type": "float"
+            },
+            "fill": {
+                "css": "marker-fill",
+                "default-value": "blue",
+                "doc": "The color of the area of the marker.",
+                "type": "color"
+            }
+        },
+        "point": {
+            "file": {
+                "css": "point-file",
+                "type": "uri",
+                "required": false,
+                "default-value": "none",
+                "doc": "Image file to represent a point"
+            },
+            "opacity": {
+                "css": "point-opacity",
+                "type": "float",
+                "default-value": 1.0,
+                "default-meaning": "Fully opaque",
+                "doc": "A value from 0 to 1 to control the opacity of the point"
+            }
+        }
+    },
+    "colors": {
+        "aliceblue":  [240, 248, 255],
+        "antiquewhite":  [250, 235, 215],
+        "aqua":  [0, 255, 255],
+        "aquamarine":  [127, 255, 212],
+        "azure":  [240, 255, 255],
+        "beige":  [245, 245, 220],
+        "bisque":  [255, 228, 196],
+        "black":  [0, 0, 0],
+        "blanchedalmond":  [255,235,205],
+        "blue":  [0, 0, 255],
+        "blueviolet":  [138, 43, 226],
+        "brown":  [165, 42, 42],
+        "burlywood":  [222, 184, 135],
+        "cadetblue":  [95, 158, 160],
+        "chartreuse":  [127, 255, 0],
+        "chocolate":  [210, 105, 30],
+        "coral":  [255, 127, 80],
+        "cornflowerblue":  [100, 149, 237],
+        "cornsilk":  [255, 248, 220],
+        "crimson":  [220, 20, 60],
+        "cyan":  [0, 255, 255],
+        "darkblue":  [0, 0, 139],
+        "darkcyan":  [0, 139, 139],
+        "darkgoldenrod":  [184, 134, 11],
+        "darkgray":  [169, 169, 169],
+        "darkgreen":  [0, 100, 0],
+        "darkgrey":  [169, 169, 169],
+        "darkkhaki":  [189, 183, 107],
+        "darkmagenta":  [139, 0, 139],
+        "darkolivegreen":  [85, 107, 47],
+        "darkorange":  [255, 140, 0],
+        "darkorchid":  [153, 50, 204],
+        "darkred":  [139, 0, 0],
+        "darksalmon":  [233, 150, 122],
+        "darkseagreen":  [143, 188, 143],
+        "darkslateblue":  [72, 61, 139],
+        "darkslategrey":  [47, 79, 79],
+        "darkturquoise":  [0, 206, 209],
+        "darkviolet":  [148, 0, 211],
+        "deeppink":  [255, 20, 147],
+        "deepskyblue":  [0, 191, 255],
+        "dimgray":  [105, 105, 105],
+        "dimgrey":  [105, 105, 105],
+        "dodgerblue":  [30, 144, 255],
+        "firebrick":  [178, 34, 34],
+        "floralwhite":  [255, 250, 240],
+        "forestgreen":  [34, 139, 34],
+        "fuchsia":  [255, 0, 255],
+        "gainsboro":  [220, 220, 220],
+        "ghostwhite":  [248, 248, 255],
+        "gold":  [255, 215, 0],
+        "goldenrod":  [218, 165, 32],
+        "gray":  [128, 128, 128],
+        "grey":  [128, 128, 128],
+        "green":  [0, 128, 0],
+        "greenyellow":  [173, 255, 47],
+        "honeydew":  [240, 255, 240],
+        "hotpink":  [255, 105, 180],
+        "indianred":  [205, 92, 92],
+        "indigo":  [75, 0, 130],
+        "ivory":  [255, 255, 240],
+        "khaki":  [240, 230, 140],
+        "lavender":  [230, 230, 250],
+        "lavenderblush":  [255, 240, 245],
+        "lawngreen":  [124, 252, 0],
+        "lemonchiffon":  [255, 250, 205],
+        "lightblue":  [173, 216, 230],
+        "lightcoral":  [240, 128, 128],
+        "lightcyan":  [224, 255, 255],
+        "lightgoldenrodyellow":  [250, 250, 210],
+        "lightgray":  [211, 211, 211],
+        "lightgreen":  [144, 238, 144],
+        "lightgrey":  [211, 211, 211],
+        "lightpink":  [255, 182, 193],
+        "lightsalmon":  [255, 160, 122],
+        "lightseagreen":  [32, 178, 170],
+        "lightskyblue":  [135, 206, 250],
+        "lightslategray":  [119, 136, 153],
+        "lightslategrey":  [119, 136, 153],
+        "lightsteelblue":  [176, 196, 222],
+        "lightyellow":  [255, 255, 224],
+        "lime":  [0, 255, 0],
+        "limegreen":  [50, 205, 50],
+        "linen":  [250, 240, 230],
+        "magenta":  [255, 0, 255],
+        "maroon":  [128, 0, 0],
+        "mediumaquamarine":  [102, 205, 170],
+        "mediumblue":  [0, 0, 205],
+        "mediumorchid":  [186, 85, 211],
+        "mediumpurple":  [147, 112, 219],
+        "mediumseagreen":  [60, 179, 113],
+        "mediumslateblue":  [123, 104, 238],
+        "mediumspringgreen":  [0, 250, 154],
+        "mediumturquoise":  [72, 209, 204],
+        "mediumvioletred":  [199, 21, 133],
+        "midnightblue":  [25, 25, 112],
+        "mintcream":  [245, 255, 250],
+        "mistyrose":  [255, 228, 225],
+        "moccasin":  [255, 228, 181],
+        "navajowhite":  [255, 222, 173],
+        "navy":  [0, 0, 128],
+        "oldlace":  [253, 245, 230],
+        "olive":  [128, 128, 0],
+        "olivedrab":  [107, 142, 35],
+        "orange":  [255, 165, 0],
+        "orangered":  [255, 69, 0],
+        "orchid":  [218, 112, 214],
+        "palegoldenrod":  [238, 232, 170],
+        "palegreen":  [152, 251, 152],
+        "paleturquoise":  [175, 238, 238],
+        "palevioletred":  [219, 112, 147],
+        "papayawhip":  [255, 239, 213],
+        "peachpuff":  [255, 218, 185],
+        "peru":  [205, 133, 63],
+        "pink":  [255, 192, 203],
+        "plum":  [221, 160, 221],
+        "powderblue":  [176, 224, 230],
+        "purple":  [128, 0, 128],
+        "red":  [255, 0, 0],
+        "rosybrown":  [188, 143, 143],
+        "royalblue":  [65, 105, 225],
+        "saddlebrown":  [139, 69, 19],
+        "salmon":  [250, 128, 114],
+        "sandybrown":  [244, 164, 96],
+        "seagreen":  [46, 139, 87],
+        "seashell":  [255, 245, 238],
+        "sienna":  [160, 82, 45],
+        "silver":  [192, 192, 192],
+        "skyblue":  [135, 206, 235],
+        "slateblue":  [106, 90, 205],
+        "slategray":  [112, 128, 144],
+        "slategrey":  [112, 128, 144],
+        "snow":  [255, 250, 250],
+        "springgreen":  [0, 255, 127],
+        "steelblue":  [70, 130, 180],
+        "tan":  [210, 180, 140],
+        "teal":  [0, 128, 128],
+        "thistle":  [216, 191, 216],
+        "tomato":  [255, 99, 71],
+        "turquoise":  [64, 224, 208],
+        "violet":  [238, 130, 238],
+        "wheat":  [245, 222, 179],
+        "white":  [255, 255, 255],
+        "whitesmoke":  [245, 245, 245],
+        "yellow":  [255, 255, 0],
+        "yellowgreen":  [154, 205, 50],
+        "transparent":  [0, 0, 0, 0]
     }
 };
 
-Profiler.get = function (type) {
-    return {
-        t0:null,
-        start:function () {
-            this.t0 = new Date().getTime();
-        },
-        end:function () {
-            if (this.t0 !== null) {
-                Profiler.new_time(type, this.time = new Date().getTime() - this.t0);
-                this.t0 = null;
-            }
-        }
-    };
+exports.torque['torque-reference'] =  {
+  version: {
+    latest: _torque_reference_latest,
+    '1.0.0': _torque_reference_latest
+  }
+}
+
+})(typeof exports === "undefined" ? this : exports);
+/*
+# metrics profiler
+
+## timing
+
+```
+ var timer = Profiler.metric('resource:load')
+ time.start();
+ ...
+ time.end();
+```
+
+## counters
+
+```
+ var counter = Profiler.metric('requests')
+ counter.inc();   // 1
+ counter.inc(10); // 11
+ counter.dec()    // 10
+ counter.dec(10)  // 0
+```
+
+## Calls per second
+```
+  var fps = Profiler.metric('fps')
+  function render() {
+    fps.mark();
+  }
+```
+*/
+(function(exports) {
+
+var MAX_HISTORY = 1024;
+function Profiler() {}
+Profiler.metrics = {};
+
+Profiler.get = function(name) {
+  return Profiler.metrics[name] || {
+    max: 0,
+    min: 10000000,
+    avg: 0,
+    total: 0,
+    count: 0,
+    history: typeof(Float32Array) !== 'undefined' ? new Float32Array(MAX_HISTORY) : []
+  };
 };
+
+Profiler.new_value = function (name, value) {
+  var t = Profiler.metrics[name] = Profiler.get(name);
+
+  t.max = Math.max(t.max, value);
+  t.min = Math.min(t.min, value);
+  t.total += value;
+  ++t.count;
+  t.avg = t.total / t.count;
+  t.history[t.count%MAX_HISTORY] = value;
+};
+
+Profiler.print_stats = function () {
+  for (k in Profiler.metrics) {
+    var t = Profiler.metrics[k];
+    console.log(" === " + k + " === ");
+    console.log(" max: " + t.max);
+    console.log(" min: " + t.min);
+    console.log(" avg: " + t.avg);
+    console.log(" count: " + t.count);
+    console.log(" total: " + t.total);
+  }
+};
+
+function Metric(name) {
+  this.t0 = null;
+  this.name = name;
+  this.count = 0;
+}
+
+Metric.prototype = {
+
+  //
+  // start a time measurement
+  //
+  start: function() {
+    this.t0 = +new Date();
+  },
+
+  // elapsed time since start was called
+  _elapsed: function() {
+    return +new Date() - this.t0;
+  },
+
+  //
+  // finish a time measurement and register it
+  // ``start`` should be called first, if not this 
+  // function does not take effect
+  //
+  end: function() {
+    if (this.t0 !== null) {
+      Profiler.new_value(this.name, this._elapsed());
+      this.t0 = null;
+    }
+  },
+
+  //
+  // increments the value 
+  // qty: how many, default = 1
+  //
+  inc: function(qty) {
+    qty = qty === undefined ? 1: qty;
+    Profiler.new_value(this.name, Profiler.get(this.name).count + (qty ? qty: 0));
+  },
+
+  //
+  // decrements the value 
+  // qty: how many, default = 1
+  //
+  dec: function(qty) {
+    qty = qty === undefined ? 1: qty;
+    this.inc(-qty);
+  },
+
+  //
+  // measures how many times per second this function is called
+  //
+  mark: function() {
+    ++this.count;
+    if(this.t0 === null) {
+      this.start();
+      return;
+    }
+    var elapsed = this._elapsed();
+    if(elapsed > 1) {
+      Profiler.new_value(this.name, this.count);
+      this.count = 0;
+      this.start();
+    }
+  }
+};
+
+Profiler.metric = function(name) {
+  return new Metric(name);
+};
+
+exports.Profiler = Profiler;
+
+})(typeof exports === "undefined" ? this : exports);
 (function(exports) {
 
   exports.torque = exports.torque || {};
@@ -342,7 +755,37 @@ Profiler.get = function (type) {
     this.options = options;
   };
 
+
   json.prototype = {
+
+    //
+    // return the data aggregated by key:
+    // {
+    //  key0: 12,
+    //  key1: 32
+    //  key2: 25
+    // }
+    //
+    aggregateByKey: function(rows) {
+      function getKeys(row) {
+        var HEADER_SIZE = 3;
+        var valuesCount = row.data[2];
+        var keys = {};
+        for (var s = 0; s < valuesCount; ++s) {
+          keys[row.data[HEADER_SIZE + s]] = row.data[HEADER_SIZE + valuesCount + s];
+        }
+        return keys;
+      }
+      var keys = {};
+      for (r = 0; r < rows.length; ++r) {
+        var rowKeys = getKeys(rows[r]);
+        for(var k in rowKeys) {
+          keys[k] = keys[k] || 0;
+          keys[k] += rowKeys[k];
+        }
+      }
+      return keys;
+    },
 
     /**
      *
@@ -453,6 +896,26 @@ Profiler.get = function (type) {
       return this.options.url;
     },
 
+
+    getTile: function(coord, zoom, callback) {
+      var template = this.url();
+      template = template
+        .replace('{x}', coord.x)
+        .replace('{y}', coord.y)
+        .replace('{z}', zoom);
+
+      var self = this;
+      var fetchTime = Profiler.metric('jsonarray:fetch time');
+      fetchTime.start();
+      torque.net.get(template, function (data) {
+        fetchTime.end();
+        if(data) {
+          data = JSON.parse(data.responseText);
+        }
+        callback(data);
+      });
+    },
+
     /**
      * `coord` object like {x : tilex, y: tiley } 
      * `zoom` quadtree zoom level
@@ -465,14 +928,20 @@ Profiler.get = function (type) {
         .replace('{z}', zoom);
 
       var self = this;
+      var fetchTime = Profiler.metric('jsonarray:fetch time');
+      fetchTime.start();
       torque.net.get(template, function (data) {
+        fetchTime.end();
         var processed = null;
         
+        var processingTime = Profiler.metric('jsonarray:processing time');
         try {
+          processingTime.start();
           var rows = JSON.parse(data.responseText).rows;
           processed = self.proccessTile(rows, coord, zoom);
+          processingTime.end();
         } catch(e) {
-          console.log(e.stack);
+          processingTime.end();
           console.error("problem parsing JSON on ", coord, zoom);
         }
 
@@ -548,8 +1017,19 @@ Profiler.get = function (type) {
     }
   }
 
+  function renderSprite(ctx, st) {
+    var img = st['point-file'] || st['marker-file'];
+    var ratio = img.height/img.width;
+    var w = st['point-radius'] || img.width;
+    var h = st['point-radius'] || st['marker-height'] || w*ratio;
+    ctx.drawImage(img, 0, 0, w, h);
+  }
+
   exports.torque.cartocss = exports.torque.cartocss|| {};
-  exports.torque.cartocss.renderPoint = renderPoint;
+  exports.torque.cartocss = {
+    renderPoint: renderPoint,
+    renderSprite: renderSprite
+  };
 
 })(typeof exports === "undefined" ? this : exports);
 (function(exports) {
@@ -560,7 +1040,7 @@ Profiler.get = function (type) {
   var DEFAULT_CARTOCSS = [
     '#layer {',
     '  marker-fill: #662506;',
-    '  marker-width: 3;',
+    '  marker-width: 20;',
     '  [value > 1] { marker-fill: #FEE391; }',
     '  [value > 2] { marker-fill: #FEC44F; }',
     '  [value > 3] { marker-fill: #FE9929; }',
@@ -582,6 +1062,7 @@ Profiler.get = function (type) {
     this._canvas = canvas;
     this._ctx = canvas.getContext('2d');
     this._sprites = {};
+    //carto.tree.Reference.set(torque['torque-reference']);
     this.setCartoCSS(this.options.cartocss || DEFAULT_CARTOCSS);
   }
 
@@ -603,7 +1084,6 @@ Profiler.get = function (type) {
         throw new Error("only one CartoCSS layer is supported");
       }
       this._shader = this._cartoCssStyle.getLayers()[0];
-
     },
 
     //
@@ -625,7 +1105,11 @@ Profiler.get = function (type) {
       ctx.width = canvas.width = canvasSize;
       ctx.height = canvas.height = canvasSize;
       ctx.translate(pointSize, pointSize);
-      torque.cartocss.renderPoint(ctx, st);
+      if(st['point-file'] || st['marker-fil']) {
+        torque.cartocss.renderSprite(ctx, st);
+      } else {
+        torque.cartocss.renderPoint(ctx, st);
+      }
       return canvas;
     },
 
@@ -672,55 +1156,41 @@ Profiler.get = function (type) {
   exports.torque = exports.torque || {};
   exports.torque.renderer = exports.torque.renderer || {};
 
-
-  function palette(slots) {
-    var conds = []
-    for(var i = slots.length - 1; i >= 0; --i) {
-      conds.push("if( x >= " + slots[i] + ") return " + (i + 1)  + ";");
-    }
-    conds.push("return 0;");
-    var body = conds.join('\n');
-    return new Function("x", body);
-  }
-
-
-  var pal = palette([10, 100, 1000, 10000, 100000]);
-  console.log(pal(0), pal(11));
+  var DEFAULT_CARTOCSS = [
+    '#layer {',
+    '  polygon-fill: #FFFF00;',
+    '  [value > 10] { polygon-fill: #FFFF00; }',
+    '  [value > 100] { polygon-fill: #FFCC00; }',
+    '  [value > 1000] { polygon-fill: #FE9929; }',
+    '  [value > 10000] { polygon-fill: #FF6600; }',
+    '  [value > 100000] { polygon-fill: #FF3300; }',
+    '}'
+  ].join('\n');
 
   var TAU = Math.PI * 2;
-  var DEFAULT_COLORS = [
-  "#FFFF00", "#FFCC00", "#FF9900", "#FF6600", "#FF3300", "#CC0000"
-  /*
-        "#FEE391",
-        "#FEC44F",
-        "#FE9929",
-        "#EC7014",
-        "#CC4C02",
-        "#993404",
-        "#662506"
-        */
-  ];
-
-  function hexToRgb(hex) {
-    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? [
-      parseInt(result[1], 16),
-      parseInt(result[2], 16),
-      parseInt(result[3], 16),
-      255
-    ] : [0, 0, 0, 0];
-  }
 
   //
   // this renderer just render points depending of the value
   // 
   function RectanbleRenderer(canvas, options) {
     this.options = options;
+    carto.tree.Reference.set(torque['torque-reference']);
     this.setCanvas(canvas);
-    this._colors = DEFAULT_COLORS;//DEFAULT_COLORS.map(hexToRgb);
+    this.setCartoCSS(this.options.cartocss || DEFAULT_CARTOCSS);
   }
 
   RectanbleRenderer.prototype = {
+
+    //
+    // sets the cartocss style to render stuff
+    //
+    setCartoCSS: function(cartocss) {
+      this._cartoCssStyle = new carto.RendererJS().render(cartocss);
+      if(this._cartoCssStyle.getLayers().length > 1) {
+        throw new Error("only one CartoCSS layer is supported");
+      }
+      this._shader = this._cartoCssStyle.getLayers()[0].shader;
+    },
 
     setCanvas: function(canvas) {
       if(!canvas) return;
@@ -755,6 +1225,7 @@ Profiler.get = function (type) {
     },
 
     renderTileAccum: function(accum, px, py) {
+      var color, x, y;
       var res = this.options.resolution;
       var ctx = this._ctx;
       var s = (256/res) | 0;
@@ -764,9 +1235,10 @@ Profiler.get = function (type) {
         var xy = i;
         var value = accum[i];
         if(value) {
-          var x = (xy/s) | 0;
-          var y = xy % s;
-          var color = colors[pal(value)];//Math.min(value|0, colors.length - 1)];
+          x = (xy/s) | 0;
+          y = xy % s;
+          // by-pass the style generation for improving performance
+          color = this._shader['polygon-fill']({ value: value }, { zoom: 0 });
           ctx.fillStyle = color;
           ctx.fillRect(x * res, 256 - res - y * res, res, res);
         }
@@ -1676,8 +2148,10 @@ L.TiledTorqueLayer = L.TileLayer.Canvas.extend({
   },
 
   _tileLoaded: function(tile, tilePoint, tileData) {
-    this._tiles[tilePoint.x + ':' + tilePoint.y].data = tileData;
-    this.drawTile(tile);
+    if(this._tiles[tilePoint.x + ':' + tilePoint.y] !== undefined) {
+      this._tiles[tilePoint.x + ':' + tilePoint.y].data = tileData;
+      this.drawTile(tile);
+    }
   },
 
   _loadTile: function(tile, tilePoint) {
