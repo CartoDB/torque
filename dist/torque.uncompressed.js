@@ -1,5 +1,78 @@
 (function(exports) {
 
+  var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+
+  var cancelAnimationFrame = window.requestAnimationFrame || window.mozCancelAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+
+  /**
+   * options:
+   *    animationDuration in seconds
+   *    animationDelay in seconds
+   */
+  function Animator(callback, options) {
+    if(!options.steps) {
+      throw new Error("steps option missing")
+    }
+    this.options = options;
+    this.running = false;
+    this._tick = this._tick.bind(this);
+    this._t0 = +new Date();
+    this.callback = callback;
+    this._animFrame = null;
+    this._time = 0.0;
+
+    this.domain = invLinear(this.options.animationDelay, this.options.animationDelay, this.options.animationDuration);
+    this.range = linear(0, this.options.steps);
+  }
+
+
+  function clamp(a, b) {
+    return function(t) {
+      return Math.max(Math.min(t, b), a);
+    };
+  }
+  function invLinear(a, b) {
+    var c = clamp(0, 1.0);
+    return function(t) {
+      return c((t - a)/(b - a));
+    };
+  }
+  function linear(a, b) {
+    var c = clamp(a, b);
+    return function(t) {
+      return c(a*(1.0 - t) + t*b);
+    };
+  }
+
+
+  Animator.prototype = {
+
+    start: function() {
+      this.running = true;
+      this._animFrame = requestAnimationFrame(this._tick);
+    },
+
+    stop: function() {
+      this.running = true;
+      cancelAnimationFrame(this._animFrame);
+    },
+
+    _tick: function() {
+      var t1 = +new Date();
+      var delta = (t1 - this._t0)*0.001;
+      this._t0 = t1;
+      this._time += delta;
+      this.callback(this.range(this.domain(this._time)));
+      this._animFrame = requestAnimationFrame(this._tick);
+    }
+
+  };
+
+
+
+})(typeof exports === "undefined" ? this : exports);
+(function(exports) {
+
 exports.torque = exports.torque || {};
 
 var _torque_reference_latest = {
@@ -2151,6 +2224,12 @@ L.TiledTorqueLayer = L.TileLayer.Canvas.extend({
     if(this._tiles[tilePoint.x + ':' + tilePoint.y] !== undefined) {
       this._tiles[tilePoint.x + ':' + tilePoint.y].data = tileData;
       this.drawTile(tile);
+    }
+  },
+
+  redraw: function() {
+    for (var i in this._tiles) {
+        this._redrawTile(this._tiles[i]);
     }
   },
 
