@@ -2225,6 +2225,7 @@ L.TiledTorqueLayer = L.TileLayer.Canvas.extend({
       this._tiles[tilePoint.x + ':' + tilePoint.y].data = tileData;
       this.drawTile(tile);
     }
+    L.TileLayer.Canvas.prototype._tileLoaded.call(this);
   },
 
   redraw: function() {
