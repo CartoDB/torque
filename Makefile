@@ -6,6 +6,8 @@ JS_CLIENT_FILES= lib/torque/*.js \
 	lib/torque/gmaps/*.js \
 	lib/torque/leaflet/*.js 
 
+all: dist/torque.js
+
 dist/torque.uncompressed.js: dist_folder $(JS_CLIENT_FILES)
 	cat $(JS_CLIENT_FILES) > dist/torque.uncompressed.js
 
@@ -17,7 +19,6 @@ dist_folder:
 
 dist: dist_folder dist/torque.js
 
-all: dist/torque.js
 clean: 
 	rm -rf dist
 
