@@ -11,6 +11,35 @@ depending on the map provider you are using you need to use different layer type
 
 ## L.TorqueLayer(options)
 
+The core class of the Torque library - it is used to create a torque layer with custom settings.
+
+#### Usage example
+
+```js
+  // initialize a torque layer that uses the CartoDB account details and SQL API to pull in data
+  var torqueLayer = new L.TorqueLayer({
+    user       : 'viz2',
+    table      : 'ow',
+    column     : 'date',
+    countby    : 'count(cartodb_id)',
+    resolution : 1,
+    is_time    : true,
+    steps      : 750,
+    pixel_size : 3,
+    blendmode  : 'lighter'
+  });
+```
+
+#### Options
+
+##### Provider options
+| Option    | type      | Default   | Description                            |
+|-----------|:----------|:----------|:---------------------------------------|
+| provider  | string    | sql_api   | Where is the data coming from? Alternative is 'url_template'|
+
+
+    provider: 'sql_api',
+
 _Arguments_:
 
     * options: object that contains the following attributes:
