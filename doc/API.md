@@ -77,6 +77,8 @@ TorqueLayer currently expects ```marker``` styling
 
 ##### CartoCSS Example
 
+This should be ```string``` encoded in Javascript
+
 ```css
 #layer {,
   marker-fill: #662506;
@@ -133,6 +135,8 @@ One of two core classes for the Torque library - it is used to create a static t
 TorqueLayer currently expects ```polygon``` styling
 
 ##### CartoCSS Example
+
+This should be ```string``` encoded in Javascript
 
 ```css
 #layer {
