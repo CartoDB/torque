@@ -1,10 +1,10 @@
 
 # Torque API
 
-Torque provides two kinds of visulizations. 
+Torque provides two kinds of visualizations. 
 
   - static: provides a way to create heatmap like visualizations (note for Andrew: fon). see ``TorqueLayer``
-  - dinamyc: animate points over a map (note for Andrew: Navy) see ``TiledTorqueLayer``
+  - dynamic: animate points over a map (note for Andrew: Navy) see ``TiledTorqueLayer``
 
 
 depending on the map provider you are using you need to use different layer type. Currently we provide layers for Google Maps and Leaflet.
@@ -36,6 +36,15 @@ The core class of the Torque library - it is used to create a torque layer with 
 | Option    | type      | Default   | Description                            |
 |-----------|:----------|:----------|:---------------------------------------|
 | provider  | string    | sql_api   | Where is the data coming from? Alternative is 'url_template'|
+
+##### CartoDB data options
+| Option    | type      | Default   | Description                            |
+|-----------|:----------|:----------|:---------------------------------------|
+| user      | string    | null      | CartoDB account name. Found as, accountname.cartodb.com|
+| table     | string    | null      | CartoDB table name where data is found |
+| column    | string    | null      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
+| countby   | string    | null      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
+
 
 
     provider: 'sql_api',
