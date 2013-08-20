@@ -122,7 +122,7 @@ One of two core classes for the Torque library - it is used to create a static t
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setKey(keys)``` | ```keys numeric|array```    | ```this```   | which data categories to display on the map |
+| ```setKey(keys)``` | ```keys numeric/array```    | ```this```   | which data categories to display on the map |
 
 ### Style options
 
