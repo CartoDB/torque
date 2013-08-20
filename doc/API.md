@@ -3,8 +3,8 @@
 
 Torque provides two kinds of visulizations. 
 
-  - static: provides a way to create heatmap like visualizations (note for Andrew: fon)
-  - dinamyc: animate points over a map (note for Andrew: Navy)
+  - static: provides a way to create heatmap like visualizations (note for Andrew: fon). see ``TorqueLayer``
+  - dinamyc: animate points over a map (note for Andrew: Navy) see ``TiledTorqueLayer``
 
 
 depending on the map provider you are using you need to use different layer type. Currently we provide layers for Google Maps and Leaflet.
