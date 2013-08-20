@@ -11,7 +11,7 @@ depending on the map provider you are using you need to use different layer type
 
 ## L.TorqueLayer(options)
 
-The core class of the Torque library - it is used to create a torque layer with custom settings.
+One of two core classes for the Torque library - it is used to create an animated torque layer with custom settings.
 
 ### Usage example
 
@@ -45,16 +45,16 @@ The core class of the Torque library - it is used to create a torque layer with 
 | column    | string     | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
 | countby   | string     | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
 
-##### Dynamic/static options
+##### Dynamic/static options (Note for Santana: we can remove this option?)
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | is_time   | boolean    | ```true```   | Determines if the drawing is static or dynamic/animated |
-| steps     | integer    | ```100```   | The number of steps to divide the data into for animated renderings |
 
 
 ##### Display options
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
+| steps     | integer    | ```100```   | The number of steps to divide the data into for animated renderings |
 | resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
 | blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
@@ -62,18 +62,20 @@ The core class of the Torque library - it is used to create a torque layer with 
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```js setTime(numeric)``` | ```time```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
+| ```setKey(time)``` | ```time numeric```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
 
 
+### Style options
 
-## L.TorqueLayer.setKey(time: number)
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
 
-_Arguments_
-    * time: set time to be displayed. Should be a number between [0, steps)
-## L.TorqueLayer.setCartoCSS(cartocss: string)
-_Arguments_
-    * cartocss: cartocss string that contains the point style. Torque does not support the full cartocss spec, only a small subset. 
-    ``value`` and ``zoom`` variables can be used. ``value`` is the value of aggregation (see ``countby`` constructor option). ``zoom`` is the current zoom being rendered
+The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation here](CartoCSS.md). ``value`` and ``zoom`` variables can be used. ``value`` is the value of aggregation (see ``countby`` constructor option). ``zoom`` is the current zoom being rendered
+
+TorqueLayer currently expects ```marker``` styling
+
+##### CartoCSS Example
 
     ```
     #layer {,
@@ -89,24 +91,49 @@ _Arguments_
     }
     ```
 
-
 ## L.TiledTorqueLayer(options)
-creates a static visualization
-_Arguments_:
-    * options:
-        - provider: 'url_template',
-        - url: tile template url e.g 'http://host.com/{z}/{x}/{y}.json', (note to Andrew: link here to the json data format)
-        - resolution: data resolution, e.g 4
+
+One of two core classes for the Torque library - it is used to create a static torque layer with client side filtering.
+
+##### Provider options
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| provider  | string     | ```sql_api```   | Where is the data coming from? Alternative is 'url_template'|
+| url  | string     | ```null```   | Tile template URL for fetching data e.g 'http://host.com/{z}/{x}/{y}.json'|
+
+##### CartoDB data options (Note to Santana: are these really here?)
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| user      | string     | ```null```      | CartoDB account name. Found as, accountname.cartodb.com|
+| table     | string     | ```null```      | CartoDB table name where data is found |
+| column    | string     | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
+| countby   | string     | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
 
 
-## L.TiledTorqueLayer.setKey(keys: number|array)
-set keys to show, if it's an array all the keys in that array are accumulated
+##### Display options (Note to Santana: is blendmode here? or above even?)
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
+| blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
-## L.TiledTorqueLayer.setCartoCSS(cartocss: string)
+### Filtering options
+
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```setKey(keys)``` | ```keys numeric|array```    | ```this```   | which data categories to display on the map |
+
+### Style options
+
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
 
 ``value`` and ``zoom`` variables can be used. only ``polygon-fill`` property is supported currently
 
-_Example_:
+TorqueLayer currently expects ```polygon``` styling
+
+##### CartoCSS Example
+
     ```
     #layer {
       polygon-fill: #FFFF00;
