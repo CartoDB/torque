@@ -77,19 +77,19 @@ TorqueLayer currently expects ```marker``` styling
 
 ##### CartoCSS Example
 
-    ```
-    #layer {,
-      marker-fill: #662506;
-      marker-width: 20;
-      [value > 1] { marker-fill: #FEE391; }
-      [value > 2] { marker-fill: #FEC44F; }
-      [value > 3] { marker-fill: #FE9929; }
-      [value > 4] { marker-fill: #EC7014; }
-      [value > 5] { marker-fill: #CC4C02; }
-      [value > 6] { marker-fill: #993404; }
-      [value > 7] { marker-fill: #662506; }
-    }
-    ```
+```css
+#layer {,
+  marker-fill: #662506;
+  marker-width: 20;
+  [value > 1] { marker-fill: #FEE391; }
+  [value > 2] { marker-fill: #FEC44F; }
+  [value > 3] { marker-fill: #FE9929; }
+  [value > 4] { marker-fill: #EC7014; }
+  [value > 5] { marker-fill: #CC4C02; }
+  [value > 6] { marker-fill: #993404; }
+  [value > 7] { marker-fill: #662506; }
+}
+```
 
 ## L.TiledTorqueLayer(options)
 
@@ -134,16 +134,16 @@ TorqueLayer currently expects ```polygon``` styling
 
 ##### CartoCSS Example
 
-    ```
-    #layer {
-      polygon-fill: #FFFF00;
-      [value >= 10] { polygon-fill: #FFCC00; }
-      [value >= 100] { polygon-fill: #FF9900; }
-      [value >= 1000] { polygon-fill: #FF6600; }
-      [value >= 10000] { polygon-fill: #FF3300; }
-      [value > 100000] { polygon-fill: #C00; }
-    }
-    ```
+```css
+#layer {
+  polygon-fill: #FFFF00;
+  [value >= 10] { polygon-fill: #FFCC00; }
+  [value >= 100] { polygon-fill: #FF9900; }
+  [value >= 1000] { polygon-fill: #FF6600; }
+  [value >= 10000] { polygon-fill: #FF3300; }
+  [value > 100000] { polygon-fill: #C00; }
+}
+```
 
 
 # gmaps layers (TODO)
