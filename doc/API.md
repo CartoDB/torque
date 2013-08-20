@@ -130,7 +130,7 @@ One of two core classes for the Torque library - it is used to create a static t
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
 
-``value`` and ``zoom`` variables can be used. only ``polygon-fill`` property is supported currently
+``value`` and ``zoom`` variables can be used. only ``polygon-fill`` property is supported currently. To see the full list of supported parameters, read the [Torque CartoCSS documentation here](CartoCSS.md).
 
 TorqueLayer currently expects ```polygon``` styling
 
