@@ -53,6 +53,8 @@ The core class of the Torque library - it is used to create a torque layer with 
 
 
 ##### Display options
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
 | resolution| numeric    | ```2```   | The x and y dimensions of each pixel when rendered on the map. Must match the format of the data|
 | blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
