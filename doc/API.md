@@ -13,7 +13,7 @@ depending on the map provider you are using you need to use different layer type
 
 The core class of the Torque library - it is used to create a torque layer with custom settings.
 
-#### Usage example
+### Usage example
 
 ```js
   // initialize a torque layer that uses the CartoDB account details and SQL API to pull in data
@@ -30,7 +30,7 @@ The core class of the Torque library - it is used to create a torque layer with 
   });
 ```
 
-#### Options
+### Options
 
 ##### Provider options
 | Option    | type       | Default   | Description                            |
@@ -55,8 +55,16 @@ The core class of the Torque library - it is used to create a torque layer with 
 ##### Display options
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| resolution| numeric    | ```2```   | The x and y dimensions of each pixel when rendered on the map. Must match the format of the data|
+| resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
 | blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
+
+## Play options
+
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```setTime(numeric)``` | ```time```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
+
+
 
 ## L.TorqueLayer.setKey(time: number)
 
