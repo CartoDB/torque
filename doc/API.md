@@ -58,11 +58,13 @@ The core class of the Torque library - it is used to create a torque layer with 
 | resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
 | blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
-## Play options
+### Play options
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setTime(numeric)``` | ```time```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
+| ```js 
+setTime(numeric)
+``` | ```time```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
 
 
 
