@@ -62,9 +62,7 @@ The core class of the Torque library - it is used to create a torque layer with 
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```js 
-setTime(numeric)
-``` | ```time```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
+| ```js setTime(numeric)``` | ```time```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
 
 
 
