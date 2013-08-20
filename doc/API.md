@@ -33,37 +33,28 @@ The core class of the Torque library - it is used to create a torque layer with 
 #### Options
 
 ##### Provider options
-| Option    | type      | Default   | Description                            |
-|-----------|:----------|:----------|:---------------------------------------|
-| provider  | string    | ```sql_api```   | Where is the data coming from? Alternative is 'url_template'|
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| provider  | string     | ```sql_api```   | Where is the data coming from? Alternative is 'url_template'|
 
 ##### CartoDB data options
-| Option    | type      | Default   | Description                            |
-|-----------|:----------|:----------|:---------------------------------------|
-| user      | string    | ```null```      | CartoDB account name. Found as, accountname.cartodb.com|
-| table     | string    | ```null```      | CartoDB table name where data is found |
-| column    | string    | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
-| countby   | string    | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| user      | string     | ```null```      | CartoDB account name. Found as, accountname.cartodb.com|
+| table     | string     | ```null```      | CartoDB table name where data is found |
+| column    | string     | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
+| countby   | string     | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
 
-##### Visualization options
-| Option    | type      | Default   | Description                            |
-|-----------|:----------|:----------|:---------------------------------------|
-| is_time  | boolean    | ```true```   | Where is the data coming from? Alternative is 'url_template'|
+##### Dynamic/static options
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| is_time   | boolean    | ```true```   | Determines if the drawing is static or dynamic/animated |
+| steps     | integer    | ```100```   | The number of steps to divide the data into for animated renderings |
 
 
-    provider: 'sql_api',
-
-_Arguments_:
-
-    * options: object that contains the following attributes:
-        - user: cartodb username
-        - table: table name
-        - column: time column
-        - countby: aggregation per pixel, e.g: 'count(cartodb_id)',
-        - resolution: pixel resolution,
-        - is_time: true or false,
-        - steps: animation steps, e.g: 750,
-        - blendmode: canvas blend mode 'lighter'
+##### Display options
+| resolution| numeric    | ```2```   | The x and y dimensions of each pixel when rendered on the map. Must match the format of the data|
+| blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
 ## L.TorqueLayer.setKey(time: number)
 
