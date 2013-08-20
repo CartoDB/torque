@@ -12,6 +12,7 @@ depending on the map provider you are using you need to use different layer type
 ## L.TorqueLayer(options)
 
 _Arguments_:
+
     * options: object that contains the following attributes:
         - user: cartodb username
         - table: table name
