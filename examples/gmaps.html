@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="../vendor/leaflet.css" />
+    <style>
+      #map, html, body {
+        width: 100%; height: 100%; padding: 0; margin: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="map"></div>
+
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+    <script src="../vendor/underscore.js"></script>
+    <script src="../vendor/carto.js"></script>
+    <script src="../lib/torque/cartocss_reference.js"></script>
+    <script src="../lib/torque/profiler.js"></script>
+    <script src="../lib/torque/request.js"></script>
+    <script src="../lib/torque/renderer/point.js"></script>
+    <script src="../lib/torque/renderer/rectangle.js"></script>
+    <script src="../lib/torque/provider.json.js"></script>
+    <script src="../lib/torque/provider.jsonarray.js"></script>
+    <script src="../lib/torque/gmaps/canvas_tile_layer.js"></script>
+    <script src="../lib/torque/gmaps/torque.js"></script>
+
+    <script>
+    function initialize() {
+        // initialise the google map
+        var map = new google.maps.Map(document.getElementById('map'), {
+            center: new google.maps.LatLng(40.4166909, -3.7003454),
+            zoom: 2,
+            mapTypeId:google.maps.MapTypeId.SATELLITE,
+            mapTypeControl:false,
+            minZoom:1,
+            scrollwheel: false,
+            panControl: false,
+            zoomControl: false,
+            scaleControl: false,
+            streetViewControl: false,
+            overviewMapControl: false,
+        });
+
+        var map_style = {};
+        map_style.google_maps_customization_style = [
+            {
+                stylers:[
+                    { invert_lightness:true },
+                    { weight:1 },
+                    { saturation:-100 },
+                    { lightness:-40 }
+                ]
+            },
+            {
+                elementType:"labels",
+                stylers:[
+                    { visibility:"simplified" }
+                ]
+            }
+        ];
+
+        var Soft = function () {
+            this.Soft = function () {
+                map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                map.setOptions({styles:map_style.google_maps_customization_style});
+            }
+        }
+
+
+        map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+        map.setOptions({styles:map_style.google_maps_customization_style});
+        
+      var GBIF_URL = 'http://apidev.gbif.org/map/density/tile/density/tile.tcjson?key=1&x={x}&y={y}&z={z}&type=TAXON'
+      var torqueLayer = new torque.GMapsTiledTorqueLayer({
+        //url: 'http://development.localhost.lan:8080/api/v1/sql',
+        provider: 'url_template',
+        url: GBIF_URL,
+        resolution: 4,
+        cummulative: true,
+        start_date: 0,
+        end_date: 220,
+        step: 1,
+        table: 'importing_1369045322_helsinki_manydays_live',
+        column: 'ac',
+        countby: 'count(mm)',
+        pixel_size: 3
+      });
+
+      map.overlayMapTypes.setAt(0, torqueLayer);
+
+      torqueLayer.setKey([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+      window.torqueLayer = torqueLayer;
+
+    }
+
+    window.onload = initialize;
+    </script>
+</body>
+</html>
