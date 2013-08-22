@@ -130,7 +130,7 @@ One of two core classes for the Torque library - it is used to create a static t
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
 
-``value`` and ``zoom`` variables can be used. only ``polygon-fill`` property is supported currently. To see the full list of supported parameters, read the [Torque CartoCSS documentation here](CartoCSS.md).
+``value`` and ``zoom`` variables can be used. only ``polygon-fill`` and ``polygon-opacity`` properties are supported currently. To see the full list of supported parameters, read the [Torque CartoCSS documentation here](CartoCSS.md).
 
 TorqueLayer currently expects ```polygon``` styling
 
@@ -149,5 +149,21 @@ This should be ```string``` encoded in Javascript
 }
 ```
 
+# Google Maps Layers
 
-# gmaps layers (TODO)
+## GMapsTiledTorqueLayer(options) 
+creates a static layer to use it with google maps. 
+
+```js
+  var torqueLayer = new torque.GMapsTiledTorqueLayer({
+    provider: 'url_template',
+    url: GBIF_URL,
+    resolution: 4,
+  });
+
+  map.overlayMapTypes.setAt(0, torqueLayer);
+
+  torqueLayer.setKey([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+```
+
+see ``L.TiledTorqueLayer`` for options reference
