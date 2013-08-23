@@ -15,6 +15,7 @@
     <script src="../lib/torque/cartocss_reference.js"></script>
     <script src="../lib/torque/profiler.js"></script>
     <script src="../lib/torque/request.js"></script>
+    <script src="../lib/torque/animator.js"></script>
     <script src="../lib/torque/leaflet/leaflet_tileloader_mixin.js"></script>
     <script src="../lib/torque/leaflet/canvas_layer.js"></script>
     <script src="../lib/torque/renderer/cartocss_render.js"></script>
@@ -46,33 +47,9 @@
         resolution: 2,
         is_time: true,
         steps: 750,
-        blendmode  : 'lighter'
+        blendmode  : 'lighter',
+        animationDuration: 30
       });
-
-      /*steps      : 750,
-      resolution : 2,
-      cumulative : false,
-      clock      : true,
-      fps        : 24,
-      fitbounds  : false,
-      blendmode  : 'lighter',
-      trails     : true,
-      point_type : 'circle',
-      cellsize   : 1,
-      autoplay   : false
-
-      */
-
-
-       /*"#FEE391",
-        "#FEC44F",
-        "#FE9929",
-        "#EC7014",
-        "#CC4C02",
-        "#993404",
-        "#662506"
-        */
-
 
     var DEFAULT_CARTOCSS = [
       '#layer {',
@@ -87,18 +64,15 @@
       '}',
       '#layer::trails {',
       '  trail-steps: 5;',
-      '  marker-width: [trail-step]*3;',
-      '  marker-fill: #FEE391; ',
-      '  marker-fill-opacity: 0.02; ',
+      '  marker-width: [trail-step]*5;',
+      '  marker-fill: #330000; ',
+      '  marker-fill-opacity: 0.05; ',
       '}'
     ].join('\n');
       torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
 
       torqueLayer.addTo(map);
-      var t = 0;
-      setInterval(function() {
-        torqueLayer.setKey((t++%750));
-      }, 1000/22.0);
+      torqueLayer.play()
     
     </script>
   </body>
