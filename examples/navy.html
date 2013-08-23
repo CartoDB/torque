@@ -30,7 +30,7 @@
         zoomControl: true,
         center: [40, 0],
         //center: [36.60670888641815,  38.627929687],
-        zoom: 3
+        zoom: 2
       });
 
       L.tileLayer('http://tile.stamen.com/toner/{z}/{x}/{y}.png', {
@@ -38,16 +38,14 @@
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
-        //url: 'http://development.localhost.lan:8080/api/v1/sql',
         provider: 'sql_api',
         user       : 'viz2',
         table      : 'ow',
         column     : 'date',
         countby    : 'count(cartodb_id)',
-        resolution: 1,
+        resolution: 2,
         is_time: true,
         steps: 750,
-        pixel_size: 3,
         blendmode  : 'lighter'
       });
 
@@ -65,11 +63,42 @@
 
       */
 
+
+       /*"#FEE391",
+        "#FEC44F",
+        "#FE9929",
+        "#EC7014",
+        "#CC4C02",
+        "#993404",
+        "#662506"
+        */
+
+
+    var DEFAULT_CARTOCSS = [
+      '#layer {',
+      '  marker-width: 2;',
+      '  marker-fill: #FEE391; ',
+      '  [value > 2] { marker-fill: #FEC44F; }',
+      '  [value > 3] { marker-fill: #FE9929; }',
+      '  [value > 4] { marker-fill: #EC7014; }',
+      '  [value > 5] { marker-fill: #CC4C02; }',
+      '  [value > 6] { marker-fill: #993404; }',
+      '  [value > 7] { marker-fill: #662506; }',
+      '}',
+      '#layer::trails {',
+      '  trail-steps: 2;',
+      '  marker-width: [trail-step]*2;',
+      '  marker-fill: red; ',
+      '  marker-fill-opacity: 0.1; ',
+      '}'
+    ].join('\n');
+      torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
+
       torqueLayer.addTo(map);
       var t = 0;
       setInterval(function() {
         torqueLayer.setKey((t++%750));
-      }, 100);
+      }, 1000/22.0);
     
     </script>
   </body>
