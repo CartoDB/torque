@@ -54,18 +54,26 @@ One of two core classes for the Torque library - it is used to create an animate
 ##### Display options
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| steps     | integer    | ```100```   | The number of steps to divide the data into for animated renderings |
 | resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
 | blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
-### Play options
+##### Time options
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| steps     | integer    | ```100```   | The number of steps to divide the data into for animated renderings |
+| animationDuration | integer    | ```null```   | time in seconds the animation last |
+
+### Time methods
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```setKey(time)``` | ```time numeric```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
+| ```play```| | ```this```| starts the animation
+| ```stop```| | ```this```| stops the animation and set time to step 0
+| ```pause```| | ```this```| stops the animation but keep the current time (play enables the animation again)
 
 
-### Style options
+### Style methods 
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
@@ -90,6 +98,8 @@ This should be ```string``` encoded in Javascript
   [value > 5] { marker-fill: #CC4C02; }
   [value > 6] { marker-fill: #993404; }
   [value > 7] { marker-fill: #662506; }
+  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}', // renders the previos frame
+  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}', // renders two frames ago from the current being rendered
 }
 ```
 
