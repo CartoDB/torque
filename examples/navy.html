@@ -48,7 +48,7 @@
         is_time: true,
         steps: 750,
         blendmode  : 'lighter',
-        animationDuration: 30
+        animationDuration: 60
       });
 
     var DEFAULT_CARTOCSS = [
@@ -61,13 +61,9 @@
       '  [value > 5] { marker-fill: #CC4C02; }',
       '  [value > 6] { marker-fill: #993404; }',
       '  [value > 7] { marker-fill: #662506; }',
+      '  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}',
+      '  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}',
       '}',
-      '#layer::trails {',
-      '  trail-steps: 5;',
-      '  marker-width: [trail-step]*5;',
-      '  marker-fill: #330000; ',
-      '  marker-fill-opacity: 0.05; ',
-      '}'
     ].join('\n');
       torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
 
