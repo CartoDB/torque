@@ -45,7 +45,7 @@ One of two core classes for the Torque library - it is used to create an animate
 | column    | string     | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
 | countby   | string     | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
 
-##### Dynamic/static options (Note for Santana: we can remove this option?)
+##### Dynamic/static options
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | is_time   | boolean    | ```true```   | Determines if the drawing is static or dynamic/animated |
@@ -55,7 +55,7 @@ One of two core classes for the Torque library - it is used to create an animate
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
-| blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
+| blendmode | boolean    | ```source-over```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
 ##### Time options
 | Option    | type       | Default   | Description                            |
@@ -67,7 +67,7 @@ One of two core classes for the Torque library - it is used to create an animate
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setKey(time)``` | ```time numeric```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
+| ```setTime(time)``` | ```time numeric```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
 | ```play```| | ```this```| starts the animation
 | ```stop```| | ```this```| stops the animation and set time to step 0
 | ```pause```| | ```this```| stops the animation but keep the current time (play enables the animation again)
@@ -126,7 +126,7 @@ One of two core classes for the Torque library - it is used to create a static t
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
-| blendmode | boolean    | ```null```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
+| blendmode | boolean    | ```source-over```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
 
 ### Filtering options
 
