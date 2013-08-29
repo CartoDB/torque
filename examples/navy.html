@@ -12,6 +12,8 @@
     <script src="../vendor/leaflet.js"></script>
     <script src="../vendor/underscore.js"></script>
     <script src="../vendor/carto.js"></script>
+    <script src="../dist/torque.uncompressed.js"></script>
+    <!--
     <script src="../lib/torque/cartocss_reference.js"></script>
     <script src="../lib/torque/profiler.js"></script>
     <script src="../lib/torque/request.js"></script>
@@ -24,6 +26,7 @@
     <script src="../lib/torque/provider.json.js"></script>
     <script src="../lib/torque/provider.jsonarray.js"></script>
     <script src="../lib/torque/leaflet/torque.js"></script>
+    -->
 
 
     <script>
@@ -63,7 +66,7 @@
       '  [value > 7] { marker-fill: #662506; }',
       '  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}',
       '  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}',
-      '}',
+      '}'
     ].join('\n');
       torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
 

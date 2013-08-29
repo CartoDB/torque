@@ -15,6 +15,10 @@
     <script src="../vendor/leaflet.js"></script>
     <script src="../vendor/underscore.js"></script>
     <script src="../vendor/carto.js"></script>
+
+    <script src="../dist/torque.js"></script>
+
+    <!--
     <script src="../lib/torque/cartocss_reference.js"></script>
     <script src="../lib/torque/profiler.js"></script>
     <script src="../lib/torque/request.js"></script>
@@ -27,11 +31,11 @@
     <script src="../lib/torque/provider.json.js"></script>
     <script src="../lib/torque/provider.jsonarray.js"></script>
     <script src="../lib/torque/leaflet/torque.js"></script>
-
     <script src="../lib/torque/gmaps/canvas_tile_layer.js"></script>
     <script src="../lib/torque/gmaps/CanvasLayer.js"></script>
     <script src="../lib/torque/gmaps/gmaps_tileloader_mixin.js"></script>
     <script src="../lib/torque/gmaps/torque.js"></script>
+    -->
 
 
     <script>
@@ -83,21 +87,22 @@
       });
 
       var DEFAULT_CARTOCSS = [
-        '#layer {',
-        '  marker-width: 2;',
-        '  marker-fill: #FEE391; ',
-        '  [value > 2] { marker-fill: #FEC44F; }',
-        '  [value > 3] { marker-fill: #FE9929; }',
-        '  [value > 4] { marker-fill: #EC7014; }',
-        '  [value > 5] { marker-fill: #CC4C02; }',
-        '  [value > 6] { marker-fill: #993404; }',
-        '  [value > 7] { marker-fill: #662506; }',
-        '  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}',
-        '  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}',
-        '}',
+      '#layer {',
+      "  marker-width: 3; ",
+      '  marker-fill: #FEE391; ',
+      '  [value > 2] { marker-fill: #FEC44F; }',
+      '  [value > 3] { marker-fill: #FE9929; }',
+      '  [value > 4] { marker-fill: #EC7014; }',
+      '  [value > 5] { marker-fill: #CC4C02; }',
+      '  [value > 6] { marker-fill: #993404; }',
+      '  [value > 7] { marker-fill: #662506; }',
+      '  [frame-offset = 1] {  marker-width: 8;marker-fill-opacity: 0.05;}',
+      '  [frame-offset = 2] {  marker-width: 20;marker-fill-opacity: 0.02;}',
+      //'  [frame-offset = 1] {  marker-width: 25;marker-fill-opacity: 0.01;}',
+      '}'
       ].join('\n');
 
-      //torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
+      torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
       torqueLayer.setMap(map);
       torqueLayer.play()
     }
