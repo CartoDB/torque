@@ -12,8 +12,9 @@
         "email": "wadus@cartodb.com"
     },
     "contributors": [
+        "Andrew Hill <andrew@vizzuality.com>",
+        "Simon Tokumine <tokumine@google.com>",
         "Javier Alvarez <jmedina@vizzuality.com>",
-        "Javier Alvarez <xabel@vizzuality.com>",
         "Javier Arce <javierarce@vizzuality.com>",
         "Javier Santana <jsantana@vizzuality.com>"
     ],
