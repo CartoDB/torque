@@ -67,7 +67,7 @@ One of two core classes for the Torque library - it is used to create an animate
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setTime(time)``` | ```time numeric```    | ```this```   | sets the animation to the step indicated by ```time```, must be between 0 and N where N equals the number of steps|
+| ```setStep(step)``` | ```time numeric```    | ```this```   | sets the animation to the step indicated by ```step```, must be between 0 and ```steps```|
 | ```play```| | ```this```| starts the animation
 | ```stop```| | ```this```| stops the animation and set time to step 0
 | ```pause```| | ```this```| stops the animation but keep the current time (play enables the animation again)
