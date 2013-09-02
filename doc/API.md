@@ -167,7 +167,7 @@ is not a layer is a overlay so in order to add it to the map use ``layer.setMap`
 
 ### Options
 
-##### Provider options
+##### options
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | map | google.maps.Map |    | google.maps.Map instance |
