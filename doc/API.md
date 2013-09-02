@@ -161,8 +161,22 @@ This should be ```string``` encoded in Javascript
 
 # Google Maps Layers
 
+## GMapsTorqueLayer(options) 
+This class does exactly the same than ``L.TorqueLayer`` but using Google Maps. The main difference is that this class
+is not a layer is a overlay so in order to add it to the map use ``layer.setMap`` instead of ``overlayMapTypes``. See [Overlay view](https://developers.google.com/maps/documentation/javascript/reference#OverlayView) reference in Google Maps API doc. 
+
+### Options
+
+##### Provider options
+| Option    | type       | Default   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| map | google.maps.Map |    | google.maps.Map instance |
+
+see ``L.TorqueLayer`` for the rest of the options.
+
+
 ## GMapsTiledTorqueLayer(options) 
-creates a static layer to use it with google maps. 
+creates a static _overlay_ to use it with google maps. 
 
 ```js
   var torqueLayer = new torque.GMapsTiledTorqueLayer({
@@ -171,7 +185,7 @@ creates a static layer to use it with google maps.
     resolution: 4,
   });
 
-  map.overlayMapTypes.setAt(0, torqueLayer);
+  torqueLayer.setMap(map);
 
   torqueLayer.setKey([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
 ```
