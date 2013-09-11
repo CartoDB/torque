@@ -2,9 +2,9 @@
 
   exports.torque = exports.torque || {};
 
-  var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+  var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || function(c) { setTimeout(c, 16); }
 
-  var cancelAnimationFrame = window.requestAnimationFrame || window.mozCancelAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+  var cancelAnimationFrame = window.requestAnimationFrame || window.mozCancelAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || function(c) { cancelTimeout(c); };
 
   /**
    * options:
@@ -26,31 +26,11 @@
       maxDelta: 0.2,
       loop: true
     });
-    
 
-    this.domain = invLinear(this.options.animationDelay, this.options.animationDelay + this.options.animationDuration);
-    this.range = linear(0, this.options.steps);
-  }
-
-
-  function clamp(a, b) {
-    return function(t) {
-      return Math.max(Math.min(t, b), a);
-    };
-  }
-
-  function invLinear(a, b) {
-    var c = clamp(0, 1.0);
-    return function(t) {
-      return c((t - a)/(b - a));
-    };
-  }
-
-  function linear(a, b) {
-    var c = clamp(a, b);
-    return function(t) {
-      return c(a*(1.0 - t) + t*b);
-    };
+    this.domainInv = torque.math.linear(this.options.animationDelay, this.options.animationDelay + this.options.animationDuration);
+    this.domain = this.domainInv.invert();
+    this.range = torque.math.linear(0, this.options.steps);
+    this.rangeInv = this.range.invert();
   }
 
 
@@ -76,6 +56,11 @@
       }
     },
 
+    step: function(s) {
+      if(arguments.length === 0) return this.range(this.domain(this._time));
+      this._time = this.domainInv(this.rangeInv(s));
+    },
+
     pause: function() {
       this.running = false;
       cancelAnimationFrame(this._tick);
@@ -86,7 +71,7 @@
       var delta = (t1 - this._t0)*0.001;
       // if delta is really big means the tab lost the focus
       // at some point, so limit delta change
-      delta = Math.min(this.options.maxDelta, delta)
+      delta = Math.min(this.options.maxDelta, delta);
       this._t0 = t1;
       this._time += delta;
       var t = this.range(this.domain(this._time));
@@ -454,6 +439,88 @@ exports.torque['torque-reference'] =  {
 }
 
 })(typeof exports === "undefined" ? this : exports);
+(function(exports) {
+
+  exports.torque = exports.torque || {};
+
+  var Event = {};
+  Event.on = function(evt, callback) {
+      var cb = this._evt_callbacks = this._evt_callbacks || {};
+      var l = cb[evt] || (cb[evt] = []);
+      l.push(callback);
+  };
+
+  Event.trigger = function(evt) {
+      var c = this._evt_callbacks && this._evt_callbacks[evt];
+      for(var i = 0; c && i < c.length; ++i) {
+          c[i].apply(this, Array.prototype.slice.call(arguments, 1));
+      }
+  };
+
+  Event.fire = Event.trigger;
+
+  Event.off = function (evt, callback) {
+      var c = this._evt_callbacks && this._evt_callbacks[evt];
+      if (c && !callback) {
+        delete this._evt_callbacks[evt];
+        return this;
+     }
+     var remove = [];
+     for(var i = 0; c && i < c.length; ++i) {
+       if(c[i] === callback) remove.push(i);
+     }
+     while(i = remove.pop()) c.splice(i, 1);
+  };
+
+  exports.torque.Event = Event;
+
+
+  // types
+  exports.torque.types = {
+    Uint8Array: typeof(window['Uint8Array']) !== 'undefined' ? window.Uint8Array : Array,
+    Uint32Array: typeof(window['Uint32Array']) !== 'undefined' ? window.Uint32Array : Array,
+    Int32Array: typeof(window['Int32Array']) !== 'undefined' ? window.Int32Array: Array,
+  };
+
+})(typeof exports === "undefined" ? this : exports);
+(function(exports) {
+
+  exports.torque = exports.torque || {};
+
+  function clamp(a, b) {
+    return function(t) {
+      return Math.max(Math.min(t, b), a);
+    };
+  }
+
+  function invLinear(a, b) {
+    var c = clamp(0, 1.0);
+    return function(t) {
+      return c((t - a)/(b - a));
+    };
+  }
+
+  function linear(a, b) {
+    var c = clamp(a, b);
+    function _linear(t) {
+      return c(a*(1.0 - t) + t*b);
+    }
+
+    _linear.invert = function() {
+      return invLinear(a, b);
+    };
+
+    return _linear;
+  }
+
+  exports.torque.math = {
+    clamp: clamp,
+    linear: linear,
+    invLinear: invLinear
+  };
+
+})(typeof exports === "undefined" ? this : exports);
+
 /*
 # metrics profiler
 
@@ -602,8 +669,12 @@ exports.Profiler = Profiler;
 })(typeof exports === "undefined" ? this : exports);
 (function(exports) {
 
-  exports.torque = exports.torque || {};
+  var torque = exports.torque = exports.torque || {};
   var providers = exports.torque.providers = exports.torque.providers || {};
+
+  var Uint8Array = torque.types.Uint8Array;
+  var Int32Array = torque.types.Int32Array;
+  var Uint32Array = torque.types.Uint32Array;
 
   // format('hello, {0}', 'rambo') -> "hello, rambo"
   function format(str) {
@@ -627,7 +698,7 @@ exports.Profiler = Profiler;
     if (options.resolution === undefined ) throw new Error("resolution should be provided");
     if (options.steps === undefined ) throw new Error("steps should be provided");
     if(options.start === undefined) {
-      this.getKeySpan();
+      this._fetchKeySpan();
     } else {
       this._ready = true;
     }
@@ -645,34 +716,43 @@ exports.Profiler = Profiler;
      * }
      */
     proccessTile: function(rows, coord, zoom) {
+      var r;
       var x = new Uint8Array(rows.length);
       var y = new Uint8Array(rows.length);
+
 
       // count number of dates
       var dates = 0;
       var maxDateSlots = 0;
-      for (var r = 0; r < rows.length; ++r) {
+      for (r = 0; r < rows.length; ++r) {
         var row = rows[r];
-        dates += row['dates__uint16'].length;
-        maxDateSlots = Math.max(maxDateSlots, row.dates__uint16.length);
+        if(this.options.cumulative) {
+          for (var s = 1; s < row.vals__uint8.length; ++s) {
+           row.vals__uint8[s] += row.vals__uint8[s - 1];
+          }
+        }
+        dates += row.dates__uint16.length;
+        for(var d = 0; d < row.dates__uint16.length; ++d) {
+          maxDateSlots = Math.max(maxDateSlots, row.dates__uint16[d]);
+        }
       }
 
       // reserve memory for all the dates
-      var timeIndex = new Int32Array(maxDateSlots); //index-size
-      var timeCount = new Int32Array(maxDateSlots);
-      var renderData = new Uint8Array(dates);
+      var timeIndex = new Int32Array(maxDateSlots + 1); //index-size
+      var timeCount = new Int32Array(maxDateSlots + 1);
+      var renderData = new (this.options.valueDataType || Uint8Array)(dates);
       var renderDataPos = new Uint32Array(dates);
 
-      var rowsPerSlot = [];
+      var rowsPerSlot = {};
 
       // precache pixel positions
       for (var r = 0; r < rows.length; ++r) {
         var row = rows[r];
-        x[r] = row.x__uint8;
-        y[r] = row.y__uint8;
+        x[r] = row.x__uint8 * this.options.resolution;
+        y[r] = row.y__uint8 * this.options.resolution;
 
-        var dates = rows[r]['dates__uint16'];
-        var vals = rows[r]['vals__uint8'];
+        var dates = row.dates__uint16;
+        var vals = row.vals__uint8;
         for (var j = 0, len = dates.length; j < len; ++j) {
             var rr = rowsPerSlot[dates[j]] || (rowsPerSlot[dates[j]] = []);
             rr.push([r, vals[j]]);
@@ -682,7 +762,8 @@ exports.Profiler = Profiler;
       // for each timeslot search active buckets
       var renderDataIndex = 0;
       var timeSlotIndex = 0;
-      for(var i = 0; i < maxDateSlots; ++i) {
+      var i = 0;
+      for(var i = 0; i <= maxDateSlots; ++i) {
         var c = 0;
         var slotRows = rowsPerSlot[i]
         if(slotRows) {
@@ -694,20 +775,6 @@ exports.Profiler = Profiler;
             ++renderDataIndex;
           }
         }
-        /*
-        for (var r = 0; r < rows.length; ++r) {
-          var dates = rows.get('dates__uint16')[r];
-          var vals = rows.get('vals__uint8')[r];
-          for (var j = 0, len = dates.length; j < len; ++j) {
-            if(dates[j] == i) {
-              ++c;
-              renderData[renderDataIndex] = vals[j];
-              renderDataPos[renderDataIndex] = r;
-              ++renderDataIndex;
-            }
-          }
-        }
-        */
         timeIndex[i] = timeSlotIndex;
         timeCount[i] = c;
         timeSlotIndex += c;
@@ -719,7 +786,7 @@ exports.Profiler = Profiler;
         coord: {
           x: coord.x,
           y: coord.y,
-          z: zoom,
+          z: zoom
         },
         timeCount: timeCount,
         timeIndex: timeIndex,
@@ -812,20 +879,29 @@ exports.Profiler = Profiler;
       });
     },
 
+    getKeySpan: function() {
+      return {
+        start: this.options.start,
+        end: this.options.end,
+        step: this.options.step,
+        steps: this.options.steps
+      };
+    },
+
     //
     // the data range could be set by the user though ``start``
     // option. It can be fecthed from the table when the start
     // is not specified.
     //
-    getKeySpan: function() {
+    _fetchKeySpan: function() {
       var max_col, min_col, max_tmpl, min_tmpl;
 
       if (this.options.is_time){
         max_tmpl = "date_part('epoch', max({column}))";
         min_tmpl = "date_part('epoch', min({column}))";
       } else {
-        max_tmpl = "max({0})";
-        min_tmpl = "min({0})";
+        max_tmpl = "max({column})";
+        min_tmpl = "min({column})";
       }
 
       max_col = format(max_tmpl, { column: this.options.column });
@@ -835,13 +911,14 @@ exports.Profiler = Profiler;
         max_col: max_col,
         min_col: min_col,
         table: this.options.table
-      })
+      });
 
       var self = this;
       this.sql(sql, function(data) {
         //TODO: manage bounds
         data = data.rows[0];
         self.options.start = data.min;
+        self.options.end = data.max;
         self.options.step = (data.max - data.min)/self.options.steps;
         self._setReady(true);
       }, { parseJSON: true });
@@ -849,14 +926,19 @@ exports.Profiler = Profiler;
 
   };
 
-  torque.providers.json = json
+  torque.providers.json = json;
 
 
 })(typeof exports === "undefined" ? this : exports);
 (function(exports) {
 
-  exports.torque = exports.torque || {};
+
+  var torque = exports.torque = exports.torque || {};
   var providers = exports.torque.providers = exports.torque.providers || {};
+
+  var Uint8Array = torque.types.Uint8Array;
+  var Int32Array = torque.types.Int32Array;
+  var Uint32Array = torque.types.Uint32Array;
 
   // format('hello, {0}', 'rambo') -> "hello, rambo"
   function format(str, attrs) {
@@ -905,6 +987,9 @@ exports.Profiler = Profiler;
       }
       return keys;
     },
+    
+
+
 
     /**
      *
@@ -929,7 +1014,7 @@ exports.Profiler = Profiler;
            o.times.push(row.data[HEADER_SIZE + s]);
            o.values.push(row.data[HEADER_SIZE + o.valuesCount + s]);
         }
-        if(self.options.cummulative) {
+        if(self.options.cumulative) {
           for (var s = 1; s < o.valuesCount; ++s) {
            o.values[s] += o.values[s - 1];
           }
@@ -1083,17 +1168,28 @@ exports.Profiler = Profiler;
   var torque = exports.torque = exports.torque || {};
   torque.net = torque.net || {};
 
+
   function get(url, callback) {
-    var req = new XMLHttpRequest();
-    req.onreadystatechange = function() {
-      if (req.readyState == 4){
-        if (req.status == 200){
-          callback(req);
-        } else {
-          callback(null);
-        }
+    var request = XMLHttpRequest;
+    // from d3.js
+    if (window.XDomainRequest
+        && !("withCredentials" in request)
+        && /^(http(s)?:)?\/\//.test(url)) request = XDomainRequest;
+    var req = new request();
+
+
+    function respond() {
+      var status = req.status, result;
+      if (!status && req.responseText || status >= 200 && status < 300 || status === 304) {
+        callback(req);
+      } else {
+        callback(null);
       }
-    };
+    }
+
+    "onload" in req
+      ? req.onload = req.onerror = respond
+      : req.onreadystatechange = function() { req.readyState > 3 && respond(); };
 
     req.open("GET", url, true);
     //req.responseType = 'arraybuffer';
@@ -1182,7 +1278,7 @@ exports.Profiler = Profiler;
     this.options = options;
     this._canvas = canvas;
     this._ctx = canvas.getContext('2d');
-    this._sprites = {};
+    this._sprites = []; // sprites per layer
     this._shader = null;
     this._trailsShader = null;
     //carto.tree.Reference.set(torque['torque-reference']);
@@ -1201,7 +1297,7 @@ exports.Profiler = Profiler;
     //
     setCartoCSS: function(cartocss) {
       // clean sprites
-      this._sprites = {};
+      this._sprites = [];
       this._cartoCssStyle = new carto.RendererJS().render(cartocss);
     },
 
@@ -1241,11 +1337,12 @@ exports.Profiler = Profiler;
       var layers = this._cartoCssStyle.getLayers();
       for(var i = 0, n = layers.length; i < n; ++i ) {
         var layer = layers[i];
+        var sprites = this._sprites[i] || (this._sprites[i] = {});
         // frames for each layer
         for(var fr = 0; fr < layer.frames().length; ++fr) {
           var frame = layer.frames()[fr];
-          var sprites = this._sprites[frame] || (this._sprites[frame] = []);
-          this._renderTile(tile, key - frame, frame, sprites, layer);
+          var fr_sprites = sprites[frame] || (sprites[frame] = []);
+          this._renderTile(tile, key - frame, frame, fr_sprites, layer);
         }
       }
     },
@@ -2228,6 +2325,7 @@ function GMapsTorqueLayer(options) {
   var self = this;
   this.key = 0;
   this.cartocss = null;
+  this.ready = false;
   this.options = _.extend({}, options);
   _.defaults(this.options, {
     provider: 'sql_api',
@@ -2262,8 +2360,9 @@ function GMapsTorqueLayer(options) {
  * torque layer
  */
 GMapsTorqueLayer.prototype = _.extend({}, 
-  CanvasLayer.prototype, 
+  CanvasLayer.prototype,
   torque.GMapsTileLoader.prototype,
+  torque.Event,
   {
 
   providers: {
@@ -2283,7 +2382,6 @@ GMapsTorqueLayer.prototype = _.extend({},
 
     this.provider = new this.providers[this.options.provider](this.options);
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), this.options);
-    console.log(this.getCanvas());
 
     this._initTileLoader(this.options.map, this.getProjection());
 
@@ -2316,17 +2414,6 @@ GMapsTorqueLayer.prototype = _.extend({},
     var canvas = this.canvas;
     canvas.width = canvas.width;
     var ctx = canvas.getContext('2d');
-    /*
-    ctx.fillStyle = 'white';
-    var offset = this._map.getProjection().fromLatLngToPoint(this.getTopLeft());
-    ctx.translate(-offset.x, -offset.y);
-    ctx.fillRect(0, 0, 100, 100);
-
-    var a = document.getElementsByTagName('img');
-    for(var i = 0; i < a.length; ++i) {
-      a[i].style.border = '1px solid red';
-    }
-    */
 
     // renders only a "frame"
     for(t in this._tiles) {
@@ -2344,19 +2431,43 @@ GMapsTorqueLayer.prototype = _.extend({},
    */
   setKey: function(key) {
     this.key = key;
+    this.animator.step(key);
     this.redraw();
+    this.fire('change:time', { time: this.getTime(), step: this.key });
   },
 
   /**
    * helper function, does the same than ``setKey`` but only 
    * accepts scalars.
    */
-  setTime: function(time) {
+  setStep: function(time) {
     if(time === undefined || time.length !== undefined) {
       throw new Error("setTime only accept scalars");
     }
     this.setKey(time);
   },
+
+  /**
+   * transform from animation step to Date object 
+   * that contains the animation time
+   *
+   * ``step`` should be between 0 and ``steps - 1`` 
+   */
+  stepToTime: function(step) {
+    if (!this.provider) return 0;
+    var times = this.provider.getKeySpan();
+    var time = times.start + (times.end - times.start)*(step/this.options.steps);
+    return new Date(time*1000);
+  },
+
+  /**
+   * returns the animation time defined by the data
+   * in the defined column. Date object
+   */
+  getTime: function() {
+    return this.stepToTime(this.key);
+  },
+
 
 
   /**
@@ -2368,6 +2479,7 @@ GMapsTorqueLayer.prototype = _.extend({},
       return this;
     }
     this.renderer.setCartoCSS(cartocss);
+    this.redraw();
     return this;
   },
 
@@ -2402,6 +2514,7 @@ GMapsTiledTorqueLayer.prototype = _.extend({}, CanvasTileLayer.prototype, {
     this.key = 0;
 
     this.options.renderer = this.options.renderer || 'pixel';
+    this.options.provider = this.options.provider || 'sql_api';
 
     this.provider = new this.providers[this.options.provider](options);
     this.renderer = new this.renderers[this.options.renderer](null, options);
@@ -2503,16 +2616,18 @@ L.Mixin.TileLoader = {
   },
 
   _removeOtherTiles: function (bounds) {
-      var kArr, x, y, key;
+      var kArr, x, y, z, key;
+      var zoom = this._map.getZoom();
 
       for (key in this._tiles) {
           if (this._tiles.hasOwnProperty(key)) {
               kArr = key.split(':');
               x = parseInt(kArr[0], 10);
               y = parseInt(kArr[1], 10);
+              z = parseInt(kArr[2], 10);
 
               // remove tile if it's out of bounds
-              if (x < bounds.min.x || x > bounds.max.x || y < bounds.min.y || y > bounds.max.y) {
+              if (zoom !== z || x < bounds.min.x || x > bounds.max.x || y < bounds.min.y || y > bounds.max.y) {
                   this._removeTile(key);
               }
           }
@@ -2706,7 +2821,6 @@ L.CanvasLayer = L.Class.extend({
  */
 L.TorqueLayer = L.CanvasLayer.extend({
 
-
   providers: {
     'sql_api': torque.providers.json,
     'url_template': torque.providers.jsonarray
@@ -2740,6 +2854,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     L.CanvasLayer.prototype.initialize.call(this, options);
 
     this.options.renderer = this.options.renderer || 'point';
+    this.options.provider = this.options.provider || 'sql_api';
 
     this.provider = new this.providers[this.options.provider](options);
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), options);
@@ -2764,23 +2879,11 @@ L.TorqueLayer = L.CanvasLayer.extend({
     canvas.width = canvas.width;
     var ctx = canvas.getContext('2d');
 
-    if(typeof this.key === 'number') {
-      // renders only a "frame"
-      for(t in this._tiles) {
-        tile = this._tiles[t];
-        pos = this.getTilePos(tile.coord);
-        ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
-        this.renderer.renderTile(tile, this.key, pos.x, pos.y);
-      }
-    } else {
-      // accumulate more than one
-      for(t in this._tiles) {
-        tile = this._tiles[t];
-        pos = this.getTilePos(tile.coord);
-        var accum = this.renderer.accumulate(tile, this.key);
-        ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
-        this.renderer.renderTileAccum(accum, 0, 0);
-      }
+    for(t in this._tiles) {
+      tile = this._tiles[t];
+      pos = this.getTilePos(tile.coord);
+      ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
+      this.renderer.renderTile(tile, this.key, pos.x, pos.y);
     }
 
   },
@@ -2792,20 +2895,48 @@ L.TorqueLayer = L.CanvasLayer.extend({
    */
   setKey: function(key) {
     this.key = key;
+    this.animator.step(key);
     this.redraw();
+    this.fire('change:time', { time: this.getTime(), step: this.key });
   },
 
   /**
    * helper function, does the same than ``setKey`` but only 
    * accepts scalars.
    */
-  setTime: function(time) {
+  setStep: function(time) {
     if(time === undefined || time.length !== undefined) {
       throw new Error("setTime only accept scalars");
     }
     this.setKey(time);
   },
 
+  /**
+   * transform from animation step to Date object 
+   * that contains the animation time
+   *
+   * ``step`` should be between 0 and ``steps - 1`` 
+   */
+  stepToTime: function(step) {
+    var times = this.provider.getKeySpan();
+    var time = times.start + (times.end - times.start)*(step/this.options.steps);
+    return new Date(time*1000);
+  },
+
+  /**
+   * returns the animation time defined by the data
+   * in the defined column. Date object
+   */
+  getTime: function() {
+    return this.stepToTime(this.key);
+  },
+
+  /**
+   * returns an object with the start and end times
+   */
+  getTimeSpan: function() {
+    var times = this.provider.getKeySpan();
+  },
 
   /**
    * set the cartocss for the current renderer
@@ -2818,6 +2949,8 @@ L.TorqueLayer = L.CanvasLayer.extend({
   }
 
 });
+
+//_.extend(L.TorqueLayer.prototype, torque.Event);
 
 
 L.TiledTorqueLayer = L.TileLayer.Canvas.extend({
@@ -2841,6 +2974,7 @@ L.TiledTorqueLayer = L.TileLayer.Canvas.extend({
 
 
     this.options.renderer = this.options.renderer || 'pixel';
+    this.options.provider = this.options.provider || 'sql_api';
 
     this.provider = new this.providers[this.options.provider](options);
     this.renderer = new this.renderers[this.options.renderer](null, options);
