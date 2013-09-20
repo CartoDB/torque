@@ -75,27 +75,40 @@
         if (user != '' && table != '' && column != '') {
             // Get optional parameters from querystring
             var steps = parseInt(getParameterByName('steps'));
-            if ( isNaN(steps) ) { steps = 750; }
+            if ( isNaN(steps) ) { steps = 750; } // Does not check for values outside range
             var resolution = parseInt(getParameterByName('resolution'));
-            if ( isNaN(resolution) ) { resolution = 2; }
+            if ( isNaN(resolution) ) { resolution = 2; } // Does not check for steps
             var cumulative = getParameterByName('cumulative');
             if ( cumulative == 'true') { cumulative = true; } else { cumulative = false; }
             var clock = getParameterByName('clock');
             if ( clock == 'false' ) { clock = false; } else { clock = true; }
+            var fps = parseInt(getParameterByName('fps'));
+            if ( isNaN(fps) ) { fps = 20; } // Does not check for values outside range
+            var fitbounds = getParameterByName('fitbounds');
+            if ( fitbounds == 'false') { fitbounds = false; } else { fitbounds = true; }
+            var blendmode = getParameterByName('blendmode');
+            if ( blendmode == '') { blendmode = 'lighter'; } // Does not check for values outside range
+            var trails= getParameterByName('trails');
+            if ( trails == 'false') { trails = false; } else { trails = true; }
+            var point_type = getParameterByName('point_type');
+            if ( point_type == 'square') { point_type = 'square'; } else { point_type = 'circle'; } // Only accepts two values
+            var cellsize = parseInt(getParameterByName('cellsize'));
+            if ( isNaN(cellsize) ) { cellsize = 1; } // Does not check for values outside range
+
             var TorqueOptions = {
                 user:user,
                 table:table,
                 column:column,
-                fps:20,
-                fitbounds:false,
-                blendmode:'lighter',
-                trails:true,
-                point_type:'circle',
-                cellsize:1
                 steps:steps,
                 resolution:resolution,
                 cumulative:cumulative,
                 clock:clock,
+                fps:fps,
+                fitbounds:fitbounds,
+                blendmode:blendmode,
+                trails:trails,
+                point_type:point_type,
+                cellsize:cellsize
             }
         } else {
             var TorqueOptions = {
