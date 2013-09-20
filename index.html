@@ -78,11 +78,12 @@
             if ( isNaN(steps) ) { steps = 750; }
             var resolution = parseInt(getParameterByName('resolution'));
             if ( isNaN(resolution) ) { resolution = 2; }
+            var cumulative = getParameterByName('cumulative');
+            if ( cumulative == 'true') { cumulative = true; } else { cumulative = false; }
             var TorqueOptions = {
                 user:user,
                 table:table,
                 column:column,
-                cumulative:false,
                 clock:true,
                 fps:20,
                 fitbounds:false,
@@ -92,6 +93,7 @@
                 cellsize:1
                 steps:steps,
                 resolution:resolution,
+                cumulative:cumulative,
             }
         } else {
             var TorqueOptions = {
