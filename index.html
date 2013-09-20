@@ -80,6 +80,11 @@
             results = regex.exec(location.search);
             return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
         }
+
+        // Get required parameters from querystring
+        var user = getParameterByName('user');
+        var table = getParameterByName('table');
+        var column = getParameterByName('column');
         }
 
         var torque = null;
