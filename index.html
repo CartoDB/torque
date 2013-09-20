@@ -73,11 +73,13 @@
         var column = getParameterByName('column');
 
         if (user != '' && table != '' && column != '') {
+            // Get optional parameters from querystring
+            var steps = getParameterByName('steps');
+            if ( steps == '' || isNaN(parseInt(steps)) ) { steps = 750; }
             var TorqueOptions = {
                 user:user,
                 table:table,
                 column:column,
-                steps:750,
                 resolution:2,
                 cumulative:false,
                 clock:true,
@@ -87,6 +89,7 @@
                 trails:true,
                 point_type:'circle',
                 cellsize:1
+                steps:steps,
             }
         } else {
             var TorqueOptions = {
