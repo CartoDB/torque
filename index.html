@@ -67,65 +67,56 @@
             return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
         }
 
-        // Get required parameters from querystring
+        // Get parameters from querystring
         var user = getParameterByName('user');
         var table = getParameterByName('table');
         var column = getParameterByName('column');
+        var steps = parseInt(getParameterByName('steps'));
+        var resolution = parseInt(getParameterByName('resolution'));
+        var cumulative = getParameterByName('cumulative');   
+        var clock = getParameterByName('clock');
+        var fps = parseInt(getParameterByName('fps'));
+        var fitbounds = getParameterByName('fitbounds');
+        var blendmode = getParameterByName('blendmode');
+        var trails = getParameterByName('trails');
+        var point_type = getParameterByName('point_type');
+        var cellsize = parseInt(getParameterByName('cellsize'));
 
-        if (user != '' && table != '' && column != '') {
-            // Get optional parameters from querystring
-            var steps = parseInt(getParameterByName('steps'));
-            if ( isNaN(steps) ) { steps = 750; } // Does not check for values outside range
-            var resolution = parseInt(getParameterByName('resolution'));
-            if ( isNaN(resolution) ) { resolution = 2; } // Does not check for steps
-            var cumulative = getParameterByName('cumulative');
-            if ( cumulative == 'true') { cumulative = true; } else { cumulative = false; }
-            var clock = getParameterByName('clock');
-            if ( clock == 'false' ) { clock = false; } else { clock = true; }
-            var fps = parseInt(getParameterByName('fps'));
-            if ( isNaN(fps) ) { fps = 20; } // Does not check for values outside range
-            var fitbounds = getParameterByName('fitbounds');
-            if ( fitbounds == 'false') { fitbounds = false; } else { fitbounds = true; }
-            var blendmode = getParameterByName('blendmode');
-            if ( blendmode == '') { blendmode = 'lighter'; } // Does not check for values outside range
-            var trails= getParameterByName('trails');
-            if ( trails == 'false') { trails = false; } else { trails = true; }
-            var point_type = getParameterByName('point_type');
-            if ( point_type == 'square') { point_type = 'square'; } else { point_type = 'circle'; } // Only accepts two values
-            var cellsize = parseInt(getParameterByName('cellsize'));
-            if ( isNaN(cellsize) ) { cellsize = 1; } // Does not check for values outside range
+        // None of the required parameters in querystring -> Use default table.
+        if (user == '' && table == '' && column == '') {
+        // Reason for using && and not ||: if some, but not all required parameters 
+        // are provided, the user probably made a mistake -> No visualization. 
+            user = 'viz2';
+            table = 'ow';
+            column = 'date'
+        }
 
-            var TorqueOptions = {
-                user:user,
-                table:table,
-                column:column,
-                steps:steps,
-                resolution:resolution,
-                cumulative:cumulative,
-                clock:clock,
-                fps:fps,
-                fitbounds:fitbounds,
-                blendmode:blendmode,
-                trails:trails,
-                point_type:point_type,
-                cellsize:cellsize
-            }
-        } else {
-            var TorqueOptions = {
-                user:'viz2',
-                table:'ow',
-                column:'date',
-                steps:750,
-                resolution:2,
-                cumulative:false,
-                clock:true,
-                fps:20,
-                fitbounds:false,
-                blendmode:'lighter',
-                trails:true,
-                point_type:'circle',
-                cellsize:1
-            }
+        // Setting defaults and some error handling
+        if ( isNaN(steps) ) { steps = 750; } // Does not check for values outside range
+        if ( isNaN(resolution) ) { resolution = 2; } // Does not check for steps
+        if ( cumulative == 'true') { cumulative = true; } else { cumulative = false; }
+        if ( clock == 'false' ) { clock = false; } else { clock = true; }
+        if ( isNaN(fps) ) { fps = 20; } // Does not check for values outside range
+        if ( fitbounds == 'false') { fitbounds = false; } else { fitbounds = true; }
+        if ( blendmode == '' ) { blendmode = 'lighter'; } // Does not check for values outside range
+        if ( trails == 'false') { trails = false; } else { trails = true; }
+        if ( point_type == 'square') { point_type = 'square'; } else { point_type = 'circle'; } // Only accepts two values
+        if ( isNaN(cellsize) ) { cellsize = 1; } // Does not check for values outside range
+
+        var TorqueOptions = {
+            user:user,
+            table:table,
+            column:column,
+            steps:steps,
+            resolution:resolution,
+            cumulative:cumulative,
+            clock:clock,
+            fps:fps,
+            fitbounds:fitbounds,
+            blendmode:blendmode,
+            trails:trails,
+            point_type:point_type,
+            cellsize:cellsize
         }
 
         var torque = null;
