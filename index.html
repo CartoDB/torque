@@ -80,11 +80,12 @@
             if ( isNaN(resolution) ) { resolution = 2; }
             var cumulative = getParameterByName('cumulative');
             if ( cumulative == 'true') { cumulative = true; } else { cumulative = false; }
+            var clock = getParameterByName('clock');
+            if ( clock == 'false' ) { clock = false; } else { clock = true; }
             var TorqueOptions = {
                 user:user,
                 table:table,
                 column:column,
-                clock:true,
                 fps:20,
                 fitbounds:false,
                 blendmode:'lighter',
@@ -94,6 +95,7 @@
                 steps:steps,
                 resolution:resolution,
                 cumulative:cumulative,
+                clock:clock,
             }
         } else {
             var TorqueOptions = {
