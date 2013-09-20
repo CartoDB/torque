@@ -60,20 +60,6 @@
         map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
         map.setOptions({styles:map_style.google_maps_customization_style});
 
-        var TorqueOptions = {
-            user:'viz2',
-            table:'ow',
-            column:'date',
-            steps:750,
-            resolution:2,
-            cumulative:false,
-            clock:true,
-            fps:20,
-            fitbounds:false,
-            blendmode:'lighter',
-            trails:true,
-            point_type:'circle',
-            cellsize:1
         function getParameterByName(name) {
             name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
             var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
@@ -85,6 +71,39 @@
         var user = getParameterByName('user');
         var table = getParameterByName('table');
         var column = getParameterByName('column');
+
+        if (user != '' && table != '' && column != '') {
+            var TorqueOptions = {
+                user:user,
+                table:table,
+                column:column,
+                steps:750,
+                resolution:2,
+                cumulative:false,
+                clock:true,
+                fps:20,
+                fitbounds:false,
+                blendmode:'lighter',
+                trails:true,
+                point_type:'circle',
+                cellsize:1
+            }
+        } else {
+            var TorqueOptions = {
+                user:'viz2',
+                table:'ow',
+                column:'date',
+                steps:750,
+                resolution:2,
+                cumulative:false,
+                clock:true,
+                fps:20,
+                fitbounds:false,
+                blendmode:'lighter',
+                trails:true,
+                point_type:'circle',
+                cellsize:1
+            }
         }
 
         var torque = null;
