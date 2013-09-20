@@ -74,8 +74,8 @@
 
         if (user != '' && table != '' && column != '') {
             // Get optional parameters from querystring
-            var steps = getParameterByName('steps');
-            if ( steps == '' || isNaN(parseInt(steps)) ) { steps = 750; }
+            var steps = parseInt(getParameterByName('steps'));
+            if ( isNaN(steps) ) { steps = 750; }
             var TorqueOptions = {
                 user:user,
                 table:table,
