@@ -76,11 +76,12 @@
             // Get optional parameters from querystring
             var steps = parseInt(getParameterByName('steps'));
             if ( isNaN(steps) ) { steps = 750; }
+            var resolution = parseInt(getParameterByName('resolution'));
+            if ( isNaN(resolution) ) { resolution = 2; }
             var TorqueOptions = {
                 user:user,
                 table:table,
                 column:column,
-                resolution:2,
                 cumulative:false,
                 clock:true,
                 fps:20,
@@ -90,6 +91,7 @@
                 point_type:'circle',
                 cellsize:1
                 steps:steps,
+                resolution:resolution,
             }
         } else {
             var TorqueOptions = {
