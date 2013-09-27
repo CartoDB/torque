@@ -688,23 +688,27 @@ exports.Profiler = Profiler;
   }
 
   var json = function (options) {
-    this._ready = false;
-    this._tileQueue = [];
-    this.options = options;
-
-    this.options.is_time = this.options.is_time === undefined ? true: this.options.is_time;
-
-    // check options
-    if (options.resolution === undefined ) throw new Error("resolution should be provided");
-    if (options.steps === undefined ) throw new Error("steps should be provided");
-    if(options.start === undefined) {
-      this._fetchKeySpan();
-    } else {
-      this._ready = true;
-    }
+    this.setOptions(options);
   };
 
   json.prototype = {
+
+    setOptions: function(options) {
+      this._ready = false;
+      this._tileQueue = [];
+      this.options = options;
+
+      this.options.is_time = this.options.is_time === undefined ? true: this.options.is_time;
+
+      // check options
+      if (options.resolution === undefined ) throw new Error("resolution should be provided");
+      if (options.steps === undefined ) throw new Error("steps should be provided");
+      if(options.start === undefined) {
+        this._fetchKeySpan();
+      } else {
+        this._ready = true;
+      }
+    },
 
     /**
      * return the torque tile encoded in an efficient javascript
@@ -1355,7 +1359,7 @@ exports.Profiler = Profiler;
       if(!this._canvas) return;
       var prof = Profiler.metric('PointRenderer:renderTile').start();
       var ctx = this._ctx;
-      var res = 1;//this.options.resolution;
+      //var res = 1;//this.options.resolution;
       var activePixels = tile.timeCount[key];
       if(this.options.blendmode) {
         ctx.globalCompositeOperation = this.options.blendmode;
@@ -1370,8 +1374,10 @@ exports.Profiler = Profiler;
            if(!sp) {
              sp = sprites[c] = this.generateSprite(shader, c, _.extend({ zoom: tile.zoom, 'frame-offset': frame_offset }, shaderVars));
            }
-           var x = tile.x[posIdx]*res - (sp.width >> 1);
-           var y = (256 - res - res*tile.y[posIdx]) - (sp.height >> 1);
+           //var x = tile.x[posIdx]*res - (sp.width >> 1);
+           //var y = (256 - res - res*tile.y[posIdx]) - (sp.height >> 1);
+           var x = tile.x[posIdx]- (sp.width >> 1);
+           var y = (256 - 1 - tile.y[posIdx]) - (sp.height >> 1);
            ctx.drawImage(sp, x, y);
           }
         }
@@ -2157,7 +2163,7 @@ GMapsTileLoader.prototype = {
   _initTileLoader: function(map, projection) {
     this._map = map;
     this._projection = projection;
-    this._tiles = {}
+    this._tiles = {};
     this._tilesToLoad = 0;
     this._updateTiles = this._updateTiles.bind(this);
     google.maps.event.addListener(this._map, 'dragend', this._updateTiles);
@@ -2169,6 +2175,12 @@ GMapsTileLoader.prototype = {
   _removeTileLoader: function() {
     //TODO: unbind events
     //TODO: remove tiles
+  },
+
+  _removeTiles: function () {
+      for (var key in this._tiles) {
+        this._removeTile(key);
+      }
   },
 
   _updateTiles: function () {
@@ -2586,7 +2598,7 @@ L.Mixin.TileLoader = {
     map.off({
         'moveend': this._updateTiles
     }, this);
-    //TODO: remove tiles
+    this._removeTiles();
   },
 
   _updateTiles: function () {
@@ -2613,6 +2625,12 @@ L.Mixin.TileLoader = {
 
       this._addTilesFromCenterOut(tileBounds);
       this._removeOtherTiles(tileBounds);
+  },
+
+  _removeTiles: function (bounds) {
+      for (var key in this._tiles) {
+        this._removeTile(key);
+      }
   },
 
   _removeOtherTiles: function (bounds) {
