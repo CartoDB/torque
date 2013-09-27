@@ -1355,7 +1355,7 @@ exports.Profiler = Profiler;
       if(!this._canvas) return;
       var prof = Profiler.metric('PointRenderer:renderTile').start();
       var ctx = this._ctx;
-      var res = this.options.resolution;
+      var res = 1;//this.options.resolution;
       var activePixels = tile.timeCount[key];
       if(this.options.blendmode) {
         ctx.globalCompositeOperation = this.options.blendmode;
