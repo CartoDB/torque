@@ -118,7 +118,25 @@
         var torqueLayer;
         var ui;
         var editor;
-        var DEFAULT_CARTOCSS = $('#default-style').html();
+        var state = location.hash ? JSON.parse(atob(location.hash.substring(1))): {};
+        var DEFAULT_CARTOCSS = state.cartocss || $('#default-style').html();
+
+        function saveState() {
+          location.hash = btoa(JSON.stringify({
+            cartocss: editor.getValue(),
+            options: _.pick(torqueLayer.options,
+               'user',
+               'table',
+               'column',
+               'is_time',
+               'countby',
+               'resolution',
+               'steps', 
+               'animationDuration'
+            )
+          }))
+        }
+
         function init_torque(map, options) {
           // init torque layer
           torqueLayer = new torque.GMapsTorqueLayer(_.extend({
@@ -190,6 +208,7 @@
                 torqueLayer = null;
               }
               init_torque(map, TorqueOptions);
+              saveState();
             }
           }, 'update');
 
@@ -199,7 +218,8 @@
             editor = CodeMirror.fromTextArea(textarea, { mode: "text/css" });
             editor.on('change', _.debounce(function() {
                 window.torqueLayer.setCartoCSS(editor.getValue());
-            }, 250))
+                saveState();
+            }, 500))
           }
           editor
 
@@ -234,6 +254,7 @@
         });
       };
 
+
     function initialize() {
 
       // initialise the google map
@@ -256,7 +277,9 @@
       map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
       map.setOptions({ styles: gmaps_style });
 
-      init_torque(map);
+
+
+      init_torque(map, state.options);
 
 
     }
