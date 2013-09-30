@@ -1,0 +1,27 @@
+{
+    "name": "torque.js",
+    "version": "2.0.00",
+    "description": "Torque javascript library",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/CartoDB/torque.git"
+    },
+    "author": {
+        "name": "CartoDB",
+        "url": "http://cartodb.com/",
+        "email": "wadus@cartodb.com"
+    },
+    "contributors": [
+        "Andrew Hill <andrew@vizzuality.com>",
+        "Simon Tokumine <tokumine@google.com>",
+        "Javier Alvarez <jmedina@vizzuality.com>",
+        "Javier Arce <javierarce@vizzuality.com>",
+        "Javier Santana <jsantana@vizzuality.com>"
+    ],
+    "licenses": [{
+      "type": "BSD"
+    }],
+    "devDependencies": {
+      "uglify-js": "1.3.3"
+    }
+}

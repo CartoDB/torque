@@ -41,15 +41,61 @@
           font-size: 31px;
           font-family: Georgia, serif;
         }
+        #livecode {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 450px;
+          padding-left: 10px;
+          box-shadow: 0px 0px 5px 6px #ccc;
+        }
+        textarea {
+          color: rgba(0,0,0,0.9);
+          background-color:rgba(255,255,255,0.92);
+          position: absolute;
+          left: 10px;
+          top: 0;
+          bottom: 0;
+          padding: 0;
+          margin: 0;
+          border: none;
+          font-family: monospace;
+          font-size: 14px;
+          width: 350px;
+          border: 0;
+          outline: none;
+          padding: 40px;
+        }
+        .highlight {
+          font-family: monospace;
+          font-size: 19px;
+          color: #000;
+        }
+
+        #credits a { color: #06c; }
+        #credits {
+          position: absolute;
+          bottom: 50px;
+          left: 40px;
+          font-size: 17px;
+          font-family: Helvetica;
+        }
     </style>
   </head>
 
   <body>
     <div id="map_canvas"></div>
+    <textarea id="code">
+    </textarea>
+    <div id="credits">
+      <p>Copy the url to share this visualization</p>
+      <p>Made with <a href="https://github.com/cartodb/torque">Torque</a> and <a href="http://cartodb.com">CartoDB</a></p></div>
+
     <div id="torque-slider"></div>
     <a id="torque-pause" class="playing"></a>
     <div id="torque-time"></div>
-    <a class="cartodb_logo" href="http://www.cartodb.com" target="_blank">CartoDB</a>
+    <!--<a class="cartodb_logo" href="http://www.cartodb.com" target="_blank">CartoDB</a>-->
 
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script type="text/javascript" src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
@@ -119,6 +165,7 @@
         table      : 'ow',
         column     : 'date',
         countby    : 'count(cartodb_id)',
+        resolution: 1,
         steps: 750,
         blendmode  : 'lighter',
         animationDuration: 60,
@@ -126,23 +173,42 @@
       });
 
       var DEFAULT_CARTOCSS = [
-      '#layer {',
-      "  marker-width: 3; ",
-      '  marker-fill: #FEE391; ',
-      '  [value > 2] { marker-fill: #FEC44F; }',
-      '  [value > 3] { marker-fill: #FE9929; }',
-      '  [value > 4] { marker-fill: #EC7014; }',
-      '  [value > 5] { marker-fill: #CC4C02; }',
-      '  [value > 6] { marker-fill: #993404; }',
-      '  [value > 7] { marker-fill: #662506; }',
-      '  [frame-offset = 1] {  marker-width: 8;marker-fill-opacity: 0.05;}',
-      '  [frame-offset = 2] {  marker-width: 20;marker-fill-opacity: 0.02;}',
-      //'  [frame-offset = 1] {  marker-width: 25;marker-fill-opacity: 0.01;}',
-      '}'
+        '#layer {',
+          '  marker-width: 2; ',
+          '  marker-fill: #FEE391; ',
+          '  [value > 2] { marker-fill: #FEC44F; }',
+          '  [value > 3] { marker-fill: #FE9929; }',
+          '  [value > 4] { marker-fill: #EC7014; }',
+          '  [value > 5] { marker-fill: #CC4C02; }',
+          '  [value > 6] { marker-fill: #993404; }',
+          '  [value > 7] { marker-fill: #662506; }',
+         '',
+        '}',
+        '',
+        '#layer [frame-offset = 1] {  ',
+          '  marker-fill: #FEE391; ',
+          '  marker-width: 8;',
+          '  marker-fill-opacity: 0.05;',
+        '}',
+        '',
+          '#layer [frame-offset = 2] { ',
+          '  marker-fill: #FEE391; ',
+          '  marker-width: 20;',
+          '  marker-fill-opacity: 0.02;',
+        '}'
       ].join('\n');
 
+      var code = $('#code')
+      code.on('keyup', function() {
+        torqueLayer.setCartoCSS(code.val());
+        location.hash = btoa(code.val());
+      });
+
       torqueLayer.setMap(map);
-      torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
+
+      var css = location.hash ? atob(location.hash.substring(1)): DEFAULT_CARTOCSS;
+      torqueLayer.setCartoCSS(css)
+      code.val(css);
 
       init_slider(torqueLayer);
       torqueLayer.play();
