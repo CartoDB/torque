@@ -30,7 +30,7 @@
             background-position:center;
         }
         #torque-pause.playing {
-          background-color: white; background-image: url(../img/pause.png); background-repeat:no-repeat; background-position:center; 
+          background-color: white; background-image: url(img/pause.png); background-repeat:no-repeat; background-position:center; 
         }
 
         #torque-time {
@@ -68,15 +68,15 @@
         function init_torque(map, options) {
           // init torque layer
           torqueLayer = new torque.GMapsTorqueLayer(_.extend({
-            user       : 'javi',
-            table      : 'table_1',
-            column     : 'cartodb_id',
+            user       : 'viz2',
+            table      : 'ow',
+            column     : 'date',
             countby    : 'count(cartodb_id)',
             resolution: 1,
-            is_time: false,
+            is_time: true,
             steps: 800,
             blendmode  : 'lighter',
-            animationDuration: 10,
+            animationDuration: 30,
             map: map
           }, options));
 
@@ -101,6 +101,20 @@
 
           init_slider(torqueLayer);
           init_ui(map, torqueLayer);
+          torqueLayer.on('change:bounds', function(changes) {
+              var bounds = changes.bounds;
+              var b = new google.maps.LatLngBounds(
+                new google.maps.LatLng(
+                    bounds[0][0],
+                    bounds[0][1]
+                ),
+                new google.maps.LatLng(
+                  bounds[1][0],
+                  bounds[1][1]
+                )
+              )
+              map.fitBounds(b);
+          });
           torqueLayer.play();
         }
 
@@ -115,7 +129,7 @@
           ui.add(TorqueOptions, 'user')
           ui.add(TorqueOptions, 'table')
           ui.add(TorqueOptions, 'column')
-          ui.add(TorqueOptions, 'is_time', [true, false])
+          ui.add(TorqueOptions, 'is_time')
           ui.add(TorqueOptions, 'resolution', [1, 2, 4, 8, 16, 32])
           ui.add(TorqueOptions, 'steps', 10, 1024).listen()
           ui.add(TorqueOptions, 'animationDuration', 5, 120);
@@ -125,6 +139,7 @@
               if (torqueLayer) {
                 torqueLayer.setMap(null);
                 torqueLayer.off('change:time');
+                torqueLayer.off('change:bounds');
                 torqueLayer = null;
               }
               init_torque(map, TorqueOptions);
@@ -169,7 +184,7 @@
         zoom: 13,
         mapTypeId: google.maps.MapTypeId.SATELLITE,
         mapTypeControl: false,
-        minZoom: 1
+        minZoom: 2
       });
 
       // dark map style
