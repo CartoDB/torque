@@ -2608,6 +2608,7 @@ exports.torque.GMapsTiledTorqueLayer = GMapsTiledTorqueLayer;
 exports.torque.GMapsTorqueLayer = GMapsTorqueLayer;
 
 })(typeof exports === "undefined" ? this : exports);
+if(typeof(L) !== 'undefined') {
 
 L.Mixin.TileLoader = {
 
@@ -2738,6 +2739,9 @@ L.Mixin.TileLoader = {
 
   }
 }
+
+} //L defined
+if(typeof(L) !== 'undefined') {
 /**
  * full canvas layer implementation for Leaflet
  */
@@ -2860,6 +2864,9 @@ L.CanvasLayer = L.Class.extend({
   }
 
 });
+
+} //L defined
+if(typeof(L) !== 'undefined') {
 /**
  * torque layer
  */
@@ -3078,3 +3085,4 @@ L.TiledTorqueLayer = L.TileLayer.Canvas.extend({
 
 });
 
+} //L defined
