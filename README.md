@@ -72,4 +72,7 @@ The simplest way to use a visualization with Torque is...
   ```
 <div class="margin20"></div>
 
-[Grab the complete example source code](https://github.com/CartoDB/cartodb.js/blob/develop/examples/easy.html)
+### API
+[see reference](https://github.com/CartoDB/torque/blob/master/doc/API.md)
+
+[Grab the complete example source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html)
