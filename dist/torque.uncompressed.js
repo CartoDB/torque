@@ -688,27 +688,23 @@ exports.Profiler = Profiler;
   }
 
   var json = function (options) {
-    this.setOptions(options);
+    this._ready = false;
+    this._tileQueue = [];
+    this.options = options;
+
+    this.options.is_time = this.options.is_time === undefined ? true: this.options.is_time;
+
+    // check options
+    if (options.resolution === undefined ) throw new Error("resolution should be provided");
+    if (options.steps === undefined ) throw new Error("steps should be provided");
+    if(options.start === undefined) {
+      this._fetchKeySpan();
+    } else {
+      this._setReady(true);
+    }
   };
 
   json.prototype = {
-
-    setOptions: function(options) {
-      this._ready = false;
-      this._tileQueue = [];
-      this.options = options;
-
-      this.options.is_time = this.options.is_time === undefined ? true: this.options.is_time;
-
-      // check options
-      if (options.resolution === undefined ) throw new Error("resolution should be provided");
-      if (options.steps === undefined ) throw new Error("steps should be provided");
-      if(options.start === undefined) {
-        this._fetchKeySpan();
-      } else {
-        this._ready = true;
-      }
-    },
 
     /**
      * return the torque tile encoded in an efficient javascript
@@ -825,6 +821,7 @@ exports.Profiler = Profiler;
     _setReady: function(ready) {
       this._ready = true;
       this._processQueue();
+      this.options.ready && this.options.ready();
     },
 
     _processQueue: function() {
@@ -892,6 +889,10 @@ exports.Profiler = Profiler;
       };
     },
 
+    getBounds: function() {
+      return this.options.bounds;
+    },
+
     //
     // the data range could be set by the user though ``start``
     // option. It can be fecthed from the table when the start
@@ -924,6 +925,10 @@ exports.Profiler = Profiler;
         self.options.start = data.min;
         self.options.end = data.max;
         self.options.step = (data.max - data.min)/self.options.steps;
+        self.options.bounds = [ 
+          [data.ymin, data.xmin],
+          [data.ymax, data.xmax] 
+        ];
         self._setReady(true);
       }, { parseJSON: true });
     }
@@ -1999,6 +2004,14 @@ CanvasLayer.prototype.repositionCanvas_ = function() {
   // overlayView's projection, not the map's
   var projection = this.getProjection();
   var divTopLeft = projection.fromLatLngToDivPixel(this.topLeft_);
+
+  console.log(this.topLeft_.lng(), divTopLeft.x);
+  // when the zoom level is low, more than one map can be shown in the screen
+  // so the canvas should be attach to the map with more are in the screen
+  var mapSize = (1 << this.getMap().getZoom())*256;
+  if (Math.abs(divTopLeft.x) > mapSize) {
+    divTopLeft.x -= mapSize;
+  }
   this.canvas.style[CanvasLayer.CSS_TRANSFORM_] = 'translate(' +
       Math.round(divTopLeft.x) + 'px,' + Math.round(divTopLeft.y) + 'px)';
 
@@ -2257,6 +2270,13 @@ GMapsTileLoader.prototype = {
   },
 
   getTilePos: function (tilePoint) {
+    var limit = (1 << this._map.getZoom());
+    // wrap tile
+    tilePoint = {
+      x: ((tilePoint.x % limit) + limit) % limit,
+      y: tilePoint.y
+    };
+
     tilePoint = new google.maps.Point(
       tilePoint.x * this.tileSize, 
       tilePoint.y * this.tileSize
@@ -2391,6 +2411,12 @@ GMapsTorqueLayer.prototype = _.extend({},
     var self = this;
 
     this.onTileAdded = this.onTileAdded.bind(this);
+
+    this.options.ready = function() {
+      self.fire("change:bounds", {
+        bounds: self.provider.getBounds()
+      });
+    };
 
     this.provider = new this.providers[this.options.provider](this.options);
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), this.options);
