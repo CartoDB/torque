@@ -7,6 +7,7 @@
     <link rel="shortcut icon" href="http://cartodb.com/favicon/favicon_32x32.ico" />
     <link href="http://code.google.com/apis/maps/documentation/javascript/examples/default.css" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css">
+    <link rel="stylesheet" href="examples/vendor/codemirror.css">
     <style>
         #torque-slider {
             position:absolute;
@@ -41,15 +42,63 @@
           font-size: 31px;
           font-family: Georgia, serif;
         }
+
+        .CodeMirror {
+          top: 0;
+          bottom: 0;
+          position:absolute;
+          height: auto;
+          width: 380;
+          padding-left: 20px;
+        }
+        textarea {
+          color: rgba(0,0,0,0.9);
+          background-color:rgba(255,255,255,0.92);
+          position: absolute;
+          left: 10px;
+          top: 0;
+          bottom: 0;
+          padding: 0;
+          margin: 0;
+          border: none;
+          font-family: monospace;
+          font-size: 14px;
+          width: 350px;
+          border: 0;
+          outline: none;
+          padding: 40px;
+        }
     </style>
   </head>
 
   <body>
     <div id="map_canvas"></div>
+    <textarea id="code"></textarea>
     <div id="torque-slider"></div>
     <a id="torque-pause" class="playing"></a>
     <div id="torque-time"></div>
     <a class="cartodb_logo" href="http://www.cartodb.com" target="_blank">CartoDB</a>
+
+    <script id="default-style" type="text/torque-cartocss">
+#layer {
+  marker-width: 3; 
+  marker-fill: #FEE391; 
+  [value > 2] { marker-fill: #FEC44F; }
+  [value > 3] { marker-fill: #FE9929; }
+  [value > 4] { marker-fill: #EC7014; }
+  [value > 5] { marker-fill: #CC4C02; }
+  [value > 6] { marker-fill: #993404; }
+  [value > 7] { marker-fill: #662506; }
+  [frame-offset = 1] {
+    marker-width: 8;
+    marker-fill-opacity: 0.05;
+  }
+  [frame-offset = 2] { 
+    marker-width: 20;
+    marker-fill-opacity: 0.02;
+  }
+}
+    </script>
 
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script type="text/javascript" src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
@@ -57,6 +106,9 @@
     <script src="vendor/leaflet.js"></script>
     <script src="vendor/underscore.js"></script>
     <script src="vendor/carto.js"></script>
+    <script src="examples/vendor/codemirror.js"></script>
+    <script src="examples/vendor/css.js"></script>
+
     <script src="dist/torque.uncompressed.js"></script>
 
     <script type="text/javascript" src="examples/vendor/dat.gui.min.js"></script>
@@ -65,6 +117,8 @@
 
         var torqueLayer;
         var ui;
+        var editor;
+        var DEFAULT_CARTOCSS = $('#default-style').html();
         function init_torque(map, options) {
           // init torque layer
           torqueLayer = new torque.GMapsTorqueLayer(_.extend({
@@ -80,21 +134,6 @@
             map: map
           }, options));
 
-          var DEFAULT_CARTOCSS = [
-          '#layer {',
-          "  marker-width: 3; ",
-          '  marker-fill: #FEE391; ',
-          '  [value > 2] { marker-fill: #FEC44F; }',
-          '  [value > 3] { marker-fill: #FE9929; }',
-          '  [value > 4] { marker-fill: #EC7014; }',
-          '  [value > 5] { marker-fill: #CC4C02; }',
-          '  [value > 6] { marker-fill: #993404; }',
-          '  [value > 7] { marker-fill: #662506; }',
-          '  [frame-offset = 1] {  marker-width: 8;marker-fill-opacity: 0.05;}',
-          '  [frame-offset = 2] {  marker-width: 20;marker-fill-opacity: 0.02;}',
-          //'  [frame-offset = 1] {  marker-width: 25;marker-fill-opacity: 0.01;}',
-          '}'
-          ].join('\n');
 
           torqueLayer.setMap(map);
           torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
@@ -118,6 +157,10 @@
           torqueLayer.play();
         }
 
+        function toggle_editor() {
+          $(editor.getWrapperElement()).toggle()
+        }
+
         function init_ui(map, torqueLayer) {
           var TorqueOptions = _.clone(torqueLayer.options);
           dat.GUI.DEFAULT_WIDTH = 300;
@@ -133,6 +176,8 @@
           ui.add(TorqueOptions, 'resolution', [1, 2, 4, 8, 16, 32])
           ui.add(TorqueOptions, 'steps', 10, 1024).listen()
           ui.add(TorqueOptions, 'animationDuration', 5, 120);
+          ui.add({ cartocss_editor: toggle_editor }, 'cartocss_editor');
+          ui.remember(TorqueOptions);
           //ui.add(TorqueOptions, 'blendmode', blend_modes);
           ui.add({
             update: function() {
@@ -145,6 +190,17 @@
               init_torque(map, TorqueOptions);
             }
           }, 'update');
+
+          if (!editor) {
+            var textarea = document.getElementById('code')
+            textarea.value = DEFAULT_CARTOCSS;
+            editor = CodeMirror.fromTextArea(textarea, { mode: "text/css" });
+            editor.on('change', _.debounce(function() {
+                torqueLayer.setCartoCSS(editor.getValue());
+            }, 250))
+          }
+          editor
+
       }
       /**
        * inits slider and a small play/pause button
