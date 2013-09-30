@@ -7,8 +7,7 @@ CartoDB users can use this code right away. Specify your username/tablename and 
 
 Have fun!
 
-* USPO creation over time: http://cartodb.github.com/torque/examples/uspo.html
-* OpenStreetMap edits in Madrid over time: http://cartodb.github.com/torque/examples/osm.html
+* A car in Nürburgring track: http://cartodb.github.com/torque/examples/car.html
 * The Guardian's Data Blog write-up of Royal Navy ships in WWI: http://www.guardian.co.uk/news/datablog/interactive/2012/oct/01/first-world-war-royal-navy-ships-mapped
 
 ## Torque library reference
@@ -70,9 +69,9 @@ The simplest way to use a visualization with Torque is...
       }
     </script>
   ```
+[Grab the complete example source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html)
 <div class="margin20"></div>
 
 ### API
 [see reference](https://github.com/CartoDB/torque/blob/master/doc/API.md)
 
-[Grab the complete example source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html)
