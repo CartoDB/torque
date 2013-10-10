@@ -1,4 +1,6 @@
 
+module('provider.jsonarray');
+
 test("processTile", function() {
   var json = new torque.providers.JsonArray({
     url: "http://test.com/{z}/{x}/{y}.json"
