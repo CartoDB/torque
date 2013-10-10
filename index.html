@@ -68,6 +68,9 @@
           outline: none;
           padding: 40px;
         }
+        body, #map_canvas {
+          height: 100%;
+        }
     </style>
   </head>
 
@@ -195,7 +198,10 @@
           ui.add(TorqueOptions, 'countby')
           ui.add(TorqueOptions, 'resolution', [1, 2, 4, 8, 16, 32])
           ui.add(TorqueOptions, 'steps', 10, 1024).listen()
-          ui.add(TorqueOptions, 'animationDuration', 5, 120);
+          ui.add(TorqueOptions, 'animationDuration', 5, 120).onChange(function(d) {
+              torqueLayer.animator.duration(d);
+              saveState();
+          });
           ui.add({ cartocss_editor: toggle_editor }, 'cartocss_editor');
           //ui.remember(TorqueOptions);
           //ui.add(TorqueOptions, 'blendmode', blend_modes);
