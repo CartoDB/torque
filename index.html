@@ -143,7 +143,6 @@
                'user',
                'table',
                'column',
-               'is_time',
                'countby',
                'resolution',
                'steps', 
@@ -160,7 +159,6 @@
             column     : 'date',
             countby    : 'count(cartodb_id)',
             resolution: 1,
-            is_time: true,
             steps: 800,
             blendmode  : 'lighter',
             animationDuration: 30,
@@ -206,7 +204,6 @@
           ui.add(TorqueOptions, 'user')
           ui.add(TorqueOptions, 'table')
           ui.add(TorqueOptions, 'column')
-          ui.add(TorqueOptions, 'is_time')
           ui.add(TorqueOptions, 'countby')
           ui.add(TorqueOptions, 'resolution', [1, 2, 4, 8, 16, 32])
           ui.add(TorqueOptions, 'steps', 10, 1024).listen()
