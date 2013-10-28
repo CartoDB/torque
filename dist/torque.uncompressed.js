@@ -39,6 +39,10 @@
       requestAnimationFrame(this._tick);
     },
 
+    isRunning: function() {
+      return this.running;
+    },
+
     stop: function() {
       this.pause();
       this.time(0);
@@ -65,17 +69,23 @@
       this.domain = this.domainInv.invert();
       this.range = torque.math.linear(0, this.options.steps);
       this.rangeInv = this.range.invert();
+      this.time(this._time);
       return this;
     },
 
     duration: function(_) {
       if (!arguments.length)  return this.options.animationDuration;
       this.options.animationDuration = _;
-      this.rescale();
       if (this.time() > _) {
         this.time(0);
       }
+      this.rescale();
       return this;
+    },
+
+    steps: function(_) {
+      this.options.steps = _;
+      return this.rescale();
     },
 
     step: function(s) {
@@ -490,7 +500,11 @@ exports.torque['torque-reference'] =  {
      for(var i = 0; c && i < c.length; ++i) {
        if(c[i] === callback) remove.push(i);
      }
-     while(i = remove.pop()) c.splice(i, 1);
+     while((i = remove.pop()) !== undefined) c.splice(i, 1);
+  };
+
+  Event.callbacks = function(evt) {
+    return (this._evt_callbacks && this._evt_callbacks[evt]) || [];
   };
 
   exports.torque.Event = Event;
@@ -823,15 +837,28 @@ exports.Profiler = Profiler;
       var protocol = opts.sql_api_protocol || 'http';
       return this.options.url || protocol + '://' + domain + '/api/v2/sql';
     },
+  
+    _extraParams: function() {
+      if (this.options.extra_params) {
+        var p = [];
+        for(var k in this.options.extra_params) {
+          var v = this.options.extra_params[k];
+          p.push(k + "=" + encodeURIComponent(v));
+        }
+        return p.join('&');
+      }
+      return null;
+    },
 
     // execute actual query
     sql: function(sql, callback, options) {
+      var extra = this._extraParams();
       options = options || {};
-      torque.net.get(this.url() + "?q=" + encodeURIComponent(sql), function (data) {
+      torque.net.get(this.url() + "?q=" + encodeURIComponent(sql) + (extra ? "&" + extra: ''), function (data) {
           if(options.parseJSON) {
-            data = JSON.parse(data.responseText);
+            data = JSON.parse(data && data.responseText);
           }
-          callback(data);
+          callback && callback(data);
       });
     },
 
@@ -880,7 +907,7 @@ exports.Profiler = Profiler;
         "  SELECT ST_SnapToGrid(i.the_geom_webmercator, p.res) g" +
         ", {countby} c" +
         ", floor(({column_conv} - {start})/{step}) d" +
-        "  FROM {table} i, par p " +
+        "  FROM ({_sql}) i, par p " +
         "  WHERE i.the_geom_webmercator && p.ext " +
         "  GROUP BY g, d" +
         ") " +
@@ -895,7 +922,8 @@ exports.Profiler = Profiler;
         zoom: zoom,
         x: coord.x,
         y: coord.y,
-        column_conv: column_conv
+        column_conv: column_conv,
+        _sql: this.getSQL()
       });
 
       var self = this;
@@ -914,6 +942,21 @@ exports.Profiler = Profiler;
       };
     },
 
+    setColumn: function(column, isTime) {
+      this.options.column = column;
+      this.options.is_time = isTime === undefined ? true: false;
+      this._ready = false;
+      this._fetchKeySpan();
+    },
+
+    setSQL: function(sql) {
+      if (this.options.sql != sql) {
+        this.options.sql = sql;
+        this._ready = false;
+        this._fetchKeySpan();
+      }
+    },
+
     setSteps: function(steps) {
       if (this.options.steps !== steps) {
         this.options.steps = steps;
@@ -925,44 +968,57 @@ exports.Profiler = Profiler;
       return this.options.bounds;
     },
 
+    getSQL: function() {
+      return this.options.sql || "select * from " + this.options.table;
+    },
+
     //
     // the data range could be set by the user though ``start``
     // option. It can be fecthed from the table when the start
     // is not specified.
     //
     _fetchKeySpan: function() {
+      var self = this;
       var max_col, min_col, max_tmpl, min_tmpl;
-
-      if (this.options.is_time){
-        max_tmpl = "date_part('epoch', max({column}))";
-        min_tmpl = "date_part('epoch', min({column}))";
-      } else {
-        max_tmpl = "max({column})";
-        min_tmpl = "min({column})";
-      }
-
-      max_col = format(max_tmpl, { column: this.options.column });
-      min_col = format(min_tmpl, { column: this.options.column });
-
-      var sql = format("SELECT st_xmax(st_envelope(st_collect(the_geom))) xmax,st_ymax(st_envelope(st_collect(the_geom))) ymax, st_xmin(st_envelope(st_collect(the_geom))) xmin, st_ymin(st_envelope(st_collect(the_geom))) ymin, {max_col} max, {min_col} min FROM {table}", {
-        max_col: max_col,
-        min_col: min_col,
-        table: this.options.table
+      var query = format("select {column} from ({sql}) __torque_wrap_sql limit 0", {
+        column: this.options.column,
+        sql: self.getSQL()
       });
 
-      var self = this;
-      this.sql(sql, function(data) {
-        //TODO: manage bounds
-        data = data.rows[0];
-        self.options.start = data.min;
-        self.options.end = data.max;
-        self.options.step = (data.max - data.min)/self.options.steps;
-        self.options.bounds = [ 
-          [data.ymin, data.xmin],
-          [data.ymax, data.xmax] 
-        ];
-        self._setReady(true);
-      }, { parseJSON: true });
+      this.sql(query, function (data) {
+        if (!data) return;
+        self.options.is_time = data.fields[self.options.column].type === 'date';
+
+        if (self.options.is_time){
+          max_tmpl = "date_part('epoch', max({column}))";
+          min_tmpl = "date_part('epoch', min({column}))";
+        } else {
+          max_tmpl = "max({column})";
+          min_tmpl = "min({column})";
+        }
+
+        max_col = format(max_tmpl, { column: self.options.column });
+        min_col = format(min_tmpl, { column: self.options.column });
+
+        var sql = format("SELECT st_xmax(st_envelope(st_collect(the_geom))) xmax,st_ymax(st_envelope(st_collect(the_geom))) ymax, st_xmin(st_envelope(st_collect(the_geom))) xmin, st_ymin(st_envelope(st_collect(the_geom))) ymin, {max_col} max, {min_col} min FROM ({sql}) __torque_wrap_sql", {
+          max_col: max_col,
+          min_col: min_col,
+          sql: self.getSQL()
+        });
+
+        self.sql(sql, function(data) {
+          //TODO: manage bounds
+          data = data.rows[0];
+          self.options.start = data.min;
+          self.options.end = data.max;
+          self.options.step = (data.max - data.min)/self.options.steps;
+          self.options.bounds = [ 
+            [data.ymin, data.xmin],
+            [data.ymax, data.xmax] 
+          ];
+          self._setReady(true);
+        }, { parseJSON: true });
+      }, { parseJSON: true })
     }
 
   };
@@ -1209,8 +1265,10 @@ exports.Profiler = Profiler;
   var torque = exports.torque = exports.torque || {};
   torque.net = torque.net || {};
 
+  var lastCall = null;
 
   function get(url, callback) {
+    lastCall = { url: url, callback: callback };
     var request = XMLHttpRequest;
     // from d3.js
     if (window.XDomainRequest
@@ -1239,7 +1297,8 @@ exports.Profiler = Profiler;
   }
 
   torque.net = {
-    get: get
+    get: get,
+    lastCall: function() { return lastCall; }
   };
 
 })(typeof exports === "undefined" ? this : exports);
@@ -1774,8 +1833,7 @@ CanvasLayer.prototype = new google.maps.OverlayView();
  * @const
  * @private
  */
-//CanvasLayer.DEFAULT_PANE_NAME_ = 'overlayLayer';
-CanvasLayer.DEFAULT_PANE_NAME_ = 'mapPane';
+CanvasLayer.DEFAULT_PANE_NAME_ = 'overlayLayer';
 
 /**
  * Transform CSS property name, with vendor prefix if required. If browser
@@ -2054,7 +2112,6 @@ CanvasLayer.prototype.repositionCanvas_ = function() {
   var projection = this.getProjection();
   var divTopLeft = projection.fromLatLngToDivPixel(this.topLeft_);
 
-  console.log(this.topLeft_.lng(), divTopLeft.x);
   // when the zoom level is low, more than one map can be shown in the screen
   // so the canvas should be attach to the map with more are in the screen
   var mapSize = (1 << this.getMap().getZoom())*256;
@@ -2228,15 +2285,20 @@ GMapsTileLoader.prototype = {
     this._tiles = {};
     this._tilesToLoad = 0;
     this._updateTiles = this._updateTiles.bind(this);
-    google.maps.event.addListener(this._map, 'dragend', this._updateTiles);
-    google.maps.event.addListener(this._map, 'zoom_changed', this._updateTiles);
+    this._listeners = [];
+    this._listeners.push(
+      google.maps.event.addListener(this._map, 'dragend', this._updateTiles),
+      google.maps.event.addListener(this._map, 'zoom_changed', this._updateTiles)
+    );
     this.tileSize = 256;
     this._updateTiles();
   },
 
   _removeTileLoader: function() {
-    //TODO: unbind events
-    //TODO: remove tiles
+    for(var i in this._listeners) {
+      google.maps.event.removeListener(this._listeners[i]);
+    }
+    this._removeTiles();
   },
 
   _removeTiles: function () {
@@ -2432,6 +2494,7 @@ function GMapsTorqueLayer(options) {
   this.pause = this.animator.pause.bind(this.animator);
   this.toggle = this.animator.toggle.bind(this.animator);
   this.setDuration = this.animator.duration.bind(this.animator);
+  this.isRunning = this.animator.isRunning.bind(this.animator);
 
 
   CanvasLayer.call(this, {
@@ -2472,11 +2535,12 @@ GMapsTorqueLayer.prototype = _.extend({},
       self.fire("change:bounds", {
         bounds: self.provider.getBounds()
       });
+      self.animator.rescale();
+      self.setKey(self.key);
     };
 
     this.provider = new this.providers[this.options.provider](this.options);
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), this.options);
-    this.setBlendMode = this.renderer.setBlendMode.bind(this.renderer);
 
     this._initTileLoader(this.options.map, this.getProjection());
 
@@ -2486,9 +2550,33 @@ GMapsTorqueLayer.prototype = _.extend({},
 
   },
 
-  setSteps: function(steps) {
-    this.provider.setSteps(steps);
+  setSQL: function(sql) {
+    if (!this.provider || !this.provider.setSQL) {
+      throw new Error("this provider does not support SQL");
+    }
+    this.provider.setSQL(sql);
     this._reloadTiles();
+    return this;
+  },
+
+  setBlendMode: function(_) {
+    this.renderer && this.renderer.setBlendMode(_);
+    this.redraw();
+  },
+
+  setSteps: function(steps) {
+    this.provider && this.provider.setSteps(steps);
+    this.animator && this.animator.steps(steps);
+    this._reloadTiles();
+  },
+
+  setColumn: function(column, isTime) {
+    this.provider && this.provider.setColumn(column, isTime);
+    this._reloadTiles();
+  },
+
+  getTimeBounds: function() {
+    return this.provider && this.provider.getKeySpan();
   },
 
   getCanvas: function() {
@@ -2557,7 +2645,7 @@ GMapsTorqueLayer.prototype = _.extend({},
     if (!this.provider) return 0;
     var times = this.provider.getKeySpan();
     var time = times.start + (times.end - times.start)*(step/this.options.steps);
-    return new Date(time*1000);
+    return new Date(time);
   },
 
   /**
@@ -2588,6 +2676,7 @@ GMapsTorqueLayer.prototype = _.extend({},
   onRemove: function() {
     CanvasLayer.prototype.onRemove.call(this);
     this.animator.stop();
+    this._removeTileLoader();
   }
 
 });
@@ -2687,7 +2776,7 @@ L.Mixin.TileLoader = {
   },
 
   _removeTileLoader: function() {
-    map.off({
+    this._map.off({
         'moveend': this._updateTiles
     }, this);
     this._removeTiles();
@@ -2972,6 +3061,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     this.pause = this.animator.pause.bind(this.animator);
     this.toggle = this.animator.toggle.bind(this.animator);
     this.setDuration = this.animator.duration.bind(this.animator);
+    this.isRunning = this.animator.isRunning.bind(this.animator);
 
 
     L.CanvasLayer.prototype.initialize.call(this, options);
@@ -2982,7 +3072,6 @@ L.TorqueLayer = L.CanvasLayer.extend({
     this.provider = new this.providers[this.options.provider](options);
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), options);
 
-    this.setBlendMode = this.renderer.setBlendMode.bind(this.renderer);
 
     // for each tile shown on the map request the data
     this.on('tileAdded', function(t) {
@@ -2991,12 +3080,50 @@ L.TorqueLayer = L.CanvasLayer.extend({
         self.redraw();
       });
     }, this);
+
+    this.options.ready = function() {
+      self.fire("change:bounds", {
+        bounds: self.provider.getBounds()
+      });
+      self.animator.rescale();
+      self.setKey(self.key);
+    };
+
+  },
+
+  onRemove: function() {
+    this._removeTileLoader();
+  },
+
+  setSQL: function(sql) {
+    if (!this.provider || !this.provider.setSQL) {
+      throw new Error("this provider does not support SQL");
+    }
+    this.provider.setSQL(sql);
+    this._reloadTiles();
+    return this;
+  },
+
+  setBlendMode: function(_) {
+    this.renderer.setBlendMode(_);
+    this.redraw();
   },
 
   setSteps: function(steps) {
     this.provider.setSteps(steps);
+    this.animator.steps(steps);
     this._reloadTiles();
   },
+
+  setColumn: function(column, isTime) {
+    this.provider.setColumn(column, isTime);
+    this._reloadTiles();
+  },
+
+  getTimeBounds: function() {
+    return this.provider && this.provider.getKeySpan();
+  },
+
 
   /**
    * render the selectef key
@@ -3050,7 +3177,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
   stepToTime: function(step) {
     var times = this.provider.getKeySpan();
     var time = times.start + (times.end - times.start)*(step/this.options.steps);
-    return new Date(time*1000);
+    return new Date(time);
   },
 
   /**
