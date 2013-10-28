@@ -133,8 +133,10 @@
         var torqueLayer;
         var ui;
         var editor;
+        var ui_enabled = false;
         var state = location.hash ? JSON.parse(atob(location.hash.substring(1))): {};
         var DEFAULT_CARTOCSS = state.cartocss || $('#default-style').html();
+        ui_enabled = location.search.indexOf('no_ui') === -1;
 
         function saveState() {
           location.hash = btoa(JSON.stringify({
@@ -170,7 +172,12 @@
           torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
 
           init_slider(torqueLayer);
-          init_ui(map, torqueLayer);
+          if(ui_enabled) {
+            init_ui(map, torqueLayer);
+          } else {
+            var textarea = document.getElementById('code')
+            textarea.parentNode.removeChild(textarea);
+          }
           torqueLayer.on('change:bounds', function(changes) {
               var bounds = changes.bounds;
               var b = new google.maps.LatLngBounds(
