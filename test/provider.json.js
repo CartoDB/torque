@@ -4,7 +4,7 @@ module('provider.json')
 QUnit.testStart(function() {
     json = new torque.providers.json({
       table: 'test',
-      user: "rambo",
+      user_name: "rambo",
       resolution: 1,
       steps: 10,
       extra_params: {
