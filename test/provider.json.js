@@ -32,5 +32,10 @@ QUnit.testStart(function() {
     equal(json.getSQL(), "select * from test");
   });
 
+  test("cdn_url", function() {
+    json.options.cdn_url = { http: 'test.com' };
+    equal(json.url('a'), 'http://a.test.com/rambo');
+  });
+
 
 
