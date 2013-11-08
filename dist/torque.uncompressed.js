@@ -972,8 +972,8 @@ exports.Profiler = Profiler;
 
     getKeySpan: function() {
       return {
-        start: this.options.start,
-        end: this.options.end,
+        start: this.options.start * 1000,
+        end: this.options.end * 1000,
         step: this.options.step,
         steps: this.options.steps
       };
@@ -1024,7 +1024,7 @@ exports.Profiler = Profiler;
     _fetchKeySpan: function() {
       var self = this;
       var max_col, min_col, max_tmpl, min_tmpl;
-      var query = format("with s as (select EXTRACT(EPOCH FROM max(updated_at)) as max FROM CDB_TableMetadata m WHERE m.tabname::name = any ( CDB_QueryTables('{sql}'))) select {column}, s.max as last_updated " + 
+      var query = format("with s as (select EXTRACT(EPOCH FROM max(updated_at)) as max FROM CDB_TableMetadata m WHERE m.tabname::name = any ( CDB_QueryTables('{sql}'))) select {column}, s.max as last_updated " +
                          "from s, ({sql}) __torque_wrap_sql limit 1", {
         column: this.options.column,
         sql: self.getSQL()
@@ -1049,18 +1049,18 @@ exports.Profiler = Profiler;
         max_col = format(max_tmpl, { column: self.options.column });
         min_col = format(min_tmpl, { column: self.options.column });
 
-        var sql_stats = "" +
-        "WITH summary_groups as ( " + 
-          "WITH summary as ( " + 
-           "select   (row_number() over (order by __time_col asc nulls last)+1)/2 as rownum, __time_col " + 
-            "from (select *, {column} as __time_col from ({sql}) __s) __torque_wrap_sql " + 
-            "order by __time_col asc " + 
-          ") " + 
-          "SELECT " + 
-          "max(__time_col) OVER(PARTITION BY rownum) -  " + 
-          "min(__time_col) OVER(PARTITION BY rownum) diff " + 
-          "FROM summary " + 
-        "), subq as ( " + 
+        /*var sql_stats = "" +
+        "WITH summary_groups as ( " +
+          "WITH summary as ( " +
+           "select   (row_number() over (order by __time_col asc nulls last)+1)/2 as rownum, __time_col " +
+            "from (select *, {column} as __time_col from ({sql}) __s) __torque_wrap_sql " +
+            "order by __time_col asc " +
+          ") " +
+          "SELECT " +
+          "max(__time_col) OVER(PARTITION BY rownum) -  " +
+          "min(__time_col) OVER(PARTITION BY rownum) diff " +
+          "FROM summary " +
+        "), subq as ( " +
         " SELECT " +
             "st_xmax(st_envelope(st_collect(the_geom))) xmax, " +
             "st_ymax(st_envelope(st_collect(the_geom))) ymax, " +
@@ -1069,12 +1069,21 @@ exports.Profiler = Profiler;
             "{max_col} max, " +
             "{min_col} min FROM  ({sql}) __torque_wrap_sql " +
         ")" +
-        "SELECT " + 
+        "SELECT " +
         "xmax, xmin, ymax, ymin, a.max as max_date, a.min as min_date, " +
-        "avg(diff) as diffavg," + 
-        "(a.max - a.min)/avg(diff) as num_steps " + 
-        "FROM summary_groups, subq a  " + 
+        "avg(diff) as diffavg," +
+        "(a.max - a.min)/avg(diff) as num_steps " +
+        "FROM summary_groups, subq a  " +
         "WHERE diff > 0 group by xmax, xmin, ymax, ymin, max_date, min_date";
+        */
+        var sql_stats = " SELECT " +
+            "st_xmax(st_envelope(st_collect(the_geom))) xmax, " +
+            "st_ymax(st_envelope(st_collect(the_geom))) ymax, " +
+            "st_xmin(st_envelope(st_collect(the_geom))) xmin, " +
+            "st_ymin(st_envelope(st_collect(the_geom))) ymin, " +
+            "count(*) as num_steps, " +
+            "{max_col} max_date, " +
+            "{min_col} min_date FROM  ({sql}) __torque_wrap_sql ";
 
         var sql = format(sql_stats, {
           max_col: max_col,
@@ -1092,9 +1101,9 @@ exports.Profiler = Profiler;
           self.options.data_steps = data.num_steps >> 0;
           // step can't be 0
           self.options.step = self.options.step || 1;
-          self.options.bounds = [ 
+          self.options.bounds = [
             [data.ymin, data.xmin],
-            [data.ymax, data.xmax] 
+            [data.ymax, data.xmax]
           ];
           self._setReady(true);
         }, { parseJSON: true });
