@@ -732,6 +732,9 @@ exports.Profiler = Profiler;
     this.options = options;
 
     this.options.is_time = this.options.is_time === undefined ? true: this.options.is_time;
+    this.options.tiler_protocol = options.tiler_protocol || 'http';
+    this.options.tiler_domain = options.tiler_domain || 'cartodb.com';
+    this.options.tiler_port = options.tiler_port || 80;
 
     // check options
     if (options.resolution === undefined ) throw new Error("resolution should be provided");
@@ -856,7 +859,7 @@ exports.Profiler = Profiler;
       if(!cdn_host.http && !cdn_host.https) {
         throw new Error("cdn_host should contain http and/or https entries");
       }
-      h += cdn_host[protocol] + "/" + (opts.user_name || opts.user);
+      h += cdn_host[protocol] + "/" + (opts.user_name || opts.user) + '/api/v2/sql';
       return h;
     },
 
@@ -874,7 +877,9 @@ exports.Profiler = Profiler;
         var p = [];
         for(var k in this.options.extra_params) {
           var v = this.options.extra_params[k];
-          p.push(k + "=" + encodeURIComponent(v));
+          if (v) {
+            p.push(k + "=" + encodeURIComponent(v));
+          }
         }
         return p.join('&');
       }
@@ -883,10 +888,15 @@ exports.Profiler = Profiler;
 
     // execute actual query
     sql: function(sql, callback, options) {
-      var subdomains = this.options.subdomains || '0123';
-      var url = this.url(subdomains[Math.abs(this._hash(sql))%subdomains.length]);
-      var extra = this._extraParams();
       options = options || {};
+      var subdomains = this.options.subdomains || '0123';
+      var url;
+      if (options.no_cdn) {
+        url = this._host();
+      } else {
+        url = this.url(subdomains[Math.abs(this._hash(sql))%subdomains.length]);
+      }
+      var extra = this._extraParams();
       torque.net.get( url + "?q=" + encodeURIComponent(sql) + (extra ? "&" + extra: ''), function (data) {
           if(options.parseJSON) {
             data = JSON.parse(data && data.responseText);
@@ -1016,6 +1026,42 @@ exports.Profiler = Profiler;
       return this.options.sql || "select * from " + this.options.table;
     },
 
+    _tilerHost: function() {
+      var opts = this.options;
+      var user = (opts.user_name || opts.user);
+      return opts.tiler_protocol +
+           "://" + (user ? user + "." : "")  +
+           opts.tiler_domain +
+           ((opts.tiler_port != "") ? (":" + opts.tiler_port) : "");
+    },
+
+    _fetchUpdateAt: function(callback) {
+      var self = this;
+      var layergroup = {
+        "version": "1.0.1",
+        "stat_tag": this.options.stat_tag || 'torque',
+        "layers": [{
+          "type": "cartodb",
+          "options": {
+            "cartocss_version": "2.1.1", 
+            "cartocss": "#layer {}",
+            "sql": this.getSQL()
+          }
+        }]
+      };
+      var url = this._tilerHost() + "/tiles/layergroup";
+      var extra = this._extraParams();
+      torque.net.post( url + (extra ? "?" + extra: ''), JSON.stringify(layergroup) , function (req) {
+        var query = format("select * from ({sql}) __torque_wrap_sql limit 0", { sql: self.getSQL() });
+        self.sql(query, function (queryData) {
+          callback({
+            updated_at: JSON.parse(req.response).last_updated,
+            fields: queryData.fields
+          });
+        }, { parseJSON: true });
+      });
+    },
+
     //
     // the data range could be set by the user though ``start``
     // option. It can be fecthed from the table when the start
@@ -1024,16 +1070,11 @@ exports.Profiler = Profiler;
     _fetchKeySpan: function() {
       var self = this;
       var max_col, min_col, max_tmpl, min_tmpl;
-      var query = format("with s as (select EXTRACT(EPOCH FROM max(updated_at)) as max FROM CDB_TableMetadata m WHERE m.tabname::name = any ( CDB_QueryTables('{sql}'))) select {column}, s.max as last_updated " + 
-                         "from s, ({sql}) __torque_wrap_sql limit 1", {
-        column: this.options.column,
-        sql: self.getSQL()
-      });
 
-      this.sql(query, function (data) {
+      this._fetchUpdateAt(function(data) {
         if (!data) return;
         self.options.extra_params = self.options.extra_params || {};
-        self.options.extra_params.last_updated = data.rows[0].updated_at || 0;
+        self.options.extra_params.last_updated = data.updated_at || 0;
         self.options.is_time = data.fields[self.options.column].type === 'date';
 
         var column_conv = self.options.column;
@@ -1049,7 +1090,7 @@ exports.Profiler = Profiler;
         max_col = format(max_tmpl, { column: self.options.column });
         min_col = format(min_tmpl, { column: self.options.column });
 
-        var sql_stats = "" +
+        /*var sql_stats = "" +
         "WITH summary_groups as ( " + 
           "WITH summary as ( " + 
            "select   (row_number() over (order by __time_col asc nulls last)+1)/2 as rownum, __time_col " + 
@@ -1075,6 +1116,15 @@ exports.Profiler = Profiler;
         "(a.max - a.min)/avg(diff) as num_steps " + 
         "FROM summary_groups, subq a  " + 
         "WHERE diff > 0 group by xmax, xmin, ymax, ymin, max_date, min_date";
+        */
+        var sql_stats = " SELECT " +
+            "st_xmax(st_envelope(st_collect(the_geom))) xmax, " +
+            "st_ymax(st_envelope(st_collect(the_geom))) ymax, " +
+            "st_xmin(st_envelope(st_collect(the_geom))) xmin, " +
+            "st_ymin(st_envelope(st_collect(the_geom))) ymin, " +
+            "count(*) as num_steps, " +
+            "{max_col} max_date, " +
+            "{min_col} min_date FROM  ({sql}) __torque_wrap_sql ";
 
         var sql = format(sql_stats, {
           max_col: max_col,
@@ -1097,8 +1147,8 @@ exports.Profiler = Profiler;
             [data.ymax, data.xmax] 
           ];
           self._setReady(true);
-        }, { parseJSON: true });
-      }, { parseJSON: true })
+        }, { parseJSON: true, no_cdn: true });
+      }, { parseJSON: true, no_cdn: true})
     }
 
   };
@@ -1347,7 +1397,11 @@ exports.Profiler = Profiler;
 
   var lastCall = null;
 
-  function get(url, callback) {
+  function get(url, callback, options) {
+    options = options || {
+      method: 'GET',
+      data: null
+    };
     lastCall = { url: url, callback: callback };
     var request = XMLHttpRequest;
     // from d3.js
@@ -1370,14 +1424,27 @@ exports.Profiler = Profiler;
       ? req.onload = req.onerror = respond
       : req.onreadystatechange = function() { req.readyState > 3 && respond(); };
 
-    req.open("GET", url, true);
+    req.open(options.method, url, true);
     //req.responseType = 'arraybuffer';
-    req.send(null)
+    if (options.data) {
+      req.setRequestHeader("Content-type", "application/json");
+      //req.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+      req.setRequestHeader("Accept", "*");
+    }
+    req.send(options.data);
     return req;
+  }
+
+  function post(url, data, callback) {
+    return get(url, callback, {
+      data: data,
+      method: "POST"
+    });
   }
 
   torque.net = {
     get: get,
+    post: post,
     lastCall: function() { return lastCall; }
   };
 
