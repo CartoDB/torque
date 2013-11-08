@@ -23,6 +23,13 @@ QUnit.testStart(function() {
     equal(torque.net.lastCall().url, url);
   });
 
+  test("no_cdn", function() {
+    var url = "http://rambo.cartodb.com/api/v2/sql?q=1&testing=abcd%25";
+    json.options.cdn_url = 'test-cdn.com'
+    json.sql('1', null, { no_cdn: true });
+    equal(torque.net.lastCall().url, url);
+  });
+
   test("getSQL", function() {
     var s;
     equal(json.getSQL(), "select * from test");
@@ -34,7 +41,7 @@ QUnit.testStart(function() {
 
   test("cdn_url", function() {
     json.options.cdn_url = { http: 'test.com' };
-    equal(json.url('a'), 'http://a.test.com/rambo');
+    equal(json.url('a'), 'http://a.test.com/rambo/api/v2/sql');
   });
 
 
