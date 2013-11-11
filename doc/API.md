@@ -23,7 +23,6 @@ One of two core classes for the Torque library - it is used to create an animate
     column     : 'date',
     countby    : 'count(cartodb_id)',
     resolution : 1,
-    is_time    : true,
     steps      : 750,
     pixel_size : 3,
     blendmode  : 'lighter'
@@ -45,11 +44,6 @@ One of two core classes for the Torque library - it is used to create an animate
 | column    | string     | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
 | countby   | string     | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
 
-##### Dynamic/static options
-| Option    | type       | Default   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| is_time   | boolean    | ```true```   | Determines if the drawing is static or dynamic/animated |
-
 
 ##### Display options
 | Option    | type       | Default   | Description                            |
@@ -60,7 +54,7 @@ One of two core classes for the Torque library - it is used to create an animate
 ##### Time options
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| steps     | integer    | ```100```   | The number of steps to divide the data into for animated renderings |
+| steps     | integer    | ```100```   | The maximun number of steps to divide the data into for animated renderings |
 | animationDuration | integer    | ```null```   | time in seconds the animation last |
 
 ### Time methods
@@ -133,6 +127,8 @@ One of two core classes for the Torque library - it is used to create a static t
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```setKey(keys)``` | ```keys numeric/array```    | ```this```   | which data categories to display on the map |
+| ```setSQL(sql)``` | ```sql string ```    | ```this```   | by default sql torque layer uses is
+"select * from table", this method changes the sql query torque uses to fetch the data |
 
 ### Style options
 
