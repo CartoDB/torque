@@ -34,8 +34,10 @@
         zoomControl: true,
         center: [40, 0],
         //center: [36.60670888641815,  38.627929687],
-        zoom: 2
+        center: [ 41.30499304085372, -5.013290047645569],
+        zoom: 19
       });
+      window.map = map;
 
       L.tileLayer('http://tile.stamen.com/toner/{z}/{x}/{y}.png', {
         attribution: 'Stamen'
@@ -43,19 +45,25 @@
 
       var torqueLayer = new L.TorqueLayer({
         provider: 'sql_api',
-        user       : 'viz2',
-        table      : 'ow',
-        column     : 'date',
+        sql_api_domain: 'localhost.lan',
+        sql_api_port: '8080',
+        tiler_domain: 'localhost.lan',
+        tiler_port: 8181,
+        tiler_protocol: 'http',
+        user       : 'dev',
+        //table      : 'sensor_log_2013_05_31_16_37',
+        table      : 'sensor_log_2013_10_12_16_44',
+        column     : 'time',
         countby    : 'count(cartodb_id)',
         resolution: 2,
         steps: 750,
         blendmode  : 'lighter',
-        animationDuration: 60
+        animationDuration: 20
       });
 
     var DEFAULT_CARTOCSS = [
       '#layer {',
-      '  marker-width: 2;',
+      '  marker-width: 13;',
       '  marker-fill: #FEE391; ',
       '  [value > 2] { marker-fill: #FEC44F; }',
       '  [value > 3] { marker-fill: #FE9929; }',
@@ -70,7 +78,10 @@
       torqueLayer.setCartoCSS(DEFAULT_CARTOCSS);
 
       torqueLayer.addTo(map);
-      torqueLayer.play()
+      //torqueLayer.play()
+      window.torqueLayer = torqueLayer;
+      torqueLayer.setCartoCSS('#layer { marker-width: 1; marker-fill: #000;}')
+      torqueLayer.setStep(308);
     
     </script>
   </body>

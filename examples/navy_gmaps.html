@@ -73,12 +73,17 @@
 
       var torqueLayer = new torque.GMapsTorqueLayer({
         provider: 'sql_api',
-        user       : 'viz2',
-        table      : 'ow',
-        column     : 'date',
+        user       : 'dev',
+        table      : 'sensor_log_2013_10_12_16_44',
+        sql_api_domain: 'localhost.lan',
+        sql_api_port: '8080',
+        tiler_protocol: 'http',
+        tiler_domain: 'localhost.lan',
+        tiler_port: '8181',
+        column     : 'time',
         countby    : 'count(cartodb_id)',
-        resolution: 2,
-        steps: 750,
+        resolution: 1,
+        steps: 1024,
         blendmode  : 'lighter',
         animationDuration: 60,
         map: map

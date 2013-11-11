@@ -886,10 +886,19 @@ exports.Profiler = Profiler;
       return null;
     },
 
+    isHttps: function() {
+      return this.options.sql_api_protocol && this.options.sql_api_protocol === 'https';
+    },
+
     // execute actual query
     sql: function(sql, callback, options) {
       options = options || {};
       var subdomains = this.options.subdomains || '0123';
+      if(this.isHttps()) {
+        subdomains = [null]; // no subdomain
+      }
+
+
       var url;
       if (options.no_cdn) {
         url = this._host();
@@ -985,7 +994,8 @@ exports.Profiler = Profiler;
         start: this.options.start * 1000,
         end: this.options.end * 1000,
         step: this.options.step,
-        steps: this.options.steps
+        steps: this.options.steps,
+        columnType: this.options.is_time ? 'date': 'number'
       };
     },
 
@@ -1051,13 +1061,26 @@ exports.Profiler = Profiler;
       };
       var url = this._tilerHost() + "/tiles/layergroup";
       var extra = this._extraParams();
-      torque.net.post( url + (extra ? "?" + extra: ''), JSON.stringify(layergroup) , function (req) {
+
+      // tiler needs map_key instead of api_key
+      // so replace it
+      if (extra) {
+        extra = extra.replace('api_key=', 'map_key=');
+      }
+
+      url = url +
+        "?config=" + encodeURIComponent(JSON.stringify(layergroup)) +
+        "&callback=?" + (extra ? "&" + extra: '');
+
+      torque.net.jsonp(url, function (data) {
         var query = format("select * from ({sql}) __torque_wrap_sql limit 0", { sql: self.getSQL() });
         self.sql(query, function (queryData) {
-          callback({
-            updated_at: JSON.parse(req.response).last_updated,
-            fields: queryData.fields
-          });
+          if (data) {
+            callback({
+              updated_at: data.last_updated,
+              fields: queryData.fields
+            });
+          }
         }, { parseJSON: true });
       });
     },
@@ -1397,6 +1420,41 @@ exports.Profiler = Profiler;
 
   var lastCall = null;
 
+  function jsonp(url, callback, options) {
+     options = options || { timeout: 10000 };
+     var head = document.getElementsByTagName('head')[0];
+     var script = document.createElement('script');
+
+     // function name
+     var fnName = 'torque_' + Date.now();
+
+     function clean() {
+       head.removeChild(script);
+       clearTimeout(timeoutTimer);
+       delete window[fnName];
+     }
+
+     window[fnName] = function() {
+       clean();
+       callback.apply(window, arguments);
+     };
+
+     // timeout for errors
+     var timeoutTimer = setTimeout(function() { 
+       clean();
+       callback.call(window, null); 
+     }, options.timeout);
+
+     // setup url
+     url = url.replace('callback=\?', 'callback=' + fnName);
+     script.type = 'text/javascript';
+     script.src = url;
+     script.async = true;
+     // defer the loading because IE9 loads in the same frame the script
+     // so Loader._script is null
+     setTimeout(function() { head.appendChild(script); }, 0);
+  }
+
   function get(url, callback, options) {
     options = options || {
       method: 'GET',
@@ -1445,6 +1503,7 @@ exports.Profiler = Profiler;
   torque.net = {
     get: get,
     post: post,
+    jsonp: jsonp,
     lastCall: function() { return lastCall; }
   };
 
@@ -2687,6 +2746,7 @@ GMapsTorqueLayer.prototype = _.extend({},
       self.fire("change:bounds", {
         bounds: self.provider.getBounds()
       });
+      self.animator.steps(self.provider.getSteps());
       self.animator.rescale();
       self.fire('change:steps', {
         steps: self.provider.getSteps()
@@ -2758,7 +2818,9 @@ GMapsTorqueLayer.prototype = _.extend({},
     var self = this;
     this.provider.getTileData(t, t.zoom, function(tileData) {
       self._tileLoaded(t, tileData);
-      self.redraw();
+      if (tileData) {
+        self.redraw();
+      }
     });
   },
 
@@ -2782,9 +2844,11 @@ GMapsTorqueLayer.prototype = _.extend({},
     // renders only a "frame"
     for(t in this._tiles) {
       tile = this._tiles[t];
-      pos = this.getTilePos(tile.coord);
-      ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
-      this.renderer.renderTile(tile, this.key, pos.x, pos.y);
+      if (tile) {
+        pos = this.getTilePos(tile.coord);
+        ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
+        this.renderer.renderTile(tile, this.key, pos.x, pos.y);
+      }
     }
   },
 
@@ -3123,6 +3187,7 @@ L.CanvasLayer = L.Class.extend({
     }, this);
 
     map.on('move', this._render, this);//function(){ console.log("a"); }, this);
+    map.on('resize', this._reset, this);
 
     if(this.options.tileLoader) {
       this._initTileLoader();
@@ -3143,7 +3208,8 @@ L.CanvasLayer = L.Class.extend({
     map._container.removeChild(this._staticPane);
     map.off({
         'viewreset': this._reset,
-        'move': this._render
+        'move': this._render,
+        'resize': this._reset
     }, this);
   },
 
@@ -3270,15 +3336,18 @@ L.TorqueLayer = L.CanvasLayer.extend({
     this.on('tileAdded', function(t) {
       var tileData = this.provider.getTileData(t, t.zoom, function(tileData) {
         self._tileLoaded(t, tileData);
-        self.redraw();
+        if (tileData) {
+          self.redraw();
+        }
       });
     }, this);
 
 
   },
 
-  onRemove: function() {
+  onRemove: function(map) {
     this._removeTileLoader();
+    L.CanvasLayer.prototype.onRemove.call(this, map);
   },
 
   hide: function() {
@@ -3343,9 +3412,11 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     for(t in this._tiles) {
       tile = this._tiles[t];
-      pos = this.getTilePos(tile.coord);
-      ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
-      this.renderer.renderTile(tile, this.key, pos.x, pos.y);
+      if (tile) {
+        pos = this.getTilePos(tile.coord);
+        ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
+        this.renderer.renderTile(tile, this.key, pos.x, pos.y);
+      }
     }
 
   },
