@@ -1,0 +1,6 @@
+2.1.00 - 11/11/2013
+-----
+    - added support to custom SQL query
+    - removed is_time option, it's not fetch from SQL-API
+    - steps is now the upper limit for steps
+    - multiple fixes
