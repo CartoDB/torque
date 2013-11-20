@@ -17,7 +17,7 @@ test('gets metadata from cartocss', function() {
   " polygon-fill: #FFF;",
   "}"
   ].join('\n');
-  var opts = L.TorqueLayer.optionsFromCartoCSS(STYLE);
+  var opts = torque.common.TorqueLayer.optionsFromCartoCSS(STYLE);
   equal(opts['buffer-size'], 1);
   equal(opts['steps'], 1);
   equal(opts['resolution'], 2);
