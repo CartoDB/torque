@@ -6,7 +6,7 @@ test('gets metadata from cartocss', function() {
   var STYLE = [
   "Map { ",
   " buffer-size: 1;",
-  " -torque-steps: 1;",
+  " -torque-frame-count: 1;",
   " -torque-resolution: 2;",
   " -torque-animation-duration: 31;",
   " -torque-aggregation-function: 'avg(cartodb_id)';",
