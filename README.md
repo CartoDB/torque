@@ -24,51 +24,56 @@ The simplest way to use a visualization with Torque is...
 <div class="margin20"></div>
 <div class="code_title">Create a simple Torque visualization</div>
   ``` javascript
-    ...
-    <body>
-      <div id="map"></div>
-    </body>
-    ...
+      ...
+        <body>
+          <div id="map"></div>
+        </body>
+      ...
+      // define the torque layer style using cartocss
+      var CARTOCSS = [
+          'Map {',
+          '-torque-time-attribute: "date";',
+          '-torque-aggregation-function: "count(cartodb_id)";',
+          '-torque-frame-count: 760;',
+          '-torque-animation-duration: 15;',
+          '-torque-resolution: 2',
+          '}',
+          '#layer {',
+          '  marker-width: 3;',
+          '  marker-fill-opacity: 0.8;',
+          '  marker-fill: #FEE391; ',
+          '  comp-op: "lighten";',
+          '  [value > 2] { marker-fill: #FEC44F; }',
+          '  [value > 3] { marker-fill: #FE9929; }',
+          '  [value > 4] { marker-fill: #EC7014; }',
+          '  [value > 5] { marker-fill: #CC4C02; }',
+          '  [value > 6] { marker-fill: #993404; }',
+          '  [value > 7] { marker-fill: #662506; }',
+          '  [frame-offset = 1] { marker-width: 10; marker-fill-opacity: 0.05;}',
+          '  [frame-offset = 2] { marker-width: 15; marker-fill-opacity: 0.02;}',
+          '}'
+      ].join('\n');
+
+        
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
+
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        user       : 'viz2',
+        table      : 'ow',
+        cartocss: CARTOCSS
+      });
+      torqueLayer.addTo(map);
+      torqueLayer.play()
+
     <script>
-      window.onload = function() {
-	      // Create a Leaflet map
-	      var map = new L.Map('map', {
-	        zoomControl: true,
-	        center: [40, 0],
-	        //center: [36.60670888641815,  38.627929687],
-	        zoom: 3
-	      });
-
-	      // Add a basemap, here we use one provided by Stamen
-	      L.tileLayer('http://tile.stamen.com/toner/{z}/{x}/{y}.png', {
-	        attribution: 'Stamen'
-	      }).addTo(map);
-
-
-
-	      // Add Torque visualization
-	      // - create the torqueLayer object
-	      // - add the torqueLayer to the map
-	      var torqueLayer = new L.TorqueLayer({
-	        provider: 'sql_api',
-	        user       : 'viz2',
-	        table      : 'ow',
-	        column     : 'date',
-	        countby    : 'count(cartodb_id)',
-	        resolution: 1,
-	        is_time: true,
-	        steps: 750,
-	        pixel_size: 4,
-	        blendmode  : 'lighter'
-	      });
-
-	      torqueLayer.addTo(map);
-	      var t = 0;
-	      setInterval(function() {
-	        torqueLayer.setKey((t++%750));
-	      }, 100);
-      }
-    </script>
   ```
 [Grab the complete example source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html)
 <div class="margin20"></div>
