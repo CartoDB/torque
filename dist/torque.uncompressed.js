@@ -1189,6 +1189,11 @@ exports.Profiler = Profiler;
         refresh = true;
       }
 
+      if(opt.countby !== undefined && opt.countby !== this.options.countby) {
+        this.options.countby = opt.countby;
+        refresh = true;
+      }
+
       if(opt.data_aggregation !== undefined) {
         var c = opt.data_aggregation === 'cumulative';
         if (this.options.cumulative !== c) {
@@ -2945,6 +2950,8 @@ function GMapsTorqueLayer(options) {
         torque.common.TorqueLayer.optionsFromCartoCSS(options.cartocss));
   }
 
+  this.hidden = !this.options.visible;
+
   this.animator = new torque.Animator(function(time) {
     var k = time | 0;
     if(self.key !== k) {
@@ -2993,7 +3000,6 @@ GMapsTorqueLayer.prototype = _.extend({},
     var self = this;
 
     this.onTileAdded = this.onTileAdded.bind(this);
-    this.hidden = !this.options.visible;
 
     this.options.ready = function() {
       self.fire("change:bounds", {
@@ -3139,6 +3145,10 @@ GMapsTorqueLayer.prototype = _.extend({},
     var times = this.provider.getKeySpan();
     var time = times.start + (times.end - times.start)*(step/this.provider.getSteps());
     return new Date(time);
+  },
+
+  getStep: function() {
+    return this.key;
   },
 
   /**
@@ -3726,6 +3736,10 @@ L.TorqueLayer = L.CanvasLayer.extend({
     var times = this.provider.getKeySpan();
     var time = times.start + (times.end - times.start)*(step/this.provider.getSteps());
     return new Date(time);
+  },
+
+  getStep: function() {
+    return this.key;
   },
 
   /**
