@@ -1,3 +1,7 @@
+2.2.XX
+-----
+    - Added 'get attribution' function to Leaflet canvas layer.
+
 2.2.00 - 26/11/2013
 -----
     - added torque cumulative support #21
