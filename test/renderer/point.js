@@ -30,3 +30,20 @@ test('render shader layers', function() {
   renderer.renderTile(null, 0);
   equal(count, 1);
 });
+
+test('render conditional point layers', function() {
+  var css = [
+  '#test {',
+  'marker-width: 10;',
+  '[zoom = 18] {',
+    'marker-width: 20;',
+  '}}'].join('\n');
+
+  renderer.setCartoCSS(css)
+
+  var layer = renderer._shader.getLayers()[0];
+  var st = layer.getStyle('canvas-2d', {}, { zoom: 10, 'frame-offset': 0 });
+  equal(st['point-radius'], 10);
+  st = layer.getStyle('canvas-2d', {}, { zoom: 18, 'frame-offset': 0 });
+  equal(st['point-radius'], 20);
+});
