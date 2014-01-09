@@ -1,6 +1,8 @@
 2.2.XX
 -----
     - Added 'get attribution' function to Leaflet canvas layer.
+    - Added zIndex support to leaflet torque layer
+    - Fixed rendering when CartoCSS had zoom conditions (#27)
 
 2.2.00 - 26/11/2013
 -----
