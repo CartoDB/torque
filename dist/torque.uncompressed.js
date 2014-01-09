@@ -1866,7 +1866,6 @@ exports.Profiler = Profiler;
     // generate sprite based on cartocss style
     //
     generateSprite: function(shader, value, shaderVars) {
-      console.log("generate sprite", shaderVars);
       var prof = Profiler.metric('PointRenderer:generateSprite').start();
       var st = shader.getStyle('canvas-2d', {
         value: value
