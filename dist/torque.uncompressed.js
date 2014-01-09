@@ -1303,6 +1303,7 @@ exports.Profiler = Profiler;
         if (!data) return;
         self.options.extra_params = self.options.extra_params || {};
         self.options.extra_params.last_updated = data.updated_at || 0;
+        self.options.extra_params.cache_policy = 'persist';
         self.options.is_time = data.fields[self.options.column].type === 'date';
 
         var column_conv = self.options.column;
@@ -1857,10 +1858,15 @@ exports.Profiler = Profiler;
       this._shader = shader;
     },
 
+    clearSpriteCache: function() {
+      this._sprites = [];
+    },
+
     //
     // generate sprite based on cartocss style
     //
     generateSprite: function(shader, value, shaderVars) {
+      console.log("generate sprite", shaderVars);
       var prof = Profiler.metric('PointRenderer:generateSprite').start();
       var st = shader.getStyle('canvas-2d', {
         value: value
@@ -3016,6 +3022,11 @@ GMapsTorqueLayer.prototype = _.extend({},
     this.provider = new this.providers[this.options.provider](this.options);
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), this.options);
 
+    // this listener should be before tile loader
+    this._cacheListener = google.maps.event.addListener(this.options.map, 'zoom_changed', function() {
+      self.renderer && self.renderer.clearSpriteCache();
+    });
+
     this._initTileLoader(this.options.map, this.getProjection());
 
     if (this.shader) {
@@ -3076,6 +3087,8 @@ GMapsTorqueLayer.prototype = _.extend({},
   onTileAdded: function(t) {
     var self = this;
     this.provider.getTileData(t, t.zoom, function(tileData) {
+      // don't load tiles that are not being shown
+      if (t.zoom !== self.options.map.getZoom()) return;
       self._tileLoaded(t, tileData);
       if (tileData) {
         self.redraw();
@@ -3193,6 +3206,7 @@ GMapsTorqueLayer.prototype = _.extend({},
     CanvasLayer.prototype.onRemove.call(this);
     this.animator.stop();
     this._removeTileLoader();
+    google.maps.event.removeListener(this._cacheListener);
   }
 
 });
@@ -3439,12 +3453,18 @@ L.CanvasLayer = L.Class.extend({
       tileLoader: false // installs tile loading events
   },
 
-  initialize: function (options) { 
+  initialize: function (options) {
     var self = this;
+    options = options || {};
     //this.project = this._project.bind(this);
     this.render = this.render.bind(this);
     L.Util.setOptions(this, options);
     this._canvas = document.createElement('canvas');
+    this._canvas.style.position = 'absolute';
+    this._canvas.style.top = 0;
+    this._canvas.style.left = 0;
+    this._canvas.style.zIndex = options.zIndex || 0;
+
     this._ctx = this._canvas.getContext('2d');
     var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
                                 window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
@@ -3456,7 +3476,11 @@ L.CanvasLayer = L.Class.extend({
   onAdd: function (map) {
     this._map = map;
 
-    this._staticPane = map._createPane('leaflet-tile-pane', map._container);
+    //this._staticPane = map._createPane('leaflet-tile-pane', map._container);
+    if (!map._panes.staticPane) {
+      map._panes.staticPane = map._createPane('leaflet-tile-pane', map._container);
+    }
+    this._staticPane = map._panes.staticPane
     this._staticPane.appendChild(this._canvas);
 
     map.on({
@@ -3504,6 +3528,10 @@ L.CanvasLayer = L.Class.extend({
     this.options.opacity = opacity;
     this._updateOpacity();
     return this;
+  },
+
+  setZIndex: function(zIndex) {
+    this._canvas.style.zIndex = zIndex;
   },
 
   bringToFront: function () {
@@ -3620,6 +3648,8 @@ L.TorqueLayer = L.CanvasLayer.extend({
     // for each tile shown on the map request the data
     this.on('tileAdded', function(t) {
       var tileData = this.provider.getTileData(t, t.zoom, function(tileData) {
+        // don't load tiles that are not being shown
+        if (t.zoom !== self._map.getZoom()) return;
         self._tileLoaded(t, tileData);
         if (tileData) {
           self.redraw();
@@ -3630,9 +3660,22 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
   },
 
+  _clearCaches: function() {
+    this.renderer && this.renderer.clearSpriteCache();
+  },
+
+  onAdd: function (map) {
+    map.on({
+      'zoomend': this._clearCaches
+    }, this);
+    L.CanvasLayer.prototype.onAdd.call(this, map);
+  },
 
   onRemove: function(map) {
     this._removeTileLoader();
+    map.off({
+      'zoomend': this._clearCaches
+    }, this);
     L.CanvasLayer.prototype.onRemove.call(this, map);
   },
 
