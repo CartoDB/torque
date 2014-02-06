@@ -45,7 +45,7 @@ module('provider.windshaft', {
         }]
     };
 
-    var url = "http://rambo.cartodb.com:80/tiles/layergroup?config=" + encodeURIComponent(JSON.stringify(layergroup)) + "&callback="
+    var url = "http://rambo.cartodb.com:80/api/v1/map?config=" + encodeURIComponent(JSON.stringify(layergroup)) + "&callback="
     equal(lastCall.indexOf(url), 0);
     equal(windshaft.options.data_steps, 10);
 
@@ -68,15 +68,27 @@ module('provider.windshaft', {
         name: 'test_named'
       }
     });
-    var url = "http://rambo.cartodb.com:80/tiles/template/test_named/jsonp?config";
+    var url = "http://rambo.cartodb.com:80/api/v1/map/named/test_named/jsonp?config";
     equal(lastCall.indexOf(url), 0);
   });
 
   test("fetch tile", function() {
     windshaft._ready = true;
     windshaft.getTileData({x: 0, y: 1}, 2, function() {});
-    equal(lastCall,"http://rambo.cartodb.com:80/tiles/layergroup/testlg/0/2/0/1.json.torque?testing=abcd%25");
+    equal(lastCall,"http://rambo.cartodb.com:80/api/v1/map/testlg/0/2/0/1.json.torque?testing=abcd%25");
   });
+
+  test("include auth_token", function() {
+    windshaft_named = new torque.providers.windshaft({
+      table: 'test',
+      user: "rambo",
+      auth_token: 'test_auth_token',
+      named_map: {
+        name: 'test_named'
+      }
+    });
+    ok(lastCall.indexOf("auth_token=test_auth_token") !== -1);
+  })
 
 
 
