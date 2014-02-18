@@ -10,6 +10,7 @@ Have fun!
 * Play with your own data: http://cartodb.github.com/torque/
 * The Guardian's Data Blog write-up of Royal Navy ships in WWI: http://www.guardian.co.uk/news/datablog/interactive/2012/oct/01/first-world-war-royal-navy-ships-mapped
 * A car in Nürburgring track: http://cartodb.github.com/torque/examples/car.html
+* Example code for a custom time/date formatter: http://bl.ocks.org/javisantana/9066265
 
 ## Torque library reference
 
