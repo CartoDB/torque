@@ -1,12 +1,11 @@
-2.2.XX
+2.3.00 - Feb/24/2014
 -----
     - Added 'get attribution' function to Leaflet canvas layer.
     - Added zIndex support to leaflet torque layer
     - Added CartoDB Maps API data provider (used by default)
     - Fixed rendering when CartoCSS had zoom conditions (#27)
-    - Added windshaft provider (used by default)
 
-2.2.00 - 26/11/2013
+2.2.00 - Nov/26/2013
 -----
     - added torque cumulative support #21
 
