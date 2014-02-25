@@ -156,6 +156,7 @@
         function init_torque(map, options) {
           // init torque layer
           torqueLayer = new torque.GMapsTorqueLayer(_.extend({
+            provider: 'sql_api',
             user       : 'viz2',
             table      : 'ow',
             column     : 'date',
