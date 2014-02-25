@@ -2,6 +2,7 @@
     - Changed date parsing for windshaft provider
     - Optimized tile loading
     - Fixed cartocss update when windshaft.provider was being used
+    - Fixed windshaft provider with https
 
 
 2.3.00 - Feb/24/2014
