@@ -1,5 +1,6 @@
 2.3.XX - 
     - Changed date parsing for windshaft provider
+    - Optimized tile loading
 
 
 2.3.00 - Feb/24/2014
