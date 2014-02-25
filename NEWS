@@ -1,3 +1,7 @@
+2.3.XX - 
+    - Changed date parsing for windshaft provider
+
+
 2.3.00 - Feb/24/2014
 -----
     - Added 'get attribution' function to Leaflet canvas layer.
