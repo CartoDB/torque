@@ -38,7 +38,7 @@ module('provider.windshaft', {
         "layers": [{
           "type": "torque",
           "options": {
-            "cartocss_version": "2.1.1",
+            "cartocss_version": "1.0.0",
             "cartocss": '#test{}',
             "sql": 'test'
           }
@@ -58,6 +58,12 @@ module('provider.windshaft', {
   test("url cdn", function() {
     windshaft.options.cdn_url = { http: 'cartocdn.com' };
     equal(windshaft.url(), "http://{s}.cartocdn.com/rambo");
+  });
+
+  test("url cdn https", function() {
+    windshaft.options.tiler_protocol = 'https';
+    windshaft.options.cdn_url = { https: 'cartocdn.com' };
+    equal(windshaft.url(), "https://cartocdn.com/rambo");
   });
 
   test("named map", function() {
