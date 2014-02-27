@@ -3,7 +3,7 @@
     - Optimized tile loading
     - Fixed cartocss update when windshaft.provider was being used
     - Fixed windshaft provider with https
-
+    - Generate cartocss in windshaft provider (#37)
 
 2.3.00 - Feb/24/2014
 -----
