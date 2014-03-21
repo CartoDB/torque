@@ -4,6 +4,9 @@
     - Fixed cartocss update when windshaft.provider was being used
     - Fixed windshaft provider with https
     - Generate cartocss in windshaft provider (#37)
+    - Added zoom animation for leaflet
+    - Added metrics to track memory and time
+    - Pause on zoom
 
 2.3.00 - Feb/24/2014
 -----
