@@ -1689,9 +1689,9 @@ exports.Profiler = Profiler;
       var x = new Uint8Array(rows.length);
       var y = new Uint8Array(rows.length);
 
-      var prof_mem = Profiler.metric('ProviderJSON:mem');
-      var prof_point_count = Profiler.metric('ProviderJSON:point_count');
-      var prof_process_time = Profiler.metric('ProviderJSON:process_time').start()
+      var prof_mem = Profiler.metric('torque.provider.windshaft.mem');
+      var prof_point_count = Profiler.metric('torque.provider.windshaft.points');
+      var prof_process_time = Profiler.metric('torque.provider.windshaft.process_time').start();
 
       // count number of dates
       var dates = 0;
@@ -1817,6 +1817,20 @@ exports.Profiler = Profiler;
       };
     },
 
+    /*setCartoCSS: function(c) {
+      this.options.cartocss = c;
+    },*/
+
+    setSteps: function(steps, opt) { 
+      opt = opt || {};
+      if (this.options.steps !== steps) {
+        this.options.steps = steps;
+        this.options.step = (this.options.end - this.options.start)/this.getSteps();
+        this.options.step = this.options.step || 1;
+        if (!opt.silent) this.reload();
+      }
+    },
+
     setOptions: function(opt) {
       var refresh = false;
 
@@ -1850,7 +1864,6 @@ exports.Profiler = Profiler;
 
       if (refresh) this.reload();
       return refresh;
-      return false;
     },
 
     _extraParams: function() {
@@ -1894,7 +1907,7 @@ exports.Profiler = Profiler;
      */
     _getTileData: function(coord, zoom, callback) {
       var self = this;
-      var prof_fetch_time = Profiler.metric('ProviderJSON:tile_fetch_time').start();
+      var prof_fetch_time = Profiler.metric('torque.provider.windshaft.tile.fetch').start();
       var subdomains = this.options.subdomains || '0123';
       var index = Math.abs(coord.x + coord.y) % subdomains.length;
       var url = this.templateUrl
@@ -1905,10 +1918,12 @@ exports.Profiler = Profiler;
 
       var extra = this._extraParams();
       torque.net.get( url + (extra ? "?" + extra: ''), function (data) {
+        prof_fetch_time.end();
         if (data && data.responseText) {
           var rows = JSON.parse(data.responseText);
           callback(self.proccessTile(rows, coord, zoom));
         } else {
+          Profiler.metric('torque.provider.windshaft.tile.error').inc();
           callback(null);
         }
       });
@@ -1916,8 +1931,8 @@ exports.Profiler = Profiler;
 
     getKeySpan: function() {
       return {
-        start: this.options.start * 1000,
-        end: this.options.end * 1000,
+        start: this.options.start,
+        end: this.options.end,
         step: this.options.step,
         steps: this.options.steps,
         columnType: this.options.column_type
@@ -1947,6 +1962,13 @@ exports.Profiler = Profiler;
       return this.options.sql || "select * from " + this.options.table;
     },
 
+    setSQL: function(sql) {
+      if (this.options.sql != sql) {
+        this.options.sql = sql;
+        this.reload();
+      }
+    },
+
     _tilerHost: function() {
       var opts = this.options;
       var user = (opts.user_name || opts.user);
@@ -1962,13 +1984,31 @@ exports.Profiler = Profiler;
       if (!this.options.cdn_url) {
         return this._tilerHost();
       }
-      var h = protocol + "://{s}.";
+      var h = protocol + "://"
+      if (protocol === 'http') {
+        h += "{s}.";
+      }
       var cdn_host = opts.cdn_url;
       if(!cdn_host.http && !cdn_host.https) {
         throw new Error("cdn_host should contain http and/or https entries");
       }
       h += cdn_host[protocol] + "/" + (opts.user_name || opts.user);
       return h;
+    },
+
+    _generateCartoCSS: function() {
+      var attr = {
+        '-torque-frame-count': this.options.steps,
+        '-torque-resolution': this.options.resolution,
+        '-torque-aggregation-function': "'" + this.options.countby + "'",
+        '-torque-time-attribute': "'" + this.options.column + "'",
+        '-torque-data-aggregation': this.options.cumulative ? 'cumulative': 'linear',
+      };
+      var st = 'Map{';
+      for (var k in attr) {
+        st += k + ":" + attr[k] + ";";
+      }
+      return st + "}";
     },
 
     _fetchMap: function(callback) {
@@ -1988,8 +2028,8 @@ exports.Profiler = Profiler;
           "layers": [{
             "type": "torque",
             "options": {
-              "cartocss_version": "2.1.1",
-              "cartocss": this.options.cartocss,
+              "cartocss_version": "1.0.0",
+              "cartocss": this._generateCartoCSS(),
               "sql": this.getSQL()
             }
           }]
@@ -2007,15 +2047,19 @@ exports.Profiler = Profiler;
         "?config=" + encodeURIComponent(JSON.stringify(layergroup)) +
         "&callback=?" + (extra ? "&" + extra: '');
 
+      var map_instance_time = Profiler.metric('torque.provider.windshaft.layergroup.time').start();
       torque.net.jsonp(url, function (data) {
+        map_instance_time.end();
         if (data) {
-        var torque_key = Object.keys(data.metadata.torque)[0]
-        var opt = data.metadata.torque[torque_key];
-        for(var k in opt) {
-          self.options[k] = opt[k];
-        }
-        self.templateUrl = self.url() + "/api/v1/map/" + data.layergroupid + "/" + torque_key + "/{z}/{x}/{y}.json.torque";
-        self._setReady(true);
+          var torque_key = Object.keys(data.metadata.torque)[0]
+          var opt = data.metadata.torque[torque_key];
+          for(var k in opt) {
+            self.options[k] = opt[k];
+          }
+          self.templateUrl = self.url() + "/api/v1/map/" + data.layergroupid + "/" + torque_key + "/{z}/{x}/{y}.json.torque";
+          self._setReady(true);
+        } else {
+          Profiler.metric('torque.provider.windshaft.layergroup.error').inc();
         }
       });
     }
@@ -2070,7 +2114,8 @@ exports.Profiler = Profiler;
   function get(url, callback, options) {
     options = options || {
       method: 'GET',
-      data: null
+      data: null,
+      responseType: 'text'
     };
     lastCall = { url: url, callback: callback };
     var request = XMLHttpRequest;
@@ -2085,7 +2130,8 @@ exports.Profiler = Profiler;
 
     function respond() {
       var status = req.status, result;
-      if (!status && req.responseText || status >= 200 && status < 300 || status === 304) {
+      var r = options.responseType === 'arraybuffer' ? req.response: req.responseText;
+      if (!status && r || status >= 200 && status < 300 || status === 304) {
         callback(req);
       } else {
         callback(null);
@@ -2098,7 +2144,7 @@ exports.Profiler = Profiler;
 
     req.onprogress = function() {};
 
-    //req.responseType = 'arraybuffer';
+    req.responseType = options.responseType; //'arraybuffer';
     if (options.data) {
       req.setRequestHeader("Content-type", "application/json");
       //req.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
@@ -2272,7 +2318,7 @@ exports.Profiler = Profiler;
     // generate sprite based on cartocss style
     //
     generateSprite: function(shader, value, shaderVars) {
-      var prof = Profiler.metric('PointRenderer:generateSprite').start();
+      var prof = Profiler.metric('torque.renderer.point.generateSprite').start();
       var st = shader.getStyle('canvas-2d', {
         value: value
       }, shaderVars);
@@ -2308,6 +2354,7 @@ exports.Profiler = Profiler;
     // renders all the layers (and frames for each layer) from cartocss
     //
     renderTile: function(tile, key) {
+      var prof = Profiler.metric('torque.renderer.point.renderLayers').start();
       var layers = this._shader.getLayers();
       for(var i = 0, n = layers.length; i < n; ++i ) {
         var layer = layers[i];
@@ -2321,6 +2368,7 @@ exports.Profiler = Profiler;
           }
         }
       }
+      prof.end();
     },
 
     //
@@ -2330,7 +2378,7 @@ exports.Profiler = Profiler;
     _renderTile: function(tile, key, frame_offset, sprites, shader, shaderVars) {
       if(!this._canvas) return;
 
-      var prof = Profiler.metric('PointRenderer:renderTile').start();
+      var prof = Profiler.metric('torque.renderer.point.renderTile').start();
       var ctx = this._ctx;
       var blendMode = shader.eval('comp-op') || this.options.blendmode;
       if(blendMode) {
@@ -3154,6 +3202,7 @@ GMapsTileLoader.prototype = {
     this._map = map;
     this._projection = projection;
     this._tiles = {};
+    this._tilesLoading = {};
     this._tilesToLoad = 0;
     this._updateTiles = this._updateTiles.bind(this);
     this._listeners = [];
@@ -3242,15 +3291,23 @@ GMapsTileLoader.prototype = {
   _removeTile: function (key) {
       this.onTileRemoved && this.onTileRemoved(this._tiles[key]); 
       delete this._tiles[key];
+      delete this._tilesLoading[key];
+  },
+
+  _tileKey: function(tilePoint) {
+    return tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom;
   },
 
   _tileShouldBeLoaded: function (tilePoint) {
-      return !((tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom) in this._tiles);
+      var k = this._tileKey(tilePoint);
+      return !(k in this._tiles) && !(k in this._tilesLoading);
   },
 
   _tileLoaded: function(tilePoint, tileData) {
     this._tilesToLoad--;
-    this._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom] = tileData;
+    var k = tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom
+    this._tiles[k] = tileData;
+    delete this._tilesLoading[k];
     if(this._tilesToLoad === 0) {
       this.onTilesLoaded && this.onTilesLoaded();
     }
@@ -3324,11 +3381,17 @@ GMapsTileLoader.prototype = {
 
       this._tilesToLoad += tilesToLoad;
 
-      if (this.onTileAdded) {
         for (i = 0; i < tilesToLoad; i++) {
-          this.onTileAdded(queue[i]);
+          var t = queue[i];
+          var k = this._tileKey(t);
+          this._tilesLoading[k] = t;
+          // events
+          if (this.onTileAdded) {
+            this.onTileAdded(t);
+          }
         }
-      }
+
+      this.onTilesLoading && this.onTilesLoading();
   }
 
 }
@@ -3590,6 +3653,7 @@ GMapsTorqueLayer.prototype = _.extend({},
 
     // provider options
     var options = torque.common.TorqueLayer.optionsFromLayer(shader.findLayer({ name: 'Map' }));
+    this.provider && this.provider.setCartoCSS && this.provider.setCartoCSS(cartocss);
     if(this.provider && this.provider.setOptions(options)) {
       this._reloadTiles();
     }
@@ -3704,6 +3768,7 @@ L.Mixin.TileLoader = {
 
   _initTileLoader: function() {
     this._tiles = {}
+    this._tilesLoading = {};
     this._tilesToLoad = 0;
     this._map.on({
         'moveend': this._updateTiles
@@ -3777,15 +3842,23 @@ L.Mixin.TileLoader = {
   _removeTile: function (key) {
       this.fire('tileRemoved', this._tiles[key]);
       delete this._tiles[key];
+      delete this._tilesLoading[key];
+  },
+
+  _tileKey: function(tilePoint) {
+    return tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom;
   },
 
   _tileShouldBeLoaded: function (tilePoint) {
-      return !((tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom) in this._tiles);
+      var k = this._tileKey(tilePoint);
+      return !(k in this._tiles) && !(k in this._tilesLoading);
   },
 
   _tileLoaded: function(tilePoint, tileData) {
     this._tilesToLoad--;
-    this._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom] = tileData;
+    var k = tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.zoom
+    this._tiles[k] = tileData;
+    delete this._tilesLoading[k];
     if(this._tilesToLoad === 0) {
       this.fire("tilesLoaded");
     }
@@ -3829,8 +3902,12 @@ L.Mixin.TileLoader = {
       this._tilesToLoad += tilesToLoad;
 
       for (i = 0; i < tilesToLoad; i++) {
-        this.fire('tileAdded', queue[i]);
+        var t = queue[i];
+        var k = this._tileKey(t);
+        this._tilesLoading[k] = t;
+        this.fire('tileAdded', t);
       }
+      this.fire("tilesLoading");
 
   }
 }
@@ -3856,7 +3933,8 @@ L.CanvasLayer = L.Class.extend({
       opacity: 1,
       unloadInvisibleTiles: L.Browser.mobile,
       updateWhenIdle: L.Browser.mobile,
-      tileLoader: false // installs tile loading events
+      tileLoader: false, // installs tile loading events
+      zoomAnimation: true
   },
 
   initialize: function (options) {
@@ -3865,44 +3943,114 @@ L.CanvasLayer = L.Class.extend({
     //this.project = this._project.bind(this);
     this.render = this.render.bind(this);
     L.Util.setOptions(this, options);
-    this._canvas = document.createElement('canvas');
-    this._canvas.style.position = 'absolute';
-    this._canvas.style.top = 0;
-    this._canvas.style.left = 0;
-    this._canvas.style.pointerEvents = "none";
-    this._canvas.style.zIndex = options.zIndex || 0;
-
+    this._canvas = this._createCanvas();
+    // backCanvas for zoom animation
+    if (this.options.zoomAnimation) {
+      this._backCanvas = this._createCanvas();
+    }
     this._ctx = this._canvas.getContext('2d');
-    var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+    this.currentAnimationFrame = -1;
+    this.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
                                 window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
                                     return window.setTimeout(callback, 1000 / 60);
                                 };
-    this.requestAnimationFrame = requestAnimationFrame;
+    this.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame ||
+                                window.webkitCancelAnimationFrame || window.msCancelAnimationFrame || function(id) { clearTimeout(id); };
+  },
+
+  _createCanvas: function() {
+    var canvas;
+    canvas = document.createElement('canvas');
+    canvas.style.position = 'absolute';
+    canvas.style.top = 0;
+    canvas.style.left = 0;
+    canvas.style.pointerEvents = "none";
+    canvas.style.zIndex = this.options.zIndex || 0;
+    var className = 'leaflet-tile-container';
+    if (this.options.zoomAnimation) {
+      className += ' leaflet-zoom-animated';
+    }
+    canvas.setAttribute('class', className);
+    return canvas;
   },
 
   onAdd: function (map) {
     this._map = map;
 
-    //this._staticPane = map._createPane('leaflet-tile-pane', map._container);
-    if (!map._panes.staticPane) {
-      map._panes.staticPane = map._createPane('leaflet-tile-pane', map._container);
+    // add container with the canvas to the tile pane
+    // the container is moved in the oposite direction of the 
+    // map pane to keep the canvas always in (0, 0)
+    var tilePane = this._map._panes.tilePane;
+    var _container = L.DomUtil.create('div', 'leaflet-layer');
+    _container.appendChild(this._canvas);
+    if (this.options.zoomAnimation) {
+      _container.appendChild(this._backCanvas);
+      this._backCanvas.style.display = 'none';
     }
-    this._staticPane = map._panes.staticPane
-    this._staticPane.appendChild(this._canvas);
+    tilePane.appendChild(_container);
 
-    map.on({
-      'viewreset': this._reset
-      //'move': this._render
+    this._container = _container;
+
+    // hack: listen to predrag event launched by dragging to
+    // set container in position (0, 0) in screen coordinates
+    map.dragging._draggable.on('predrag', function() {
+      var d = map.dragging._draggable;
+      L.DomUtil.setPosition(this._canvas, { x: -d._newPos.x, y: -d._newPos.y });
     }, this);
 
-    map.on('move', this._render, this);//function(){ console.log("a"); }, this);
+    map.on({ 'viewreset': this._reset }, this);
+    map.on('move', this.render, this);
     map.on('resize', this._reset, this);
+
+    if (this.options.zoomAnimation) {
+      map.on({
+        'zoomanim': this._animateZoom,
+        'zoomend': this._endZoomAnim
+      }, this);
+    }
 
     if(this.options.tileLoader) {
       this._initTileLoader();
     }
 
     this._reset();
+  },
+
+  _animateZoom: function (e) {
+    if (!this._animating) {
+        this._animating = true;
+    }
+    var back = this._backCanvas;
+
+    back.width = this._canvas.width;
+    back.height = this._canvas.height;
+
+    // paint current canvas in back canvas with trasnformation
+    var pos = this._canvas._leaflet_pos || { x: 0, y: 0 };
+    back.getContext('2d').drawImage(this._canvas, 0, 0);
+
+    // hide original
+    this._canvas.style.display = 'none';
+    back.style.display = 'block';
+    var map = this._map;
+    var scale = map.getZoomScale(e.zoom);
+    var newCenter = map._latLngToNewLayerPoint(map.getCenter(), e.zoom, e.center);
+    var oldCenter = map._latLngToNewLayerPoint(e.center, e.zoom, e.center);
+
+    var origin = {
+      x:  newCenter.x - oldCenter.x + pos.x,
+      y:  newCenter.y - oldCenter.y + pos.y,
+    };
+
+    var bg = back;
+    var transform = L.DomUtil.TRANSFORM;
+    bg.style[transform] =  L.DomUtil.getTranslateString(origin) + ' scale(' + e.scale + ') ';
+  },
+
+  _endZoomAnim: function () {
+    this._animating = false;
+    this._canvas.style.display = 'block';
+    this._backCanvas.style.display = 'none';
   },
 
   getCanvas: function() {
@@ -3918,11 +4066,13 @@ L.CanvasLayer = L.Class.extend({
   },
 
   onRemove: function (map) {
-    this._staticPane.removeChild(this._canvas);
+    this._container.parentNode.removeChild(this._container);
     map.off({
-        'viewreset': this._reset,
-        'move': this._render,
-        'resize': this._reset
+      'viewreset': this._reset,
+      'move': this._render,
+      'resize': this._reset,
+      'zoomanim': this._animateZoom,
+      'zoomend': this._endZoomAnim
     }, this);
   },
 
@@ -3939,6 +4089,9 @@ L.CanvasLayer = L.Class.extend({
 
   setZIndex: function(zIndex) {
     this._canvas.style.zIndex = zIndex;
+    if (this.options.zoomAnimation) {
+      this._backCanvas.style.zIndex = zIndex;
+    }
   },
 
   bringToFront: function () {
@@ -3953,6 +4106,12 @@ L.CanvasLayer = L.Class.extend({
     var size = this._map.getSize();
     this._canvas.width = size.x;
     this._canvas.height = size.y;
+
+    // fix position
+    var pos = L.DomUtil.getPosition(this._map.getPanes().mapPane);
+    if (pos) {
+      L.DomUtil.setPosition(this._canvas, { x: -pos.x, y: -pos.y });
+    }
     this.onResize();
     this._render();
   },
@@ -3967,11 +4126,19 @@ L.CanvasLayer = L.Class.extend({
   _updateOpacity: function () { },
 
   _render: function() {
-    this.requestAnimationFrame.call(window, this.render);
+    if (this.currentAnimationFrame >= 0) {
+      this.cancelAnimationFrame.call(window, this.currentAnimationFrame);
+    }
+    this.currentAnimationFrame = this.requestAnimationFrame.call(window, this.render);
   },
 
-  redraw: function() {
-    this._render();
+  // use direct: true if you are inside an animation frame call
+  redraw: function(direct) {
+    if (direct) {
+      this.render();
+    } else {
+      this._render();
+    }
   },
 
   onResize: function() {
@@ -4020,7 +4187,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     this.animator = new torque.Animator(function(time) {
       var k = time | 0;
       if(self.key !== k) {
-        self.setKey(k);
+        self.setKey(k, { direct: true });
       }
     }, options);
 
@@ -4074,7 +4241,12 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
   onAdd: function (map) {
     map.on({
-      'zoomend': this._clearCaches
+      'zoomend': this._clearCaches,
+      'zoomstart': this._pauseOnZoom,
+    }, this);
+
+    map.on({
+      'zoomend': this._resumeOnZoom
     }, this);
     L.CanvasLayer.prototype.onAdd.call(this, map);
   },
@@ -4082,9 +4254,26 @@ L.TorqueLayer = L.CanvasLayer.extend({
   onRemove: function(map) {
     this._removeTileLoader();
     map.off({
-      'zoomend': this._clearCaches
+      'zoomend': this._clearCaches,
+      'zoomstart': this._pauseOnZoom,
+    }, this);
+    map.off({
+      'zoomend': this._resumeOnZoom
     }, this);
     L.CanvasLayer.prototype.onRemove.call(this, map);
+  },
+
+  _pauseOnZoom: function() {
+    this.wasRunning = this.isRunning();
+    if (this.wasRunning) {
+      this.pause();
+    }
+  },
+
+  _resumeOnZoom: function() {
+    if (this.wasRunning) {
+      this.play();
+    }
   },
 
   hide: function() {
@@ -4163,10 +4352,10 @@ L.TorqueLayer = L.CanvasLayer.extend({
    * it renders directly, if it's an array it renders
    * accumulated
    */
-  setKey: function(key) {
+  setKey: function(key, options) {
     this.key = key;
     this.animator.step(key);
-    this.redraw();
+    this.redraw(options && options.direct);
     this.fire('change:time', { time: this.getTime(), step: this.key });
   },
 
@@ -4222,9 +4411,11 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     // provider options
     var options = torque.common.TorqueLayer.optionsFromLayer(shader.findLayer({ name: 'Map' }));
+    this.provider.setCartoCSS && this.provider.setCartoCSS(cartocss);
     if(this.provider.setOptions(options)) {
       this._reloadTiles();
     }
+
     _.extend(this.options, options);
 
     // animator options
@@ -4234,88 +4425,6 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     this.redraw();
     return this;
-  }
-
-});
-
-
-L.TiledTorqueLayer = L.TileLayer.Canvas.extend({
-
-  providers: {
-    'sql_api': torque.providers.json,
-    'url_template': torque.providers.JsonArray
-  },
-
-  renderers: {
-    'point': torque.renderer.Point,
-    'pixel': torque.renderer.Rectangle
-  },
-
-  initialize: function(options) {
-    var self = this;
-    this.key = 0;
-
-    options.async = true;
-    L.TileLayer.Canvas.prototype.initialize.call(this, options);
-
-
-    this.options.renderer = this.options.renderer || 'pixel';
-    this.options.provider = this.options.provider || 'sql_api';
-
-    this.provider = new this.providers[this.options.provider](options);
-    this.renderer = new this.renderers[this.options.renderer](null, options);
-
-  },
-
-  _tileLoaded: function(tile, tilePoint, tileData) {
-    if(this._tiles[tilePoint.x + ':' + tilePoint.y] !== undefined) {
-      this._tiles[tilePoint.x + ':' + tilePoint.y].data = tileData;
-      this.drawTile(tile);
-    }
-    L.TileLayer.Canvas.prototype._tileLoaded.call(this);
-  },
-
-  redraw: function() {
-    for (var i in this._tiles) {
-        this._redrawTile(this._tiles[i]);
-    }
-  },
-
-  _loadTile: function(tile, tilePoint) {
-    var self = this;
-    L.TileLayer.Canvas.prototype._loadTile.apply(this, arguments);
-
-    // get the data from adjusted point but render in the right canvas
-    var adjusted = tilePoint.clone()
-    this._adjustTilePoint(adjusted);
-    this.provider.getTileData(adjusted, this._map.getZoom(), function(tileData) {
-      self._tileLoaded(tile, tilePoint, tileData);
-      L.DomUtil.addClass(tile, 'leaflet-tile-loaded');
-    });
-  },
-
-  drawTile: function (tile) {
-    var canvas = tile;
-    if(!tile.data) return;
-    canvas.width = canvas.width;
-
-    this.renderer.setCanvas(canvas);
-
-    var accum = this.renderer.accumulate(tile.data, this.key);
-    this.renderer.renderTileAccum(accum, 0, 0);
-  },
-
-  setKey: function(key) {
-    this.key = key;
-    this.redraw();
-  },
-
-  /**
-   * set the cartocss for the current renderer
-   */
-  setCartoCSS: function(cartocss) {
-    if (!this.renderer) throw new Error('renderer is not valid');
-    return this.renderer.setCartoCSS(cartocss);
   }
 
 });
