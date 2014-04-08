@@ -7,6 +7,7 @@
     - Added zoom animation for leaflet
     - Added metrics to track memory and time
     - Pause on zoom
+    - Fixed sprite rendering when line width is a float
 
 2.3.00 - Feb/24/2014
 -----
