@@ -2333,9 +2333,9 @@ exports.Profiler = Profiler;
 
       var canvas = document.createElement('canvas');
       var ctx = canvas.getContext('2d');
-      ctx.width = canvas.width = Math.ceil(canvasSize);
+      var w = ctx.width = canvas.width = Math.ceil(canvasSize);
       ctx.height = canvas.height = Math.ceil(canvasSize);
-      ctx.translate(canvasSize/2, canvasSize/2);
+      ctx.translate(w/2, w/2);
       if(st['point-file'] || st['marker-file']) {
         torque.cartocss.renderSprite(ctx, st);
       } else {
@@ -2346,7 +2346,7 @@ exports.Profiler = Profiler;
           torque.cartocss.renderPoint(ctx, st);
         }
       }
-      prof.end();
+      prof.end(true);
       return canvas;
     },
 
@@ -2368,7 +2368,7 @@ exports.Profiler = Profiler;
           }
         }
       }
-      prof.end();
+      prof.end(true);
     },
 
     //
@@ -2408,7 +2408,7 @@ exports.Profiler = Profiler;
           }
         }
       }
-      prof.end();
+      prof.end(true);
     },
 
     setBlendMode: function(b) {
@@ -4005,7 +4005,8 @@ L.CanvasLayer = L.Class.extend({
     if (this.options.zoomAnimation) {
       map.on({
         'zoomanim': this._animateZoom,
-        'zoomend': this._endZoomAnim
+        'zoomend': this._endZoomAnim,
+        'moveend': this._reset
       }, this);
     }
 
@@ -4029,6 +4030,8 @@ L.CanvasLayer = L.Class.extend({
     var pos = this._canvas._leaflet_pos || { x: 0, y: 0 };
     back.getContext('2d').drawImage(this._canvas, 0, 0);
 
+    L.DomUtil.setPosition(back, L.DomUtil.getPosition(this._canvas));
+
     // hide original
     this._canvas.style.display = 'none';
     back.style.display = 'block';
@@ -4044,13 +4047,16 @@ L.CanvasLayer = L.Class.extend({
 
     var bg = back;
     var transform = L.DomUtil.TRANSFORM;
-    bg.style[transform] =  L.DomUtil.getTranslateString(origin) + ' scale(' + e.scale + ') ';
+    setTimeout(function() {
+      bg.style[transform] = L.DomUtil.getTranslateString(origin) + ' scale(' + e.scale + ') ';
+    }, 0)
   },
 
   _endZoomAnim: function () {
     this._animating = false;
     this._canvas.style.display = 'block';
     this._backCanvas.style.display = 'none';
+    this._backCanvas.style[L.DomUtil.TRANSFORM] = '';
   },
 
   getCanvas: function() {
@@ -4070,6 +4076,7 @@ L.CanvasLayer = L.Class.extend({
     map.off({
       'viewreset': this._reset,
       'move': this._render,
+      'moveend': this._reset,
       'resize': this._reset,
       'zoomanim': this._animateZoom,
       'zoomend': this._endZoomAnim
