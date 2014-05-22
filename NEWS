@@ -1,4 +1,4 @@
-2.3.XX - 
+2.4.00 - May/22/2014
     - Changed date parsing for windshaft provider
     - Optimized tile loading
     - Fixed cartocss update when windshaft.provider was being used
