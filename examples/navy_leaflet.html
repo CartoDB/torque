@@ -23,7 +23,7 @@
           '-torque-aggregation-function: "count(cartodb_id)";',
           '-torque-frame-count: 760;',
           '-torque-animation-duration: 15;',
-          '-torque-resolution: 2',
+          '-torque-resolution: 1',
           '}',
           '#layer {',
           '  marker-width: 3;',
@@ -57,7 +57,9 @@
         table      : 'ow',
         cartocss: CARTOCSS
       });
+
       torqueLayer.addTo(map);
+      //torqueLayer.setStep(30);
       torqueLayer.play()
     </script>
   </body>
