@@ -1,3 +1,5 @@
+2.4.01 
+    - fixed rectangle anchor and size #42
 2.4.00 - May/22/2014
     - Changed date parsing for windshaft provider
     - Optimized tile loading
