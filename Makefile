@@ -6,7 +6,9 @@ JS_CLIENT_FILES= lib/torque/*.js \
 	lib/torque/gmaps/*.js \
 	lib/torque/leaflet/leaflet_tileloader_mixin.js \
 	lib/torque/leaflet/canvas_layer.js \
-	lib/torque/leaflet/torque.js 
+	lib/torque/leaflet/webgl-debug.js \
+	lib/torque/leaflet/webgl.js \
+	lib/torque/leaflet/torque.js
 
 all: dist/torque.js dist/torque.full.js
 
