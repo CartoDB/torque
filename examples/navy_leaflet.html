@@ -21,7 +21,7 @@
           'Map {',
           '-torque-time-attribute: "date";',
           '-torque-aggregation-function: "count(cartodb_id)";',
-          '-torque-frame-count: 760;',
+          '-torque-frame-count: 512;',
           '-torque-animation-duration: 15;',
           '-torque-resolution: 2',
           '}',
@@ -52,13 +52,22 @@
         attribution: 'CartoDB'
       }).addTo(map);
 
+      var limit = 10000;
+      var offset = 10000;
       var torqueLayer = new L.TorqueLayer({
         user       : 'viz2',
         table      : 'ow',
-        cartocss: CARTOCSS
+        sql: 'select * from ow order by cartodb_id limit ' + limit,
+        cartocss: CARTOCSS,
+        streaming: true
       });
       torqueLayer.addTo(map);
       torqueLayer.play()
+      setInterval(function() {
+        offset += limit;
+        torqueLayer.setSQL("select * from ow order by cartodb_id offset " + offset + " limit " + limit );
+        //torqueLayer._reloadTiles();
+      }, 10000);
     </script>
   </body>
 </html>
