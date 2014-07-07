@@ -39,7 +39,7 @@ module('provider.windshaft', {
           "type": "torque",
           "options": {
             "cartocss_version": "1.0.0",
-            "cartocss": '#test{}',
+            "cartocss": 'Map{-torque-frame-count:10;-torque-resolution:1;-torque-aggregation-function:\'undefined\';-torque-time-attribute:\'undefined\';-torque-data-aggregation:linear;}',
             "sql": 'test'
           }
         }]
@@ -96,5 +96,29 @@ module('provider.windshaft', {
     ok(lastCall.indexOf("auth_token=test_auth_token") !== -1);
   })
 
+test("auth_token as array param", function() {
+    windshaft_named = new torque.providers.windshaft({
+        table: 'test',
+        user: "rambo",
+        auth_token: ['test_auth_token'],
+        named_map: {
+            name: 'test_named'
+        }
+    });
+    ok(lastCall.indexOf("auth_token[]=test_auth_token") !== -1);
+});
+
+test("auth_token with several params as array param and present in url", function() {
+    windshaft_named = new torque.providers.windshaft({
+        table: 'test',
+        user: "rambo",
+        auth_token: ['token1', 'token2'],
+        named_map: {
+            name: 'test_named'
+        }
+    });
+    ok(lastCall.indexOf("auth_token[]=token1") !== -1);
+    ok(lastCall.indexOf("auth_token[]=token2") !== -1);
+});
 
 

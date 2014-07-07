@@ -1,4 +1,7 @@
-2.4.01 
+2.4.xx
+    - Adds support for several auth_token param
+
+2.4.01
     - fixed rectangle anchor and size #42
     - fixed on method in torque.Event
     - fixed problem updating steps when sql change in windshaft provider
