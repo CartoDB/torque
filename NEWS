@@ -1,5 +1,6 @@
 2.4.xx
     - Adds support for several auth_token param
+    - Adds support for cdn_url in winshaft provider
 
 2.4.01
     - fixed rectangle anchor and size #42
