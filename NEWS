@@ -3,6 +3,7 @@
     - Adds support for cdn_url in winshaft provider
     - Add option to jsonp to set custom callback name
     - Add no_cdn option to windshaft provider
+    - Add getActivePointsBBox method
 
 2.4.01
     - fixed rectangle anchor and size #42
