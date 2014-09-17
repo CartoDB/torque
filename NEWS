@@ -4,6 +4,7 @@
     - Add option to jsonp to set custom callback name
     - Add no_cdn option to windshaft provider
     - Add getActivePointsBBox method
+    - Added renderer cache when the map is not animated
 
 2.4.01
     - fixed rectangle anchor and size #42
