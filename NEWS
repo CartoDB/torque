@@ -5,6 +5,7 @@
     - Add no_cdn option to windshaft provider
     - Add getActivePointsBBox method
     - Added renderer cache when the map is not animated
+    - Added interaction method
 
 2.4.01
     - fixed rectangle anchor and size #42

@@ -47,3 +47,31 @@ test('render conditional point layers', function() {
   st = layer.getStyle('canvas-2d', {}, { zoom: 18, 'frame-offset': 0 });
   equal(st['point-radius'], 20);
 });
+
+test('get value for position', function() {
+  var mercator = new torque.Mercator();
+  tile = {
+    timeCount: [1],
+    timeIndex: [0],
+    renderDataPos: [0],
+    renderData: [5],
+    x: [100],
+    y: [3],
+    coord: { x: 0, y: 0, z: 0 }
+  };
+  renderer.options = {
+    resolution: 1
+  };
+  var v = renderer.getValueFor(tile, 0, 100, 255 - 3);
+  var bbox = mercator.tilePixelBBox(0, 0, 0, 100, 255 - 3, 1);
+  equal(v.bbox[0].lat, bbox[0].lat);
+  equal(v.bbox[1].lat, bbox[1].lat);
+  equal(v.bbox[0].lon, bbox[0].lon);
+  equal(v.bbox[1].lon, bbox[1].lon);
+  equal(v.value, 5);
+
+  v = renderer.getValueFor(tile, 0, 100, 255 - 4);
+  equal(v, null);
+  v = renderer.getValueFor(tile, 0, 99, 255 - 3);
+  equal(v, null);
+});

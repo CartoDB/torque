@@ -1,0 +1,108 @@
+
+<html>
+  <link rel="stylesheet" href="../vendor/leaflet.css" />
+  <style>
+    #map, html, body {
+      width: 100%; height: 100%; padding: 0; margin: 0;
+    }
+    #title {
+      position: absolute;
+      top: 100px;
+      left: 50px;
+      color: white;
+      font-size: 27px;
+      font-family: Helvetica, sans-serif;
+    }
+  </style>
+  <body>
+    <div id="map"></div>
+    <div id="title">Average temperature collected by Britain's Royal Navy (1913-1925)</div>
+
+    <script src="../vendor/leaflet.js"></script>
+    <script src="../vendor/underscore.js"></script>
+    <script src="../vendor/carto.js"></script>
+    <script src="../dist/torque.uncompressed.js"></script>
+
+
+    <script>
+      // define the torque layer style using cartocss
+      // this creates a kind of density map
+      //color scale from http://colorbrewer2.org/
+      var CARTOCSS = [
+          'Map {',
+          '-torque-time-attribute: "date";',
+          '-torque-aggregation-function: "avg(temp::float)";',
+          '-torque-frame-count: 1;',
+          '-torque-animation-duration: 15;',
+          '-torque-resolution: 16',
+          '}',
+          '#layer {',
+          '  marker-width: 8;',
+          '  marker-fill-opacity: 1.0;',
+          '  marker-fill: #fff5eb; ',
+          '  marker-type: rectangle;',
+          '  [value > 1] { marker-fill: #fee6ce; }',
+          '  [value > 2] { marker-fill: #fdd0a2; }',
+          '  [value > 4] { marker-fill: #fdae6b; }',
+          '  [value > 10] { marker-fill: #fd8d3c; }',
+          '  [value > 15] { marker-fill: #f16913; }',
+          '  [value > 20] { marker-fill: #d94801; }',
+          '  [value > 25] { marker-fill: #8c2d04; }',
+          '}'
+      ].join('\n');
+
+        
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
+
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        user       : 'viz2',
+        table      : 'ow',
+        cartocss: CARTOCSS
+      });
+      torqueLayer.addTo(map);
+
+      map.on('click', function(e) {
+        var p = e.containerPoint
+        var value = torqueLayer.getValueForPos(p.x, p.y);
+        if (value !== null) {
+          map.openPopup('average temperature: ' + value.value + "C", e.latlng);
+        }
+      });
+
+
+      // show small rectable and change cursor on hover
+      var hover = null;
+      map.on('mousemove', function(e) {
+        var p = e.containerPoint
+        var value = torqueLayer.getValueForPos(p.x, p.y);
+
+        // remove previous hover box
+        if (hover) {
+          map.removeLayer(hover);
+          hover = null;
+        }
+
+        if (value !== null) {
+          hover = L.rectangle(value.bbox, {
+            color: '#000',
+            weight: 1
+          }).addTo(map);
+          map._container.style.cursor = 'pointer';
+        } else {
+          map._container.style.cursor = 'auto';
+        }
+      });
+
+
+    </script>
+  </body>
+</html>
+

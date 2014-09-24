@@ -1,13 +1,6 @@
 
 # Torque API
 
-Torque provides two kinds of visualizations. 
-
-  - static: provides a way to create heatmap like visualizations (note for Andrew: fon). see ``TorqueLayer``
-  - dynamic: animate points over a map (note for Andrew: Navy) see ``TiledTorqueLayer``
-
-
-depending on the map provider you are using you need to use different layer type. Currently we provide layers for Google Maps and Leaflet.
 
 ## L.TorqueLayer(options)
 
@@ -20,12 +13,7 @@ One of two core classes for the Torque library - it is used to create an animate
   var torqueLayer = new L.TorqueLayer({
     user       : 'viz2',
     table      : 'ow',
-    column     : 'date',
-    countby    : 'count(cartodb_id)',
-    resolution : 1,
-    steps      : 750,
-    pixel_size : 3,
-    blendmode  : 'lighter'
+    cartocss:  CARTOCSS
   });
 ```
 
@@ -34,37 +22,29 @@ One of two core classes for the Torque library - it is used to create an animate
 ##### Provider options
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| provider  | string     | ```sql_api```   | Where is the data coming from? Alternative is 'url_template'|
+| provider  | string     | ```sql_api```   | Where is the data coming from |
 
-##### CartoDB data options
+##### CartoDB data options (SQL API provider)
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | user      | string     | ```null```      | CartoDB account name. Found as, accountname.cartodb.com|
-| table     | string     | ```null```      | CartoDB table name where data is found |
-| column    | string     | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
-| countby   | string     | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
+| table     | string     | ```null```      | CartoDB table name where data is found  |
+| sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must
+use this param or table, not at the same time |
 
-
-##### Display options
-| Option    | type       | Default   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
-| blendmode | boolean    | ```source-over```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
-
-##### Time options
-| Option    | type       | Default   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| steps     | integer    | ```100```   | The maximun number of steps to divide the data into for animated renderings |
-| animationDuration | integer    | ```null```   | time in seconds the animation last |
 
 ### Time methods
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```setStep(step)``` | ```time numeric```    | ```this```   | sets the animation to the step indicated by ```step```, must be between 0 and ```steps```|
-| ```play```| | ```this```| starts the animation
-| ```stop```| | ```this```| stops the animation and set time to step 0
-| ```pause```| | ```this```| stops the animation but keep the current time (play enables the animation again)
+| ```play()```| | ```this```| starts the animation
+| ```stop()```| | ```this```| stops the animation and set time to step 0
+| ```pause()```| | ```this```| stops the animation but keep the current time (play enables the animation again)
+| ```toggle()```| | ```this```| toggles (pause/play) the animation 
+| ```getStep()``` | | current animation step (integer)   | gets the current animation step
+| ```getTime()``` | | current animation time (Date) | gets the real animation time
+
 
 
 ### Style methods 
@@ -97,63 +77,16 @@ This should be ```string``` encoded in Javascript
 }
 ```
 
-## L.TiledTorqueLayer(options)
-
-One of two core classes for the Torque library - it is used to create a static torque layer with client side filtering.
-
-##### Provider options
-| Option    | type       | Default   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| provider  | string     | ```sql_api```   | Where is the data coming from? Alternative is 'url_template'|
-| url  | string     | ```null```   | Tile template URL for fetching data e.g 'http://host.com/{z}/{x}/{y}.json'|
-
-##### CartoDB data options (Note to Santana: are these really here?)
-| Option    | type       | Default   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| user      | string     | ```null```      | CartoDB account name. Found as, accountname.cartodb.com|
-| table     | string     | ```null```      | CartoDB table name where data is found |
-| column    | string     | ```null```      | CartoDB table's column name where date information is found (for dynamic type torque layer only)|
-| countby   | string     | ```null```      | The aggregation method to use for each pixel displayed where multiple data are found. Any valid PostgreSQL aggregate function |
-
-
-##### Display options (Note to Santana: is blendmode here? or above even?)
-| Option    | type       | Default   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| resolution| numeric    | ```2```   | The x and y dimensions of each pixel as returned by the data|
-| blendmode | boolean    | ```source-over```   | The HTML5 Canvas composite operation for when multiple pixels overlap on the canvas |
-
-### Filtering options
-
+### Interaction methods (only available for Leaflet)
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setKey(keys)``` | ```keys numeric/array```    | ```this```   | which data categories to display on the map |
-| ```setSQL(sql)``` | ```sql string ```    | ```this```   | by default sql torque layer uses is
-"select * from table", this method changes the sql query torque uses to fetch the data |
+| ```getValueForPos(x, y[, step])```| | an object like { bbox:[], value: VALUE } if there is value
+for the pos, null otherwise | allows to get the value for the coordinate (in map reference system)
+  for a concrete step. If step is not specified the animation one is used. This method is expensive
+    in terms of CPU so be careful. It returns the value from the raster data not the rendered data |
+| ```getActivePointsBBox(step)```| | list of bbox | returns the list of bounding boxes active for
+``step``
 
-### Style options
-
-| Method    | options    | returns   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
-
-``value`` and ``zoom`` variables can be used. only ``polygon-fill`` and ``polygon-opacity`` properties are supported currently. To see the full list of supported parameters, read the [Torque CartoCSS documentation here](CartoCSS.md).
-
-TorqueLayer currently expects ```polygon``` styling
-
-##### CartoCSS Example
-
-This should be ```string``` encoded in Javascript
-
-```css
-#layer {
-  polygon-fill: #FFFF00;
-  [value >= 10] { polygon-fill: #FFCC00; }
-  [value >= 100] { polygon-fill: #FF9900; }
-  [value >= 1000] { polygon-fill: #FF6600; }
-  [value >= 10000] { polygon-fill: #FF3300; }
-  [value > 100000] { polygon-fill: #C00; }
-}
-```
 
 # Google Maps Layers
 
@@ -171,19 +104,3 @@ is not a layer is a overlay so in order to add it to the map use ``layer.setMap`
 see ``L.TorqueLayer`` for the rest of the options.
 
 
-## GMapsTiledTorqueLayer(options) 
-creates a static _overlay_ to use it with google maps. 
-
-```js
-  var torqueLayer = new torque.GMapsTiledTorqueLayer({
-    provider: 'url_template',
-    url: GBIF_URL,
-    resolution: 4,
-  });
-
-  torqueLayer.setMap(map);
-
-  torqueLayer.setKey([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
-```
-
-see ``L.TiledTorqueLayer`` for options reference
