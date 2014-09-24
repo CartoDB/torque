@@ -1,10 +1,36 @@
-2.2.XX
+2.4.xx
+    - Adds support for several auth_token param
+    - Adds support for cdn_url in winshaft provider
+    - Add option to jsonp to set custom callback name
+    - Add no_cdn option to windshaft provider
+    - Add getActivePointsBBox method
+    - Added renderer cache when the map is not animated
+    - Added interaction method
+
+2.4.01
+    - fixed rectangle anchor and size #42
+    - fixed on method in torque.Event
+    - fixed problem updating steps when sql change in windshaft provider
+
+2.4.00 - May/22/2014
+    - Changed date parsing for windshaft provider
+    - Optimized tile loading
+    - Fixed cartocss update when windshaft.provider was being used
+    - Fixed windshaft provider with https
+    - Generate cartocss in windshaft provider (#37)
+    - Added zoom animation for leaflet
+    - Added metrics to track memory and time
+    - Pause on zoom
+    - Fixed sprite rendering when line width is a float
+
+2.3.00 - Feb/24/2014
 -----
     - Added 'get attribution' function to Leaflet canvas layer.
     - Added zIndex support to leaflet torque layer
+    - Added CartoDB Maps API data provider (used by default)
     - Fixed rendering when CartoCSS had zoom conditions (#27)
 
-2.2.00 - 26/11/2013
+2.2.00 - Nov/26/2013
 -----
     - added torque cumulative support #21
 
