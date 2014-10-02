@@ -96,6 +96,18 @@ module('provider.windshaft', {
     ok(lastCall.indexOf("auth_token=test_auth_token") !== -1);
   })
 
+  test("include stat_tag", function() {
+    windshaft_named = new torque.providers.windshaft({
+      table: 'test',
+      user: "rambo",
+      stat_tag: 'test',
+      named_map: {
+        name: 'test_named'
+      }
+    });
+    ok(lastCall.indexOf("stat_tag=test") !== -1);
+  })
+
 test("auth_token as array param", function() {
     windshaft_named = new torque.providers.windshaft({
         table: 'test',

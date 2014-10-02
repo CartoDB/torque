@@ -6,6 +6,7 @@
     - Add getActivePointsBBox method
     - Added renderer cache when the map is not animated
     - Added interaction method
+    - Added stat_tag in the map creation url for windshaft provider
 
 2.4.01
     - fixed rectangle anchor and size #42
