@@ -80,12 +80,8 @@ This should be ```string``` encoded in Javascript
 ### Interaction methods (only available for Leaflet)
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```getValueForPos(x, y[, step])```| | an object like { bbox:[], value: VALUE } if there is value
-for the pos, null otherwise | allows to get the value for the coordinate (in map reference system)
-  for a concrete step. If step is not specified the animation one is used. This method is expensive
-    in terms of CPU so be careful. It returns the value from the raster data not the rendered data |
-| ```getActivePointsBBox(step)```| | list of bbox | returns the list of bounding boxes active for
-``step``
+| ```getValueForPos(x, y[, step])```| | an object like { bbox:[], value: VALUE } if there is value for the pos, null otherwise | allows to get the value for the coordinate (in map reference system) for a concrete step. If step is not specified the animation one is used. This method is expensive in terms of CPU so be careful. It returns the value from the raster data not the rendered data |
+| ```getActivePointsBBox(step)```|  | list of bbox | returns the list of bounding boxes active for ``step``
 
 
 # Google Maps Layers
