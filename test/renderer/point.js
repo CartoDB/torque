@@ -48,6 +48,44 @@ test('render conditional point layers', function() {
   equal(st['point-radius'], 20);
 });
 
+test('should generate sprite when maker-fill > 0', function() {
+  var css = [
+  '#test {',
+  '  marker-width: 10;',
+  '}'].join('\n');
+
+  renderer.setCartoCSS(css)
+  var layer = renderer._shader.getLayers()[0];
+  var sprite = renderer.generateSprite(layer, 0, { zoom: 0 })
+  notEqual(sprite, null);
+});
+
+
+test('should not generate sprite when maker-fill: 0', function() {
+  var css = [
+  '#test {',
+  '  marker-width: 0;',
+  '}'].join('\n');
+
+  renderer.setCartoCSS(css)
+  var layer = renderer._shader.getLayers()[0];
+  var sprite = renderer.generateSprite(layer, 0, { zoom: 0 })
+  equal(sprite, null);
+});
+
+test('should not generate sprite when maker-opacity: 0', function() {
+  var css = [
+  '#test {',
+  '  marker-width: 10;',
+  '  marker-opacity: 0;',
+  '}'].join('\n');
+
+  renderer.setCartoCSS(css)
+  var layer = renderer._shader.getLayers()[0];
+  var sprite = renderer.generateSprite(layer, 0, { zoom: 0 })
+  equal(sprite, null);
+});
+
 test('get value for position', function() {
   var mercator = new torque.Mercator();
   tile = {
