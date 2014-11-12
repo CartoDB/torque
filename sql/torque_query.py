@@ -1,4 +1,4 @@
-import sys;
+import sys
 
 tile_sql = """
 WITH par AS (
@@ -24,14 +24,16 @@ select
 if len(sys.argv) != 6:
     print "python torque_query.py zoom resolution time_column steps table"
     print "example: "
-    print """python torque_query.py 14 1 "date_part('epoch', date)" 512 "select * from ships" """
+    print """python torque_query.py 14 1 "date_part('epoch', date)" 512 ships"""
 
     sys.exit()
 
-zoom=int(sys.argv[1])
-for x in xrange(zoom):
-    mat = "DROP MATERIALIZED VIEW IF EXISTS table_zoom_%d ;\n" % x
-    mat += "create materialized view table_zoom_%d as " % x
+zoom = int(sys.argv[1])
+table = sys.argv[5]
+for x in xrange(zoom + 1):
+    zoom_name = '%s_torque_zoom_%d' % (table, x)
+    mat = "DROP MATERIALIZED VIEW IF EXISTS %s ;\n" % zoom_name
+    mat += "create materialized view %s as " % zoom_name
 
     mat += tile_sql.format(
         zoom=x,
@@ -39,13 +41,10 @@ for x in xrange(zoom):
         gcol='the_geom_webmercator',
         column_conv=sys.argv[3],
         steps=int(sys.argv[4]),
-        _sql=sys.argv[5],
+        _sql='select * from %s' % table,
         countby='count(cartodb_id)'
     )
 
-    mat +=";"
+    mat += ";"
 
     print mat
-
-
-
