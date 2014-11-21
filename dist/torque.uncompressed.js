@@ -37,6 +37,7 @@
     start: function() {
       this.running = true;
       requestAnimationFrame(this._tick);
+      this.options.onStart && this.options.onStart();
     },
 
     isRunning: function() {
@@ -46,6 +47,7 @@
     stop: function() {
       this.pause();
       this.time(0);
+      this.options.onStop && this.options.onStop();
     },
 
     // real animation time
@@ -96,6 +98,7 @@
     pause: function() {
       this.running = false;
       cancelAnimationFrame(this._tick);
+      this.options.onPause && this.options.onPause();
     },
 
     _tick: function() {
@@ -2139,12 +2142,13 @@ exports.Profiler = Profiler;
     _fetchMap: function(callback) {
       var self = this;
       var layergroup = {};
-      var url = this._tilerHost() + "/api/v1/map";
+      var host = this.options.dynamic_cdn ? this.url().replace('{s}', '0'): this._tilerHost();
+      var url = host + "/api/v1/map";
       var named = this.options.named_map;
 
       if(named) {
         //tiles/template
-        url = this._tilerHost() + "/api/v1/map/named/" + named.name + "/jsonp"
+        url = host + "/api/v1/map/named/" + named.name + "/jsonp";
       } else {
         layergroup = {
           "version": "1.0.1",
@@ -4420,7 +4424,17 @@ L.TorqueLayer = L.CanvasLayer.extend({
       if(self.key !== k) {
         self.setKey(k, { direct: true });
       }
-    }, torque.clone(options));
+    }, torque.extend(torque.clone(options), {
+      onPause: function() {
+        self.fire('pause');
+      },
+      onStop: function() {
+        self.fire('stop');
+      },
+      onStart: function() {
+        self.fire('play');
+      }
+    }));
 
     this.play = this.animator.start.bind(this.animator);
     this.stop = this.animator.stop.bind(this.animator);
@@ -4734,8 +4748,11 @@ L.TorqueLayer = L.CanvasLayer.extend({
       }
     }
     return null;
-  }
+  },
 
+  invalidate: function() {
+    this.provider.reload();
+  }
 });
 
 } //L defined
