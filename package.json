@@ -1,6 +1,6 @@
 {
     "name": "torque.js",
-    "version": "2.3.00",
+    "version": "2.5.00",
     "description": "Torque javascript library",
     "repository": {
         "type": "git",
@@ -16,7 +16,9 @@
         "Simon Tokumine <tokumine@google.com>",
         "Javier Alvarez <jmedina@vizzuality.com>",
         "Javier Arce <javierarce@vizzuality.com>",
-        "Javier Santana <jsantana@vizzuality.com>"
+        "Javier Santana <jsantana@vizzuality.com>",
+        "Raúl Ochoa <rochoa@cartodb.com>",
+        "Nicklas Gummesson <nicklas@cartodb.com>"
     ],
     "licenses": [{
       "type": "BSD"

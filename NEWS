@@ -1,12 +1,13 @@
-2.4.xx
-    - Adds support for several auth_token param
-    - Adds support for cdn_url in winshaft provider
-    - Add option to jsonp to set custom callback name
-    - Add no_cdn option to windshaft provider
-    - Add getActivePointsBBox method
+2.5.xx
+    - Added support for several auth_token param
+    - Added support for cdn_url in winshaft provider
+    - Added option to jsonp to set custom callback name
+    - Added no_cdn option to windshaft provider
+    - Added getActivePointsBBox method
     - Added renderer cache when the map is not animated
     - Added interaction method
     - Added stat_tag in the map creation url for windshaft provider
+    - Added invalidate method to L.TorqueLayer
 
 2.4.01
     - fixed rectangle anchor and size #42
