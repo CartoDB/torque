@@ -20,17 +20,18 @@ One of two core classes for the Torque library - it is used to create an animate
 ### Options
 
 ##### Provider options
+
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | provider  | string     | ```sql_api```   | Where is the data coming from |
 
 ##### CartoDB data options (SQL API provider)
+
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | user      | string     | ```null```      | CartoDB account name. Found as, accountname.cartodb.com|
 | table     | string     | ```null```      | CartoDB table name where data is found  |
-| sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must
-use this param or table, not at the same time |
+| sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must use this param or table, not at the same time |
 
 
 ### Time methods
@@ -82,6 +83,7 @@ This should be ```string``` encoded in Javascript
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```getValueForPos(x, y[, step])```| | an object like { bbox:[], value: VALUE } if there is value for the pos, null otherwise | allows to get the value for the coordinate (in map reference system) for a concrete step. If step is not specified the animation one is used. This method is expensive in terms of CPU so be careful. It returns the value from the raster data not the rendered data |
 | ```getActivePointsBBox(step)```|  | list of bbox | returns the list of bounding boxes active for ``step``
+| ```invalidate()```|  | | forces a reload of the layer data.
 
 
 # Google Maps Layers
