@@ -23,7 +23,13 @@
     "licenses": [{
       "type": "BSD"
     }],
+    "dependencies": {
+        "carto": "https://github.com/CartoDB/carto/archive/update_to_master.tar.gz",
+        "underscore": "1.6.0"
+    },
     "devDependencies": {
+      "leaflet": "0.7.3",
+      "qunitjs": "1.x",
       "uglify-js": "1.3.3"
     },
     "main": "./lib/torque/index.js"
