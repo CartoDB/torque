@@ -27,7 +27,7 @@ QUnit.testStart(function() {
 
   test("no_cdn", function() {
     var url = "http://rambo.cartodb.com/api/v2/sql?q=1&testing=abcd%25";
-    json.options.cdn_url = 'test-cdn.com'
+    json.options.cdn_url = { http: 'test.com' };
     json.sql('1', null, { no_cdn: true });
     equal(torque.net.lastCall().url, url);
   });
