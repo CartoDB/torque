@@ -1887,7 +1887,7 @@ require('./leaflet');
 
 var gmaps = require('./gmaps');
 module.exports.GMapsTileLoader = gmaps.GMapsTileLoader;
-module.exports.GMapsTiledTorqueLayer = gmaps.GMapsTiledTorqueLayer;
+module.exports.GMapsTorqueLayer = gmaps.GMapsTorqueLayer;
 module.exports.GMapsTiledTorqueLayer = gmaps.GMapsTiledTorqueLayer;
 
 },{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":23,"./request":26}],11:[function(require,module,exports){
