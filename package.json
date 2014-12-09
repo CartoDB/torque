@@ -28,8 +28,12 @@
     },
     "devDependencies": {
       "leaflet": "0.7.3",
+      "node-qunit-phantomjs": "^1.0.0",
       "qunitjs": "1.x",
       "uglify-js": "1.3.3"
+    },
+    "scripts": {
+        "test": "make prepare-test-suite && ./node_modules/node-qunit-phantomjs/bin/node-qunit-phantomjs test/suite.html"
     },
     "main": "./lib/torque/index.js"
 }
