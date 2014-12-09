@@ -11,12 +11,12 @@ JS_CLIENT_FILES= lib/torque/*.js \
 all: dist/torque.js dist/torque.full.js
 
 dist/torque.full.js: dist_folder dist/torque.uncompressed.js
-	cat vendor/carto.js dist/torque.uncompressed.js > dist/_torque.full.js
-	$(UGLIFYJS) dist/_torque.full.js > dist/torque.full.js 
+	browserify lib/torque/index.js --standalone torque > dist/_torque.full.js
+	$(UGLIFYJS) dist/_torque.full.js > dist/torque.full.js
 	rm -rf dist/_torque.full.js
 
 dist/torque.uncompressed.js: dist_folder $(JS_CLIENT_FILES)
-	cat $(JS_CLIENT_FILES) > dist/torque.uncompressed.js
+	browserify lib/torque/index.js --no-bundle-external --standalone torque > dist/torque.uncompressed.js
 
 dist/torque.js: dist_folder dist/torque.uncompressed.js
 	$(UGLIFYJS) dist/torque.uncompressed.js > dist/torque.js
