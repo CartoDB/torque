@@ -44,10 +44,10 @@ test('render conditional point layers', function() {
   renderer.setCartoCSS(css)
 
   var layer = renderer._shader.getLayers()[0];
-  var st = layer.getStyle('canvas-2d', {}, { zoom: 10, 'frame-offset': 0 });
-  equal(st['point-radius'], 10);
-  st = layer.getStyle('canvas-2d', {}, { zoom: 18, 'frame-offset': 0 });
-  equal(st['point-radius'], 20);
+  var st = layer.getStyle({}, { zoom: 10, 'frame-offset': 0 });
+  equal(st['marker-width'], 10);
+  st = layer.getStyle({}, { zoom: 18, 'frame-offset': 0 });
+  equal(st['marker-width'], 20);
 });
 
 test('should generate sprite when maker-fill > 0', function() {
