@@ -26,8 +26,10 @@ dist_folder:
 
 dist: dist_folder dist/torque.js
 
+prepare-test-suite:
+	browserify test/suite.js > test/suite-bundle.js
+
 clean: 
 	rm -rf dist
 
 .PHONY: clean dist_folder
-

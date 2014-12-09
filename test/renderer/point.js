@@ -1,4 +1,6 @@
-module('renderer/point');
+var torque = require('../../lib/torque');
+
+QUnit.module('renderer/point');
 
 var DEFAULT_CARTOCSS = [
   'Map {',

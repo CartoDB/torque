@@ -1,8 +1,10 @@
+var torque = require('../lib/torque');
+var providers = torque.providers;
 
 var json, url;
-module('provider.json')
+QUnit.module('provider.json');
 QUnit.testStart(function() {
-    json = new torque.providers.json({
+    json = new providers.json({
       table: 'test',
       user: "rambo",
       resolution: 1,

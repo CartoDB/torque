@@ -1,7 +1,9 @@
+var torque = require('../lib/torque/core');
+
 var windshaft, url;
 var lastCall;
 var old_net;
-module('provider.windshaft', {
+QUnit.module('provider.windshaft', {
   setup: function() {
     old_net = torque.net.jsonp;
     old_get = torque.net.get;

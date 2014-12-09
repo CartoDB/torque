@@ -1,6 +1,8 @@
-module('request')
+var torque = require('../lib/torque/core');
 
-asyncTest("json", 6, function() {
+QUnit.module('request');
+
+asyncTest("json", 6, function(assert) {
   var called = null;
   torque.net.jsonp('http://test.com?callback=?', function(test) {
     called = arguments;
