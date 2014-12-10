@@ -1,6 +1,8 @@
 Torque
 ==
 
+[![Build Status](https://travis-ci.org/CartoDB/torque.svg)](https://travis-ci.org/CartoDB/torque)
+
 Render big, timeseries data in the client. Uses CartoDB to generate a datacube format. For a brief introduction to the format and methods, see our [presentation slides](http://gijs.github.com/images/cartodb_datacubes.pdf)
 
 CartoDB users can use this code right away. Specify your username/tablename and datecolumn to get mapping time immediatley.
