@@ -1,5 +1,7 @@
+var torque = require('../lib/torque/core');
+var jsonarray_fixture = require('./data/torque.array.json');
 
-module('provider.jsonarray');
+QUnit.module('provider.jsonarray');
 
 test("processTile", function() {
   var json = new torque.providers.JsonArray({

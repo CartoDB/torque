@@ -1,4 +1,6 @@
-module('torque.core.Event');
+var torque = require('../lib/torque');
+
+QUnit.module('torque.core.Event');
 
   function TestObj(){}
   TestObj.prototype = torque.Event;
