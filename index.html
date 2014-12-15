@@ -148,6 +148,7 @@
                'countby',
                'resolution',
                'steps', 
+               'loop',
                'animationDuration'
             )
           }))
@@ -161,6 +162,7 @@
             table      : 'ow',
             column     : 'date',
             countby    : 'count(cartodb_id)',
+            loop       : true,
             resolution: 1,
             steps: 800,
             blendmode  : 'lighter',
@@ -219,6 +221,7 @@
               torqueLayer.animator.duration(d);
               saveState();
           });
+          ui.add(TorqueOptions, 'loop');
           ui.add({ cartocss_editor: toggle_editor }, 'cartocss_editor');
           //ui.remember(TorqueOptions);
           //ui.add(TorqueOptions, 'blendmode', blend_modes);
