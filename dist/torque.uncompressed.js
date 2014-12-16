@@ -29,11 +29,10 @@ var cancelAnimationFrame = global.cancelAnimationFrame
     this._t0 = +new Date();
     this.callback = callback;
     this._time = 0.0;
-
     this.options = torque.extend({
         animationDelay: 0,
         maxDelta: 0.2,
-        loop: options.loop || true
+        loop: true
     }, this.options);
 
     this.rescale();
@@ -121,9 +120,6 @@ var cancelAnimationFrame = global.cancelAnimationFrame
       this.time(this._time);
       if(this.step() >= this.options.steps) {
         this._time = 0;
-        if(!this.options.loop){
-          this.stop();
-        }
       }
       if(this.running) {
         requestAnimationFrame(this._tick);
@@ -2540,14 +2536,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
           var c = tile._tileCache = document.createElement('canvas');
           c.width = c.height = tile_size;
           pos = this.getTilePos(tile.coord);
-          // clip bounds, firefox raise an exception when try to get data from outside canvas
-          var x = Math.max(0, pos.x)
-          var y = Math.max(0, pos.y)
-          var w = Math.min(tile_size, this.getCanvas().width - x);
-          var h = Math.min(tile_size, this.getCanvas().height - y);
-          if (w > 0 && h > 0) {
-            c.getContext('2d').drawImage(this.getCanvas(), x, y, w, h, x - pos.x, y - pos.y, w, h);
-          }
+          c.getContext('2d').drawImage(this.getCanvas(), pos.x, pos.y, tile_size, tile_size, 0, 0, tile_size, tile_size);
         }
       }
     }
