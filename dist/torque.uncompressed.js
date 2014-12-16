@@ -20,7 +20,6 @@ var cancelAnimationFrame = global.cancelAnimationFrame
    *    animationDelay in seconds
    */
   function Animator(callback, options) {
-    console.log(options);
     if(!options.steps) {
       throw new Error("steps option missing")
     }
