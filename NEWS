@@ -1,4 +1,7 @@
-2.6.x
+2.6.1
+    - Fix marker fill opacity (#72)
+
+2.6.0
     - Published using browserify
 
 2.5.xx
