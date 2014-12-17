@@ -29,10 +29,11 @@ var cancelAnimationFrame = global.cancelAnimationFrame
     this._t0 = +new Date();
     this.callback = callback;
     this._time = 0.0;
+
     this.options = torque.extend({
         animationDelay: 0,
         maxDelta: 0.2,
-        loop: true
+        loop: options.loop === undefined ? true : options.loop
     }, this.options);
 
     this.rescale();
@@ -117,11 +118,14 @@ var cancelAnimationFrame = global.cancelAnimationFrame
       delta = Math.min(this.options.maxDelta, delta);
       this._t0 = t1;
       this._time += delta;
-      this.time(this._time);
       if(this.step() >= this.options.steps) {
         this._time = 0;
+        if(!this.options.loop){
+          this.stop();
+        }
       }
       if(this.running) {
+        this.time(this._time);
         requestAnimationFrame(this._tick);
       }
     }
@@ -162,6 +166,13 @@ var _torque_reference_latest = {
             "type":"float",
             "default-meaning": "No buffer will be used",
             "doc": "Extra tolerance around the Layer extent (in pixels) used to when querying and (potentially) clipping the layer data during rendering"
+        },
+        "-torque-clear-color": {
+            "css": "-torque-clear-color",
+            "type": "color",
+            "default-value": "rgba(255, 255, 255, 0)",
+            "default-meaning": "full clear",
+            "doc": "color used to clear canvas on each frame"
         },
         "-torque-frame-count": {
             "css": "-torque-frame-count",
@@ -1676,7 +1687,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
     if(this.hidden) return;
     var t, tile, pos;
     var canvas = this.canvas;
-    canvas.width = canvas.width;
+    this.renderer.clearCanvas();
     var ctx = canvas.getContext('2d');
 
     // renders only a "frame"
@@ -2501,7 +2512,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     if(this.hidden) return;
     var t, tile, pos;
     var canvas = this.getCanvas();
-    canvas.width = canvas.width;
+    this.renderer.clearCanvas();
     var ctx = canvas.getContext('2d');
 
     for(t in this._tiles) {
@@ -2536,7 +2547,14 @@ L.TorqueLayer = L.CanvasLayer.extend({
           var c = tile._tileCache = document.createElement('canvas');
           c.width = c.height = tile_size;
           pos = this.getTilePos(tile.coord);
-          c.getContext('2d').drawImage(this.getCanvas(), pos.x, pos.y, tile_size, tile_size, 0, 0, tile_size, tile_size);
+          // clip bounds, firefox raise an exception when try to get data from outside canvas
+          var x = Math.max(0, pos.x)
+          var y = Math.max(0, pos.y)
+          var w = Math.min(tile_size, this.getCanvas().width - x);
+          var h = Math.min(tile_size, this.getCanvas().height - y);
+          if (w > 0 && h > 0) {
+            c.getContext('2d').drawImage(this.getCanvas(), x, y, w, h, x - pos.x, y - pos.y, w, h);
+          }
         }
       }
     }
@@ -4218,8 +4236,8 @@ var Profiler = require('../profiler');
     ctx.arc(0, 0, pixel_size, 0, TAU, true, true);
     ctx.closePath();
     if (st['marker-fill']) {
-      if (st['marker-fill-opacity']) {
-        ctx.globalAlpha = st['marker-fill-opacity'];
+      if (st['marker-fill-opacity'] !== undefined || st['marker-opacity'] !== undefined) {
+        ctx.globalAlpha = st['marker-fill-opacity'] || st['marker-opacity'];
       }
       ctx.fill();
     }
@@ -4248,10 +4266,12 @@ var Profiler = require('../profiler');
     var w = pixel_size * 2;
 
     // fill
-    if (st['marker-fill'] && st['marker-fill-opacity']) {
-      ctx.globalAlpha = st['marker-fill-opacity'];
+    if (st['marker-fill']) {
+      if (st['marker-fill-opacity'] !== undefined || st['marker-opacity'] !== undefined) {
+        ctx.globalAlpha = st['marker-fill-opacity'] || st['marker-opacity'];
+      }
+      ctx.fillRect(-pixel_size, -pixel_size, w, w)
     }
-    ctx.fillRect(-pixel_size, -pixel_size, w, w)
 
     // stroke
     ctx.globalAlpha = 1.0;
@@ -4313,6 +4333,25 @@ var carto = global.carto || require('carto');
     '}'
   ].join('\n');
 
+  var COMP_OP_TO_CANVAS = {
+    "src": 'source-over',
+    "src-over": 'source-over',
+    "dst-over": 'destination-over',
+    "src-in": 'source-in',
+    "dst-in": 'destination-in',
+    "src-out": 'source-out',
+    "dst-out": 'destination-out',
+    "src-atop": 'source-atop',
+    "dst-atop": 'destination-atop',
+    "xor": 'xor',
+    "darken": 'darken',
+    "lighten": 'lighten'
+  }
+
+  function compop2canvas(compop) {
+    return COMP_OP_TO_CANVAS[compop] || compop;
+  }
+
   //
   // this renderer just render points depending of the value
   //
@@ -4331,6 +4370,22 @@ var carto = global.carto || require('carto');
 
   PointRenderer.prototype = {
 
+    clearCanvas: function() {
+      var canvas = this._canvas;
+      var color = this._Map['-torque-clear-color']
+      // shortcut for the default value
+      if (color  === "rgba(255, 255, 255, 0)" || !color) {
+        this._canvas.width = this._canvas.width;
+      } else {
+        var ctx = this._ctx;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        var compop = this._Map['comp-op']
+        ctx.globalCompositeOperation = compop2canvas(compop);
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    },
+
     setCanvas: function(canvas) {
       this._canvas = canvas;
       this._ctx = canvas.getContext('2d');
@@ -4348,11 +4403,13 @@ var carto = global.carto || require('carto');
       // clean sprites
       this._sprites = [];
       this._shader = shader;
+      this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
     },
 
     clearSpriteCache: function() {
       this._sprites = [];
     },
+
 
     //
     // generate sprite based on cartocss style
@@ -4440,7 +4497,7 @@ var carto = global.carto || require('carto');
 
       var prof = Profiler.metric('torque.renderer.point.renderTile').start();
       var ctx = this._ctx;
-      var blendMode = shader.eval('comp-op') || this.options.blendmode;
+      var blendMode = compop2canvas(shader.eval('comp-op')) || this.options.blendmode;
       if(blendMode) {
         ctx.globalCompositeOperation = blendMode;
       }
