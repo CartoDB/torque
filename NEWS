@@ -1,3 +1,6 @@
+2.7.0
+    - Adds option to not fetch map when instantiating a windshaft provider (#74)
+
 2.6.1
     - Fix marker fill opacity (#72)
 
