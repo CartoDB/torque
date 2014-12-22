@@ -53,7 +53,8 @@
       var torqueLayer = new L.TorqueLayer({
         user       : 'viz2',
         table      : 'ow',
-        cartocss: CARTOCSS
+        cartocss: CARTOCSS,
+        cumulative: true
       });
       torqueLayer.addTo(map);
       torqueLayer.play()
