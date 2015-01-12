@@ -24,7 +24,7 @@
       "type": "BSD"
     }],
     "dependencies": {
-        "carto": "https://github.com/CartoDB/carto/archive/update_to_master.tar.gz"
+        "carto": "https://github.com/CartoDB/carto/archive/master.tar.gz"
     },
     "devDependencies": {
       "leaflet": "0.7.3",
