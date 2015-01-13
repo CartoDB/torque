@@ -1,8 +1,10 @@
-module('request')
+var torque = require('../lib/torque/core');
 
-asyncTest("json", 6, function() {
+QUnit.module('request');
+
+asyncTest("json", 6, function(assert) {
   var called = null;
-  torque.net.jsonp('http://test.com?callback=?', function(test) {
+  torque.net.jsonp('./data/foobar.jsonp.js?callback=?', function(test) {
     called = arguments;
   });
 
@@ -11,19 +13,19 @@ asyncTest("json", 6, function() {
     var found = null;
     for (var i = 0 ; !found && i < scripts.length; ++i) {
       var s = scripts[i];
-      if (s.getAttribute('src').indexOf('test.com') !== -1) {
+      if (s.getAttribute('src').indexOf('foobar.jsonp.js') !== -1) {
         found = s;
       }
     }
     var src = found.getAttribute('src');
     var fnName = src.match(/torque_.*/);
     window[fnName]('test1', 2, null);
-    equal(src.indexOf('http://test.com?callback=torque_'), 0);
-    equal(called[0], 'test1');
-    equal(called[1], 2);
-    equal(called[2], null);
-    equal(found.parent, null);
-    equal(window[fnName], undefined);
+    assert.equal(src.indexOf('./data/foobar.jsonp.js?callback=torque_'), 0);
+    assert.equal(called[0], 'test1');
+    assert.equal(called[1], 2);
+    assert.equal(called[2], null);
+    assert.equal(found.parent, null);
+    assert.equal(window[fnName], undefined);
     QUnit.start();
   }, 5);
 

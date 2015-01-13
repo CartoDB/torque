@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Heat map simple | CartoDB.js</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <link rel="shortcut icon" href="http://cartodb.com/assets/favicon.ico" />
+    <style>
+      html, body, #map {
+        height: 100%;
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.css" />
+    <!--[if lte IE 8]>
+      <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.ie.css" />
+    <![endif]-->
+    <script type="sql/html" id="cartocss_template">
+      Map { 
+        -torque-frame-count:0.5; 
+        -torque-animation-duration:0; 
+        -torque-time-attribute:"cartodb_id"; 
+        -torque-aggregation-function:"count(cartodb_id)"; 
+        -torque-resolution:2; 
+        -torque-data-aggregation:cumulative; 
+      } 
+      #monkey_jump{ 
+        comp-op: lighter; 
+        marker-opacity: 0.9; 
+        marker-line-color: #FFF; 
+        marker-line-width: 0; 
+        marker-line-opacity: 1; 
+        marker-type: ellipse; 
+        marker-width: 4;
+        marker-fill: #FF2900; 
+      }
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+    
+    <!-- include cartodb.js library -->
+    <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
+
+    <script>
+      function main() {
+        var map = new L.Map('map', {
+          zoomControl: false,
+          center: [-6.514293, 110],
+          zoom: 7
+        });
+        
+        var layer = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+        }).addTo(map);
+
+        cartodb.createLayer(map, {
+          type: "torque",
+          order: 1,
+          options: {
+            query: "",
+            table_name: "twitter_wowfakta",
+            user_name: "andrew",
+            tile_style: $('#cartocss_template').html()
+            }
+        }).done(function(layer) {
+          map.addLayer(layer);
+        });
+      }
+
+      // you could use $(window).load(main);
+      window.onload = main;
+    </script>
+  </body>
+</html>

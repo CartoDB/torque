@@ -117,10 +117,10 @@
 
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script type="text/javascript" src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
     <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false&v=3.12"></script>
-    <script src="vendor/leaflet.js"></script>
-    <script src="vendor/underscore.js"></script>
-    <script src="vendor/carto.js"></script>
+    <script src="examples/vendor/leaflet.js"></script>
+    <script src="examples/vendor/carto.js"></script>
     <script src="examples/vendor/codemirror.js"></script>
     <script src="examples/vendor/css.js"></script>
 
@@ -148,6 +148,7 @@
                'countby',
                'resolution',
                'steps', 
+               'loop',
                'animationDuration'
             )
           }))
@@ -161,6 +162,7 @@
             table      : 'ow',
             column     : 'date',
             countby    : 'count(cartodb_id)',
+            loop       : true,
             resolution: 1,
             steps: 800,
             blendmode  : 'lighter',
@@ -219,6 +221,7 @@
               torqueLayer.animator.duration(d);
               saveState();
           });
+          ui.add(TorqueOptions, 'loop');
           ui.add({ cartocss_editor: toggle_editor }, 'cartocss_editor');
           //ui.remember(TorqueOptions);
           //ui.add(TorqueOptions, 'blendmode', blend_modes);

@@ -1,6 +1,6 @@
 {
     "name": "torque.js",
-    "version": "2.3.00",
+    "version": "2.7.1",
     "description": "Torque javascript library",
     "repository": {
         "type": "git",
@@ -16,13 +16,25 @@
         "Simon Tokumine <tokumine@google.com>",
         "Javier Alvarez <jmedina@vizzuality.com>",
         "Javier Arce <javierarce@vizzuality.com>",
-        "Javier Santana <jsantana@vizzuality.com>"
+        "Javier Santana <jsantana@vizzuality.com>",
+        "Raúl Ochoa <rochoa@cartodb.com>",
+        "Nicklas Gummesson <nicklas@cartodb.com>"
     ],
     "licenses": [{
       "type": "BSD"
     }],
+    "dependencies": {
+        "carto": "https://github.com/CartoDB/carto/archive/master.tar.gz"
+    },
     "devDependencies": {
+      "leaflet": "0.7.3",
+      "node-qunit-phantomjs": "^1.0.0",
+      "browserify": "^7.0.0",
+      "qunitjs": "1.x",
       "uglify-js": "1.3.3"
+    },
+    "scripts": {
+        "test": "make prepare-test-suite && ./node_modules/node-qunit-phantomjs/bin/node-qunit-phantomjs test/suite.html"
     },
     "main": "./lib/torque/index.js"
 }

@@ -1,5 +1,6 @@
+var torque = require('../lib/torque/core');
 
-module('torque');
+QUnit.module('torque');
 
 
 test('gets metadata from cartocss', function() {

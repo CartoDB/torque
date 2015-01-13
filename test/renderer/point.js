@@ -1,4 +1,6 @@
-module('renderer/point');
+var torque = require('../../lib/torque');
+
+QUnit.module('renderer/point');
 
 var DEFAULT_CARTOCSS = [
   'Map {',
@@ -42,10 +44,48 @@ test('render conditional point layers', function() {
   renderer.setCartoCSS(css)
 
   var layer = renderer._shader.getLayers()[0];
-  var st = layer.getStyle('canvas-2d', {}, { zoom: 10, 'frame-offset': 0 });
-  equal(st['point-radius'], 10);
-  st = layer.getStyle('canvas-2d', {}, { zoom: 18, 'frame-offset': 0 });
-  equal(st['point-radius'], 20);
+  var st = layer.getStyle({}, { zoom: 10, 'frame-offset': 0 });
+  equal(st['marker-width'], 10);
+  st = layer.getStyle({}, { zoom: 18, 'frame-offset': 0 });
+  equal(st['marker-width'], 20);
+});
+
+test('should generate sprite when maker-fill > 0', function() {
+  var css = [
+  '#test {',
+  '  marker-width: 10;',
+  '}'].join('\n');
+
+  renderer.setCartoCSS(css)
+  var layer = renderer._shader.getLayers()[0];
+  var sprite = renderer.generateSprite(layer, 0, { zoom: 0 })
+  notEqual(sprite, null);
+});
+
+
+test('should not generate sprite when maker-fill: 0', function() {
+  var css = [
+  '#test {',
+  '  marker-width: 0;',
+  '}'].join('\n');
+
+  renderer.setCartoCSS(css)
+  var layer = renderer._shader.getLayers()[0];
+  var sprite = renderer.generateSprite(layer, 0, { zoom: 0 })
+  equal(sprite, null);
+});
+
+test('should not generate sprite when maker-opacity: 0', function() {
+  var css = [
+  '#test {',
+  '  marker-width: 10;',
+  '  marker-opacity: 0;',
+  '}'].join('\n');
+
+  renderer.setCartoCSS(css)
+  var layer = renderer._shader.getLayers()[0];
+  var sprite = renderer.generateSprite(layer, 0, { zoom: 0 })
+  equal(sprite, null);
 });
 
 test('get value for position', function() {

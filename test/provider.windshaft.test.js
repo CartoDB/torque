@@ -1,7 +1,9 @@
+var torque = require('../lib/torque/core');
+
 var windshaft, url;
 var lastCall;
 var old_net;
-module('provider.windshaft', {
+QUnit.module('provider.windshaft', {
   setup: function() {
     old_net = torque.net.jsonp;
     old_get = torque.net.get;
@@ -80,7 +82,7 @@ module('provider.windshaft', {
 
   test("fetch tile", function() {
     windshaft._ready = true;
-    windshaft.getTileData({x: 0, y: 1}, 2, function() {});
+    windshaft.getTileData({x: 0, y: 1, corrected: {x: 0, y: 1}}, 2, function() {});
     equal(lastCall,"http://rambo.cartodb.com:80/api/v1/map/testlg/0/2/0/1.json.torque?testing=abcd%25");
   });
 
@@ -94,6 +96,18 @@ module('provider.windshaft', {
       }
     });
     ok(lastCall.indexOf("auth_token=test_auth_token") !== -1);
+  })
+
+  test("include stat_tag", function() {
+    windshaft_named = new torque.providers.windshaft({
+      table: 'test',
+      user: "rambo",
+      stat_tag: 'test',
+      named_map: {
+        name: 'test_named'
+      }
+    });
+    ok(lastCall.indexOf("stat_tag=test") !== -1);
   })
 
 test("auth_token as array param", function() {
@@ -121,4 +135,30 @@ test("auth_token with several params as array param and present in url", functio
     ok(lastCall.indexOf("auth_token[]=token2") !== -1);
 });
 
+[
+    { shouldInvokeFetchMap: true, desc: 'undefined no_fetch_map option provided should invoke _fetchMap' },
+    { no_fetch_map: false, shouldInvokeFetchMap: true, desc: 'no_fetch_map=false should invoke _fetchMap' },
+    { no_fetch_map: true, shouldInvokeFetchMap: false, desc: 'no_fetch_map=true should NOT invoke _fetchMap' }
+].forEach(function(fetchMapCase) {
+
+    test("no_fetch_map option: " + fetchMapCase.desc, function() {
+        var fetchMapFn = torque.providers.windshaft.prototype._fetchMap;
+
+        var _fetchMapInvoked = false;
+        torque.providers.windshaft.prototype._fetchMap = function() {
+            _fetchMapInvoked = true;
+        };
+
+        new torque.providers.windshaft({
+            table: 'test',
+            user: "rambo",
+            no_fetch_map: fetchMapCase.no_fetch_map
+        });
+
+        equal(_fetchMapInvoked, fetchMapCase.shouldInvokeFetchMap);
+
+        torque.providers.windshaft.prototype._fetchMap = fetchMapFn;
+    });
+
+});
 
