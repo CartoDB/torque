@@ -1,3 +1,9 @@
+2.8.0
+    - Supports use of external image markers via marker-file
+    - Fixes Torque tiles not rendering outside normal lat/lng ranges.
+    - Fixes marker image default pivot point
+    - Fixes ghost frame being added to the end of animation
+    - Moved to browserify for compatibility with Node.js
 2.7.1
     - Fix renderer not rendering marker-lines
 
