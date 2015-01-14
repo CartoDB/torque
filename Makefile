@@ -11,10 +11,11 @@ JS_CLIENT_FILES= lib/torque/*.js \
 
 all: dist/torque.js dist/torque.full.js
 
-dist/torque.full.js: dist_folder dist/torque.uncompressed.js
-	$(BROWSERIFY) lib/torque/index.js --standalone torque > dist/_torque.full.js
-	$(UGLIFYJS) dist/_torque.full.js > dist/torque.full.js
-	rm -rf dist/_torque.full.js
+dist/torque.full.uncompressed.js: dist_folder dist/torque.uncompressed.js
+	$(BROWSERIFY) lib/torque/index.js --standalone torque > dist/torque.full.uncompressed.js
+
+dist/torque.full.js: dist_folder dist/torque.full.uncompressed.js
+	$(UGLIFYJS) dist/torque.full.uncompressed.js > dist/torque.full.js
 
 dist/torque.uncompressed.js: dist_folder $(JS_CLIENT_FILES)
 	$(BROWSERIFY) lib/torque/index.js --no-bundle-external --standalone torque > dist/torque.uncompressed.js
