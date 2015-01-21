@@ -5715,9 +5715,15 @@ tree.Value.prototype = {
       } else if (val.is === 'field') {
         // replace [variable] by ctx['variable']
         v = v.replace(/\[(.*)\]/g, "data['$1']");
+      } else if (val.is === 'call') {
+        v = JSON.stringify({
+            name: val.name,
+            args: val.args
+        })
       }
       return "_value = " + v + ";";
     }
+    
 
 };
 
