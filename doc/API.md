@@ -21,15 +21,15 @@ One of two core classes for the Torque library - it is used to create an animate
 
 ##### Provider options
 
-| Option    | type       | Default   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| provider  | string     | ```sql_api```   | Where is the data coming from |
+| Option    | type       | Default   | Description                            | Options |
+|-----------|:-----------|:----------|:---------------------------------------|---------|
+| provider  | string     | ```sql_api```   | Where is the data coming from    | `sql_api`, `url_template`, or `windshaft` |
 
 ##### CartoDB data options (SQL API provider)
 
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| user      | string     | ```null```      | CartoDB account name. Found as, accountname.cartodb.com|
+| user      | string     | ```null```      | CartoDB account name. Found from: http://accountname.cartodb.com|
 | table     | string     | ```null```      | CartoDB table name where data is found  |
 | sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must use this param or table, not at the same time |
 
@@ -54,7 +54,7 @@ One of two core classes for the Torque library - it is used to create an animate
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
 
-The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation here](CartoCSS.md). ``value`` and ``zoom`` variables can be used. ``value`` is the value of aggregation (see ``countby`` constructor option). ``zoom`` is the current zoom being rendered
+The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation](CartoCSS.md). ``value`` and ``zoom`` variables can be used. ``value`` is the value of aggregation (see ``countby`` constructor option). ``zoom`` is the current zoom being rendered
 
 TorqueLayer currently expects ```marker``` styling
 
@@ -89,8 +89,8 @@ This should be ```string``` encoded in Javascript
 # Google Maps Layers
 
 ## GMapsTorqueLayer(options) 
-This class does exactly the same than ``L.TorqueLayer`` but using Google Maps. The main difference is that this class
-is not a layer is a overlay so in order to add it to the map use ``layer.setMap`` instead of ``overlayMapTypes``. See [Overlay view](https://developers.google.com/maps/documentation/javascript/reference#OverlayView) reference in Google Maps API doc. 
+This class does exactly the same as ``L.TorqueLayer`` but using Google Maps instead. The main difference is that this class
+is not a layer but is an overlay, so in order to add it to the a map use, ``layer.setMap`` instead of ``overlayMapTypes``. See the [Overlay View](https://developers.google.com/maps/documentation/javascript/reference#OverlayView) reference in Google Maps API doc.
 
 ### Options
 
