@@ -1,13 +1,8 @@
 
 # Torque CartoCSS
 
-
-## buffer-size
-Extra tolerance around the Layer extent (in pixels) used to when querying and (potentially) clipping the layer data during rendering.
-
 ## -torque-clear-color
 Color used to clear canvas on each frame.
-
 
 ## -torque-frame-count
 Number of animation steps/frames used in the animation. If the data contains a fewer number of total frames, the lesser value will be used.
