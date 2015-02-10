@@ -56,14 +56,14 @@ One of two core classes for the Torque library - it is used to create an animate
 
 The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation](CartoCSS.md). ``value`` and ``zoom`` variables can be used. ``value`` is the value of aggregation (see ``countby`` constructor option). ``zoom`` is the current zoom being rendered
 
-TorqueLayer currently expects ```marker``` styling
+TorqueLayer currently expects ```marker``` styling.
 
 ##### CartoCSS Example
 
-This should be ```string``` encoded in Javascript
+This should be ```string``` encoded in Javascript.
 
 ```css
-#layer {,
+#layer {
   marker-fill: #662506;
   marker-width: 20;
   [value > 1] { marker-fill: #FEE391; }
@@ -73,9 +73,21 @@ This should be ```string``` encoded in Javascript
   [value > 5] { marker-fill: #CC4C02; }
   [value > 6] { marker-fill: #993404; }
   [value > 7] { marker-fill: #662506; }
-  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}', // renders the previos frame
-  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}', // renders two frames ago from the current being rendered
+  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}' // renders the previous frame
+  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}' // renders two frames ago from the current being rendered
 }
+```
+
+### Data methods
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```setSQL(sql statement)``` | ```SQL string```    | ```this```   | Change the SQL on the data table | 
+
+##### SQL Example
+
+Limit the data used in the Torque map.
+```js
+torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
 ```
 
 ### Interaction methods (only available for Leaflet)
