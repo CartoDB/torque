@@ -1,3 +1,11 @@
+2.9.0
+    - Added heatmaps
+    - Added image-filters
+    - Solved problem of CSS not updating the vis until reloaded
+    - Improved out of bounds correction function
+    - Fixed image-asset sizing
+    - Fixed items to load counter being sometimes negative
+    
 2.8.0
     - Supports use of external image markers via marker-file
     - Fixes Torque tiles not rendering outside normal lat/lng ranges.
