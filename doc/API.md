@@ -45,8 +45,14 @@ One of two core classes for the Torque library - it is used to create an animate
 | ```toggle()```| | ```this```| toggles (pause/play) the animation 
 | ```getStep()``` | | current animation step (integer)   | gets the current animation step
 | ```getTime()``` | | current animation time (Date) | gets the real animation time
+| ```isRunning()``` |  | `true`/`false` | describes whether the Torque layer is playing or is stopped 
 
+### Layer control methods
 
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```hide()``` | none    |```this```  | hides the Torque layer |
+| ```show()```| none| ```this``` | shows the Torque layer |
 
 ### Style methods 
 
