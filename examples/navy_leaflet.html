@@ -16,11 +16,12 @@
       // define the torque layer style using cartocss
       var CARTOCSS = [
           'Map {',
-          '-torque-time-attribute: "date";',
+          '-torque-time-attribute: "cartodb_id";',
           '-torque-aggregation-function: "count(cartodb_id)";',
-          '-torque-frame-count: 760;',
+          '-torque-frame-count: 512;',
           '-torque-animation-duration: 15;',
-          '-torque-resolution: 2',
+          '-torque-resolution: 10',
+          '-torque-data-aggregation:cumulative;',
           '}',
           '#layer {',
           '  marker-width: 3;',
@@ -33,29 +34,27 @@
           '  [value > 5] { marker-fill: #CC4C02; }',
           '  [value > 6] { marker-fill: #993404; }',
           '  [value > 7] { marker-fill: #662506; }',
-          '  [frame-offset = 1] { marker-width: 10; marker-fill-opacity: 0.05;}',
-          '  [frame-offset = 2] { marker-width: 15; marker-fill-opacity: 0.02;}',
           '}'
       ].join('\n');
 
         
       var map = new L.Map('map', {
         zoomControl: true,
-        center: [40, 0],
-        zoom: 3
+        center: [41.65649719441145,-73.3447265625],
+        zoom: 6
       });
 
-      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+      L.tileLayer('http://{s}.api.cartocdn.com/base-light/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
-        user       : 'viz2',
-        table      : 'ow',
+        user       : 'fdansv',
+        table      : 'snow',
         cartocss: CARTOCSS
       });
       torqueLayer.addTo(map);
-      torqueLayer.play()
+      torqueLayer.play();
     </script>
   </body>
 </html>
