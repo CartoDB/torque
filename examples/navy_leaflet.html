@@ -16,14 +16,14 @@
       // define the torque layer style using cartocss
       var CARTOCSS = [
           'Map {',
-          '-torque-time-attribute: "date";',
+          '-torque-time-attribute: "cartodb_id";',
           '-torque-aggregation-function: "count(cartodb_id)";',
-          '-torque-frame-count: 760;',
+          '-torque-frame-count: 1;',
           '-torque-animation-duration: 15;',
-          '-torque-resolution: 2',
+          '-torque-resolution: 20',
           '}',
           '#layer {',
-          '  marker-width: 3;',
+          '  marker-width: 1;',
           '  marker-fill-opacity: 0.8;',
           '  marker-fill: #FEE391; ',
           '  comp-op: "lighten";',
@@ -33,8 +33,6 @@
           '  [value > 5] { marker-fill: #CC4C02; }',
           '  [value > 6] { marker-fill: #993404; }',
           '  [value > 7] { marker-fill: #662506; }',
-          '  [frame-offset = 1] { marker-width: 10; marker-fill-opacity: 0.05;}',
-          '  [frame-offset = 2] { marker-width: 15; marker-fill-opacity: 0.02;}',
           '}'
       ].join('\n');
 
@@ -55,7 +53,34 @@
         cartocss: CARTOCSS
       });
       torqueLayer.addTo(map);
-      torqueLayer.play()
+      torqueLayer.play();
+      var rect = document.createElement("div");
+      rect.setAttribute('style', "position:absolute; background-color: #fff; width: 100px; height: 30px;");
+      document.getElementById("map").appendChild(rect);
+      var curBounds = [];
+      var curRect;
+      document.onmousemove = function(e){
+        rect.style.display = "block";
+        rect.style.left = e.clientX + 20;
+        rect.style.top = e.clientY - 20;
+        rect.style.padding = 10;
+        var val = torqueLayer.getValueForPos(e.clientX, e.clientY);
+        if (val != null){
+          rect.textContent = val.value;
+          if([[val.bbox[0].lat, val.bbox[0].lon],[val.bbox[1].lat, val.bbox[1].lon]] !== curBounds){
+            curBounds = [[val.bbox[0].lat, val.bbox[0].lon],[val.bbox[1].lat, val.bbox[1].lon]];
+            if(curRect){
+              map.removeLayer(curRect);
+            }
+            curRect = L.rectangle(curBounds, {color: "#ff7800", weight: 1}).addTo(map);
+          }
+        }
+      };
+      document.onmouseout = function(e){
+        if (e.toElement == null && e.relatedTarget == null) {
+          rect.style.display = "none";
+        }
+      }
     </script>
   </body>
 </html>
