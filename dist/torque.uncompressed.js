@@ -48,6 +48,9 @@ var cancelAnimationFrame = global.cancelAnimationFrame
         this.running = true;
         requestAnimationFrame(this._tick);
         this.options.onStart && this.options.onStart();
+        if(this.options.steps === 1){
+          this.running = false;
+        }
     },
 
     isRunning: function() {
@@ -82,6 +85,7 @@ var cancelAnimationFrame = global.cancelAnimationFrame
       this.range = torque.math.linear(0, this.options.steps);
       this.rangeInv = this.range.invert();
       this.time(this._time);
+      this.start();
       return this;
     },
 
@@ -4582,6 +4586,7 @@ var filters = require('./torque_filters');
       }
       var tileMax = this.options.resolution * (this.TILE_SIZE/this.options.resolution - 1)
       var activePixels = tile.timeCount[key];
+      var anchor = this.options.resolution/2;
       if (activePixels) {
         var pixelIndex = tile.timeIndex[key];
         for(var p = 0; p < activePixels; ++p) {
@@ -4593,8 +4598,8 @@ var filters = require('./torque_filters');
              sp = sprites[c] = this.generateSprite(shader, c, torque.extend({ zoom: tile.z, 'frame-offset': frame_offset }, shaderVars));
            }
            if (sp) {
-             var x = tile.x[posIdx]- (sp.width >> 1);
-             var y = tileMax - tile.y[posIdx]; // flip mercator
+             var x = tile.x[posIdx]- (sp.width >> 1) + anchor;
+             var y = tileMax - tile.y[posIdx] + anchor; // flip mercator
              ctx.drawImage(sp, x, y - (sp.height >> 1));
            }
           }

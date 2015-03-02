@@ -48,6 +48,9 @@ var cancelAnimationFrame = global.cancelAnimationFrame
         this.running = true;
         requestAnimationFrame(this._tick);
         this.options.onStart && this.options.onStart();
+        if(this.options.steps === 1){
+          this.running = false;
+        }
     },
 
     isRunning: function() {
@@ -82,6 +85,7 @@ var cancelAnimationFrame = global.cancelAnimationFrame
       this.range = torque.math.linear(0, this.options.steps);
       this.rangeInv = this.range.invert();
       this.time(this._time);
+      this.start();
       return this;
     },
 
@@ -4582,6 +4586,7 @@ var filters = require('./torque_filters');
       }
       var tileMax = this.options.resolution * (this.TILE_SIZE/this.options.resolution - 1)
       var activePixels = tile.timeCount[key];
+      var anchor = this.options.resolution/2;
       if (activePixels) {
         var pixelIndex = tile.timeIndex[key];
         for(var p = 0; p < activePixels; ++p) {
@@ -4593,8 +4598,8 @@ var filters = require('./torque_filters');
              sp = sprites[c] = this.generateSprite(shader, c, torque.extend({ zoom: tile.z, 'frame-offset': frame_offset }, shaderVars));
            }
            if (sp) {
-             var x = tile.x[posIdx]- (sp.width >> 1);
-             var y = tileMax - tile.y[posIdx]; // flip mercator
+             var x = tile.x[posIdx]- (sp.width >> 1) + anchor;
+             var y = tileMax - tile.y[posIdx] + anchor; // flip mercator
              ctx.drawImage(sp, x, y - (sp.height >> 1));
            }
           }
@@ -13725,7 +13730,7 @@ refs.map(function(version) {
 },{}],72:[function(require,module,exports){
 module.exports={
   "name": "carto",
-  "version": "0.15.1-cdb1",
+  "version": "0.15.1",
   "description": "CartoCSS Stylesheet Compiler",
   "url": "https://github.com/cartodb/carto",
   "repository": {
@@ -13802,12 +13807,10 @@ module.exports={
     "url": "https://github.com/cartodb/carto/issues"
   },
   "homepage": "https://github.com/cartodb/carto",
-  "_id": "carto@0.15.1-cdb1",
-  "dist": {
-    "shasum": "ab2cd136b72f8f05ac960987eea099cbedd6948e"
-  },
-  "_from": "https://github.com/CartoDB/carto/archive/master.tar.gz",
-  "_resolved": "https://github.com/CartoDB/carto/archive/master.tar.gz"
+  "_id": "carto@0.15.1",
+  "_shasum": "2e8a46e5656d86e824ae7745b91a72198b25ded5",
+  "_resolved": "https://github.com/CartoDB/carto/archive/master.tar.gz",
+  "_from": "https://github.com/CartoDB/carto/archive/master.tar.gz"
 }
 
 },{}]},{},[10])(10)
