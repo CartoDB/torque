@@ -104,6 +104,33 @@ torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
 | ```invalidate()```|  | | forces a reload of the layer data.
 
 
+### Events
+Events in Torque follow the format:
+```js
+torqueLayer.on('event-type', function() {
+    // do something
+});
+```
+
+| Events    | options    | callback object   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```change:steps```|    | current step | ... |
+| ```change:bounds```|   | current bounds | ... |
+| ```change:time```|     | current time, step number          | ... |
+| ```pause```| ??        |           | ... |
+| ```stop```|            |           | ... |
+| ```play```|            |           | ... |
+
+##### SQL Example
+
+Limit the data used in the Torque map.
+```js
+torqueLayer.on('change:steps', function() {
+    
+});
+```
+
+
 # Google Maps Layers
 
 ## GMapsTorqueLayer(options) 
