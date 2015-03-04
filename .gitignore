@@ -3,4 +3,3 @@
 *.swp
 node_modules
 test/suite-bundle.js
-test/results/
