@@ -4501,7 +4501,7 @@ var Filters = require('./torque_filters');
       if (qualifiedUrl && this._iconsToLoad <= 0) {
         var img = this._icons[qualifiedUrl];
 
-        var dWidth = st['marker-width'] || img.width;
+        var dWidth = st['marker-width'] * 2 || img.width;
         var dHeight = (st['marker-height'] || dWidth) * (img.width / img.height);
 
         canvas.width = ctx.width = dWidth;
