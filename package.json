@@ -32,7 +32,7 @@
       "underscore": "^1.6.0",
       "node-qunit-phantomjs": "^1.0.0",
       "browserify": "^7.0.0",
-      "mapnik": "^3.1.6",
+      "mapnik": "https://github.com/CartoDB/node-mapnik/tarball/1.4.15-cdb1",
       "canvas": "~1.2.1",
       "request": "^2.53.0",
       "qunit": "~0.7.5",
