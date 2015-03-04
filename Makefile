@@ -31,6 +31,10 @@ dist: dist_folder dist/torque.js
 prepare-test-suite:
 	browserify test/suite.js > test/suite-bundle.js
 
+test-acceptance:
+	@echo "***acceptance***"
+	./node_modules/.bin/qunit -c lib/torque/ -t `find test/acceptance/ -name *.js`
+
 clean: 
 	rm -rf dist
 
