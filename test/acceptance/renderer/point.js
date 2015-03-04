@@ -3,6 +3,8 @@ var image = require('../../support/image');
 
 QUnit.module('renderer/point');
 
+var IMAGE_DIFF_TOLERANCE = 4 / 100;
+
 asyncTest('navy example', function(assert) {
     var cartocss = [
         'Map {',
@@ -33,7 +35,7 @@ asyncTest('navy example', function(assert) {
     pointRenderer.getTile('default_navy_3-3-2.torque.json', cartocss, 3, 3, 2, step, function(err, canvas) {
         assert.ok(!err, 'no error while getting tile');
         var imageDiff = image.compare(canvas.toBuffer(), 'default_navy_3-3-2.png');
-        assert.equal(imageDiff, 0, 'navy tile is ok');
+        assert.ok(imageDiff < IMAGE_DIFF_TOLERANCE, 'navy tile is ok');
         QUnit.start();
     });
 });
@@ -58,7 +60,7 @@ asyncTest('basic heatmap', function(assert) {
     pointRenderer.getTile('heatmap_navy_3-2-3.torque.json', cartocss, 3, 2, 3, step, function(err, canvas) {
         assert.ok(!err, 'no error while getting tile');
         var imageDiff = image.compare(canvas.toBuffer(), 'heatmap_navy_3-2-3.png');
-        assert.equal(imageDiff, 0, 'heatmap tile is ok');
+        assert.ok(imageDiff < IMAGE_DIFF_TOLERANCE, 'heatmap tile is ok');
         QUnit.start();
     });
 });

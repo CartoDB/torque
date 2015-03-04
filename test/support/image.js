@@ -5,7 +5,7 @@ function compare(buffer, fixtureRelPath) {
 
     var img = new mapnik.Image.fromBytesSync(buffer);
     var reference = new mapnik.Image.openSync(__dirname + '/../fixtures/image/' + fixtureRelPath);
-    return img.compare(reference);
+    return img.compare(reference) / (reference.width() * reference.height());
 }
 
 function save(path, buffer) {
