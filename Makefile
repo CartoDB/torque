@@ -28,8 +28,21 @@ dist_folder:
 
 dist: dist_folder dist/torque.js
 
+clean-results:
+	-@rm test/results/*.png
+
 prepare-test-suite:
 	browserify test/suite.js > test/suite-bundle.js
+
+test: prepare-test-suite
+	@echo "***tests***"
+	./node_modules/node-qunit-phantomjs/bin/node-qunit-phantomjs test/suite.html
+
+test-acceptance: clean-results
+	@echo "***acceptance***"
+	./node_modules/.bin/qunit -c lib/torque/ -t `find test/acceptance/ -name *.js`
+
+test-all: test test-acceptance
 
 clean: 
 	rm -rf dist
