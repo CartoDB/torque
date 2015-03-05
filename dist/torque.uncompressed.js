@@ -670,6 +670,7 @@ module.exports.TorqueLayer = TorqueLayer;
   var types = {
     Uint8Array: typeof(global['Uint8Array']) !== 'undefined' ? global.Uint8Array : Array,
     Uint32Array: typeof(global['Uint32Array']) !== 'undefined' ? global.Uint32Array : Array,
+    Int16Array: typeof(global['Int16Array']) !== 'undefined' ? global.Int16Array : Array,
     Int32Array: typeof(global['Int32Array']) !== 'undefined' ? global.Int32Array: Array
   };
 
@@ -3833,6 +3834,8 @@ var Profiler = require('../profiler');
     this.options.tiler_domain = options.tiler_domain || 'cartodb.com';
     this.options.tiler_port = options.tiler_port || 80;
 
+    this.options.coordinates_data_type = this.options.coordinates_data_type || Uint8Array;
+
     if (this.options.data_aggregation) {
       this.options.cumulative = this.options.data_aggregation === 'cumulative';
     }
@@ -3858,8 +3861,8 @@ var Profiler = require('../profiler');
      */
     proccessTile: function(rows, coord, zoom) {
       var r;
-      var x = new Uint8Array(rows.length);
-      var y = new Uint8Array(rows.length);
+      var x = new this.options.coordinates_data_type(rows.length);
+      var y = new this.options.coordinates_data_type(rows.length);
 
       var prof_mem = Profiler.metric('torque.provider.windshaft.mem');
       var prof_point_count = Profiler.metric('torque.provider.windshaft.points');
@@ -3903,13 +3906,7 @@ var Profiler = require('../profiler');
       for (var r = 0; r < rows.length; ++r) {
         var row = rows[r];
         x[r] = row.x__uint8 * this.options.resolution;
-        // fix value when it's in the tile EDGE
-        // TODO: this should be fixed in SQL query
-        if (row.y__uint8 === -1) {
-          y[r] = 0;
-        } else {
-          y[r] = row.y__uint8 * this.options.resolution;
-        }
+        y[r] = row.y__uint8 * this.options.resolution;
 
         var dates = row.dates__uint16;
         var vals = row.vals__uint8;
@@ -4498,7 +4495,7 @@ var Filters = require('./torque_filters');
       var markerFile = st["marker-file"] || st["point-file"];
       var qualifiedUrl = markerFile && this._qualifyURL(markerFile);
 
-      if (qualifiedUrl && this._iconsToLoad <= 0) {
+      if (qualifiedUrl && this._iconsToLoad <= 0 && this._icons[qualifiedUrl]) {
         var img = this._icons[qualifiedUrl];
 
         var dWidth = st['marker-width'] * 2 || img.width;
@@ -4744,6 +4741,8 @@ var Filters = require('./torque_filters');
             if (err) {
               self._forcePoints = true;
               self.clearSpriteCache();
+              self._iconsToLoad = 0;
+              self.fire("allIconsLoaded");
               if(filtered) {
                 console.info("Only CORS-enabled, or same domain image-files can be used in combination with image-filters");
               }
