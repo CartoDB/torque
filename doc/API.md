@@ -32,6 +32,8 @@ One of two core classes for the Torque library - it is used to create an animate
 | user      | string     | ```null```      | CartoDB account name. Found from: http://accountname.cartodb.com|
 | table     | string     | ```null```      | CartoDB table name where data is found  |
 | sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must use this param or table, not at the same time |
+| cartocss  | string     | ```null```      | CartoCSS style for this map |
+| loop      | boolean    | ```true```      | If ```false```, the animation is paused when it reaches the last frame |
 
 
 ### Time methods
