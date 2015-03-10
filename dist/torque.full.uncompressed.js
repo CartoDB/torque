@@ -1585,7 +1585,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
 
   providers: {
     'sql_api': torque.providers.json,
-    'url_template': torque.providers.jsonarray,
+    'url_template': torque.providers.JsonArray,
     'windshaft': torque.providers.windshaft
   },
 
@@ -2339,7 +2339,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
   providers: {
     'sql_api': torque.providers.json,
-    'url_template': torque.providers.jsonarray,
+    'url_template': torque.providers.JsonArray,
     'windshaft': torque.providers.windshaft
   },
 
