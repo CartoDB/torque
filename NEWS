@@ -1,3 +1,20 @@
+2.11.1
+
+2.11.0
+    - Do not fix values in the edge (#147)
+    - Windshaft provider accepts an optional data type for coordinates (#149)
+    - Acceptance tests
+    - renderTile accepts a callback to be called when rendering finishes
+    - tile rendering deferred until all assets are loaded
+    - sprite rendering now scales source to marker dimensions
+    - Filters accept a canvas class
+
+2.10.1
+    - Adjusted point position taking resolution into account
+    - Changed loop: false to pause animation at last frame
+    - On torque-frame-count: 1, always pause for better performance
+    - Fixes getTimeSpan
+
 2.10.0
     - Adds timetostep method to torque layer
     - Function qualifyURL can be provided to not rely on document's one
