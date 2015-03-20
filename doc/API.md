@@ -107,26 +107,28 @@ torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
 ### Events
 Events in Torque follow the format:
 ```js
-torqueLayer.on('event-type', function() {
+torqueLayer.on('event-type', function([callback_obj]) {
     // do something
 });
 ```
 
-| Events    | options    | callback object   | Description                            |
-|-----------|:-----------|:----------|:---------------------------------------|
-| ```change:steps```|    | current step | When a map changes steps, this event is triggered |
-| ```change:bounds```|   | current bounds | ??  |
-| ```change:time```|     | current time, step number | When a map changes time, this event is triggered |
-| ```pause```| none        |     ??      | Pauses the animation at current time and step |
-| ```stop```| none           |   ??      | Stops the animation, returns the time and step to the beginning |
-| ```play```| none           |   ??      | Plays the animation from the current time and step |
+| Events    | callback object   | Description                            |
+|-----------|:----------|:---------------------------------------|
+| ```change:steps```| current step | When a map changes steps, this event is triggered |
+| ```change:bounds```| current bounds | ??  |
+| ```change:time```| current time, step number | When a map changes time, this event is triggered |
+| ```play```|   none??      | Triggered when the Torque layer is played  |
+| ```pause```|     none??      | Triggered when the Torque layer is paused |
+| ```stop```|   none??      | Triggered when the Torque layer is stopped |
+| ```load```| none??        | Triggered when the Torque layer is loaded |
 
 ##### SQL Example
 
 Limit the data used in the Torque map.
 ```js
-torqueLayer.on('change:steps', function() {
-    
+torqueLayer.on('change:steps', function(step) {
+    // do something with step
+    console.log("Current step is " + step);
 });
 ```
 
