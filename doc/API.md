@@ -114,12 +114,12 @@ torqueLayer.on('event-type', function() {
 
 | Events    | options    | callback object   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```change:steps```|    | current step | ... |
-| ```change:bounds```|   | current bounds | ... |
-| ```change:time```|     | current time, step number          | ... |
-| ```pause```| ??        |           | ... |
-| ```stop```|            |           | ... |
-| ```play```|            |           | ... |
+| ```change:steps```|    | current step | When a map changes steps, this event is triggered |
+| ```change:bounds```|   | current bounds | ??  |
+| ```change:time```|     | current time, step number | When a map changes time, this event is triggered |
+| ```pause```| none        |     ??      | Pauses the animation at current time and step |
+| ```stop```| none           |   ??      | Stops the animation, returns the time and step to the beginning |
+| ```play```| none           |   ??      | Plays the animation from the current time and step |
 
 ##### SQL Example
 
