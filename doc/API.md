@@ -32,6 +32,8 @@ One of two core classes for the Torque library - it is used to create an animate
 | user      | string     | ```null```      | CartoDB account name. Found from: http://accountname.cartodb.com|
 | table     | string     | ```null```      | CartoDB table name where data is found  |
 | sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must use this param or table, not at the same time |
+| cartocss  | string     | ```null```      | CartoCSS style for this map |
+| loop      | boolean    | ```true```      | If ```false```, the animation is paused when it reaches the last frame |
 
 
 ### Time methods
@@ -100,6 +102,13 @@ torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```getValueForPos(x, y[, step])```| | an object like { bbox:[], value: VALUE } if there is value for the pos, null otherwise | allows to get the value for the coordinate (in map reference system) for a concrete step. If step is not specified the animation one is used. This method is expensive in terms of CPU so be careful. It returns the value from the raster data not the rendered data |
+| ```getValueForBBox(xstart, ystart, xend, yend)```| | a number | returns an accumulated numerical value from all the torque areas within the specified bounds |
+| ```getActivePointsBBox(step)```|  | list of bbox | returns the list of bounding boxes active for ``step``
+| ```invalidate()```|  | | forces a reload of the layer data.
+
+### Interaction methods (only available for Leaflet)
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
 | ```getActivePointsBBox(step)```|  | list of bbox | returns the list of bounding boxes active for ``step``
 | ```invalidate()```|  | | forces a reload of the layer data.
 
