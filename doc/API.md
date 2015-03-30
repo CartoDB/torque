@@ -124,12 +124,11 @@ torqueLayer.on('event-type', function([callback_obj]) {
 | Events    | callback object   | Description                            |
 |-----------|:----------|:---------------------------------------|
 | ```change:steps```| current step | When a map changes steps, this event is triggered |
-| ```change:bounds```| current bounds | ??  |
 | ```change:time```| current time, step number | When a map changes time, this event is triggered |
-| ```play```|   none??      | Triggered when the Torque layer is played  |
-| ```pause```|     none??      | Triggered when the Torque layer is paused |
-| ```stop```|   none??      | Triggered when the Torque layer is stopped |
-| ```load```| none??        | Triggered when the Torque layer is loaded |
+| ```play```|   none      | Triggered when the Torque layer is played  |
+| ```pause```|     none      | Triggered when the Torque layer is paused |
+| ```stop```|   none     | Triggered when the Torque layer is stopped |
+| ```load```| none        | Triggered when the Torque layer is loaded |
 
 ##### SQL Example
 
