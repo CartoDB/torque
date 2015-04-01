@@ -1,4 +1,7 @@
+2.11.2
+
 2.11.1
+    - Adapts usage of marker-opacity to Mapnik's functionality
     - Added getValueForBBox to TorqueLayer's API
 
 2.11.0
