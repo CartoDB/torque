@@ -29,8 +29,8 @@ One of two core classes for the Torque library - it is used to create an animate
 
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| user      | string     | ```null```      | CartoDB account name. Found from: http://accountname.cartodb.com|
-| table     | string     | ```null```      | CartoDB table name where data is found  |
+| user_name      | string     | ```null```      | CartoDB account name. Found from: http://accountname.cartodb.com|
+| table_name     | string     | ```null```      | CartoDB table name where data is found  |
 | sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must use this param or table, not at the same time |
 | cartocss  | string     | ```null```      | CartoCSS style for this map |
 | loop      | boolean    | ```true```      | If ```false```, the animation is paused when it reaches the last frame |
@@ -130,9 +130,9 @@ torqueLayer.on('event-type', function([callback_obj]) {
 | ```stop```|   none     | Triggered when the Torque layer is stopped |
 | ```load```| none        | Triggered when the Torque layer is loaded |
 
-##### SQL Example
+##### Event Example
 
-Limit the data used in the Torque map.
+Print the current step to the console log.
 ```js
 torqueLayer.on('change:steps', function(step) {
     // do something with step
