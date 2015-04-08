@@ -64,6 +64,7 @@ QUnit.module('provider.windshaft', {
 
   test("url cdn https", function() {
     windshaft.options.tiler_protocol = 'https';
+    windshaft._buildMapsApiTemplate(windshaft.options);
     windshaft.options.cdn_url = { https: 'cartocdn.com' };
     equal(windshaft.url(), "https://cartocdn.com/rambo");
   });
