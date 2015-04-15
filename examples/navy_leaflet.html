@@ -54,6 +54,11 @@
         table      : 'ow',
         cartocss: CARTOCSS
       });
+      torqueLayer.error(function(err){
+        for(error in err){
+          console.warn(err[error]);
+        }
+      });
       torqueLayer.addTo(map);
       torqueLayer.play()
     </script>
