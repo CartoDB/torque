@@ -90,6 +90,7 @@ This should be ```string``` encoded in Javascript.
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```setSQL(sql statement)``` | ```SQL string```    | ```this```   | Change the SQL on the data table | 
+| ```error(callback)``` | ```callback function with a list of errors as argument```    | ```this```   | specifies a callback function to run if there are query errors | 
 
 ##### SQL Example
 
