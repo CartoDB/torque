@@ -77,7 +77,11 @@
         cartocss: CARTOCSS,
         map: map
       });
-
+      torqueLayer.error(function(err){
+        for(error in err){
+          console.warn(err[error]);
+        }
+      });
       torqueLayer.setMap(map);
       torqueLayer.play()
     }
