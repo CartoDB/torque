@@ -1,5 +1,5 @@
 2.11.2
-
+    - Added error handling to Torque
 2.11.1
     - Adapts usage of marker-opacity to Mapnik's functionality
     - Added getValueForBBox to TorqueLayer's API
