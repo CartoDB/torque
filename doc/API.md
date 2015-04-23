@@ -60,7 +60,7 @@ One of two core classes for the Torque library - it is used to create an animate
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
+| ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss (not available with named maps) | 
 
 The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation](CartoCSS.md). ``value`` and ``zoom`` variables can be used. ``value`` is the value of aggregation (see ``countby`` constructor option). ``zoom`` is the current zoom being rendered
 
@@ -89,7 +89,7 @@ This should be ```string``` encoded in Javascript.
 ### Data methods
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setSQL(sql statement)``` | ```SQL string```    | ```this```   | Change the SQL on the data table | 
+| ```setSQL(sql statement)``` | ```SQL string```    | ```this```   | Change the SQL on the data table (not available with named maps) | 
 | ```error(callback)``` | ```callback function with a list of errors as argument```    | ```this```   | specifies a callback function to run if there are query errors | 
 
 ##### SQL Example
