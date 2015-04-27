@@ -29,9 +29,11 @@ One of two core classes for the Torque library - it is used to create an animate
 
 | Option    | type       | Default   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| user      | string     | ```null```      | CartoDB account name. Found from: http://accountname.cartodb.com|
-| table     | string     | ```null```      | CartoDB table name where data is found  |
-| sql       | string     | ```null```      | SQL query to be performed to fetch the data. You must use this param or table, not at the same time |
+| user_name      | string     | ```null```      | CartoDB account name. Found from: http://accountname.cartodb.com|
+| table_name     | string     | ```null```      | CartoDB table name where data is found  |
+| query       | string     | ```null```      | SQL query to be performed to fetch the data. You must use this param or table, not at the same time |
+| cartocss  | string     | ```null```      | CartoCSS style for this map |
+| loop      | boolean    | ```true```      | If ```false```, the animation is paused when it reaches the last frame |
 
 
 ### Time methods
@@ -58,7 +60,7 @@ One of two core classes for the Torque library - it is used to create an animate
 
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss | 
+| ```setCartoCSS(cartocss)``` | ```cartocss string```    | ```this```   | style the map rendering using client-side cartocss (not available with named maps) | 
 
 The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation](CartoCSS.md). ``value`` and ``zoom`` variables can be used. ``value`` is the value of aggregation (see ``countby`` constructor option). ``zoom`` is the current zoom being rendered
 
@@ -87,7 +89,8 @@ This should be ```string``` encoded in Javascript.
 ### Data methods
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
-| ```setSQL(sql statement)``` | ```SQL string```    | ```this```   | Change the SQL on the data table | 
+| ```setSQL(sql statement)``` | ```SQL string```    | ```this```   | Change the SQL on the data table (not available with named maps) | 
+| ```error(callback)``` | ```callback function with a list of errors as argument```    | ```this```   | specifies a callback function to run if there are query errors | 
 
 ##### SQL Example
 
@@ -100,8 +103,43 @@ torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
 | Method    | options    | returns   | Description                            |
 |-----------|:-----------|:----------|:---------------------------------------|
 | ```getValueForPos(x, y[, step])```| | an object like { bbox:[], value: VALUE } if there is value for the pos, null otherwise | allows to get the value for the coordinate (in map reference system) for a concrete step. If step is not specified the animation one is used. This method is expensive in terms of CPU so be careful. It returns the value from the raster data not the rendered data |
+| ```getValueForBBox(xstart, ystart, xend, yend)```| | a number | returns an accumulated numerical value from all the torque areas within the specified bounds |
 | ```getActivePointsBBox(step)```|  | list of bbox | returns the list of bounding boxes active for ``step``
 | ```invalidate()```|  | | forces a reload of the layer data.
+
+### Interaction methods (only available for Leaflet)
+| Method    | options    | returns   | Description                            |
+|-----------|:-----------|:----------|:---------------------------------------|
+| ```getActivePointsBBox(step)```|  | list of bbox | returns the list of bounding boxes active for ``step``
+| ```invalidate()```|  | | forces a reload of the layer data.
+
+
+### Events
+Events in Torque follow the format:
+```js
+torqueLayer.on('event-type', function([callback_obj]) {
+    // do something
+});
+```
+
+| Events    | callback object   | Description                            |
+|-----------|:----------|:---------------------------------------|
+| ```change:steps```| current step | When a map changes steps, this event is triggered |
+| ```change:time```| current time, step number | When a map changes time, this event is triggered |
+| ```play```|   none      | Triggered when the Torque layer is played  |
+| ```pause```|     none      | Triggered when the Torque layer is paused |
+| ```stop```|   none     | Triggered when the Torque layer is stopped |
+| ```load```| none        | Triggered when the Torque layer is loaded |
+
+##### Event Example
+
+Print the current step to the console log.
+```js
+torqueLayer.on('change:steps', function(step) {
+    // do something with step
+    console.log("Current step is " + step);
+});
+```
 
 
 # Google Maps Layers
