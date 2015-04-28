@@ -16,7 +16,7 @@
       // define the torque layer style using cartocss
       var CARTOCSS = [
           'Map {',
-          '-torque-time-attribute: "cartodb_id";',
+          '-torque-time-attribute: "postedtime";',
           '-torque-aggregation-function: "count(cartodb_id)";',
           '-torque-frame-count: 512;',
           '-torque-animation-duration: 15;',
@@ -40,17 +40,17 @@
         
       var map = new L.Map('map', {
         zoomControl: true,
-        center: [41.65649719441145,-73.3447265625],
-        zoom: 6
+        center: [40.3130432088809, -98.0859375],
+        zoom: 4
       });
 
-      L.tileLayer('http://{s}.api.cartocdn.com/base-light/{z}/{x}/{y}.png', {
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
         user       : 'fdansv',
-        table      : 'snow',
+        table      : 'twitter_jeremyclarkson_clarksonsacked_',
         cartocss: CARTOCSS
       });
       torqueLayer.error(function(err){
