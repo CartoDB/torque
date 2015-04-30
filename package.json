@@ -1,46 +1,49 @@
 {
-    "name": "torque.js",
-    "version": "2.11.1",
-    "description": "Torque javascript library",
-    "repository": {
-        "type": "git",
-        "url": "git://github.com/CartoDB/torque.git"
-    },
-    "author": {
-        "name": "CartoDB",
-        "url": "http://cartodb.com/",
-        "email": "wadus@cartodb.com"
-    },
-    "contributors": [
-        "Andrew Hill <andrew@vizzuality.com>",
-        "Simon Tokumine <tokumine@google.com>",
-        "Javier Alvarez <jmedina@vizzuality.com>",
-        "Javier Arce <javierarce@vizzuality.com>",
-        "Javier Santana <jsantana@vizzuality.com>",
-        "Raúl Ochoa <rochoa@cartodb.com>",
-        "Nicklas Gummesson <nicklas@cartodb.com>",
-        "Francisco Dans <francisco@cartodb.com>"
-    ],
-    "licenses": [{
+  "name": "torque.js",
+  "version": "2.11.1",
+  "description": "Torque javascript library",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/CartoDB/torque.git"
+  },
+  "author": {
+    "name": "CartoDB",
+    "url": "http://cartodb.com/",
+    "email": "wadus@cartodb.com"
+  },
+  "contributors": [
+    "Andrew Hill <andrew@vizzuality.com>",
+    "Simon Tokumine <tokumine@google.com>",
+    "Javier Alvarez <jmedina@vizzuality.com>",
+    "Javier Arce <javierarce@vizzuality.com>",
+    "Javier Santana <jsantana@vizzuality.com>",
+    "Raúl Ochoa <rochoa@cartodb.com>",
+    "Nicklas Gummesson <nicklas@cartodb.com>",
+    "Francisco Dans <francisco@cartodb.com>"
+  ],
+  "licenses": [
+    {
       "type": "BSD"
-    }],
-    "dependencies": {
-        "carto": "https://github.com/CartoDB/carto/archive/master.tar.gz"
-    },
-    "devDependencies": {
-      "leaflet": "0.7.3",
-      "underscore": "^1.6.0",
-      "node-qunit-phantomjs": "^1.0.0",
-      "browserify": "^7.0.0",
-      "mapnik": "https://github.com/CartoDB/node-mapnik/tarball/1.4.15-cdb1",
-      "canvas": "~1.2.1",
-      "request": "^2.53.0",
-      "qunit": "~0.7.5",
-      "qunitjs": "1.x",
-      "uglify-js": "1.3.3"
-    },
-    "scripts": {
-        "test": "make test-all"
-    },
-    "main": "./lib/torque/index.js"
+    }
+  ],
+  "dependencies": {
+    "carto": "https://github.com/CartoDB/carto/archive/master.tar.gz",
+    "webworkify": "^1.0.2"
+  },
+  "devDependencies": {
+    "leaflet": "0.7.3",
+    "underscore": "^1.6.0",
+    "node-qunit-phantomjs": "^1.0.0",
+    "browserify": "^7.0.0",
+    "mapnik": "https://github.com/CartoDB/node-mapnik/tarball/1.4.15-cdb1",
+    "canvas": "~1.2.1",
+    "request": "^2.53.0",
+    "qunit": "~0.7.5",
+    "qunitjs": "1.x",
+    "uglify-js": "1.3.3"
+  },
+  "scripts": {
+    "test": "make test-all"
+  },
+  "main": "./lib/torque/index.js"
 }
