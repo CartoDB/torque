@@ -18,9 +18,9 @@
           'Map {',
           '-torque-time-attribute: "postedtime";',
           '-torque-aggregation-function: "count(cartodb_id)";',
-          '-torque-frame-count: 512;',
-          '-torque-animation-duration: 15;',
-          '-torque-resolution: 10',
+          '-torque-frame-count: 1024;',
+          '-torque-animation-duration: 30;',
+          '-torque-resolution: 2',
           //'-torque-data-aggregation:cumulative;',
           '}',
           '#layer {',
@@ -40,8 +40,8 @@
         
       var map = new L.Map('map', {
         zoomControl: true,
-        center: [40.3130432088809, -98.0859375],
-        zoom: 4
+        center: [54.1109429427243, -2.724609375],
+        zoom: 6
       });
 
       L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
