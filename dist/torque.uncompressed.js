@@ -1587,7 +1587,8 @@ GMapsTorqueLayer.prototype = torque.extend({},
   providers: {
     'sql_api': torque.providers.json,
     'url_template': torque.providers.JsonArray,
-    'windshaft': torque.providers.windshaft
+    'windshaft': torque.providers.windshaft,
+    'splunk': torque.providers.splunk
   },
 
   renderers: {
@@ -1971,7 +1972,7 @@ module.exports.GMapsTileLoader = gmaps.GMapsTileLoader;
 module.exports.GMapsTorqueLayer = gmaps.GMapsTorqueLayer;
 module.exports.GMapsTiledTorqueLayer = gmaps.GMapsTiledTorqueLayer;
 
-},{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":23,"./request":27}],11:[function(require,module,exports){
+},{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":24,"./request":28}],11:[function(require,module,exports){
 require('./leaflet_tileloader_mixin');
 
 /**
@@ -2392,7 +2393,8 @@ L.TorqueLayer = L.CanvasLayer.extend({
   providers: {
     'sql_api': torque.providers.json,
     'url_template': torque.providers.JsonArray,
-    'windshaft': torque.providers.windshaft
+    'windshaft': torque.providers.windshaft,
+    'splunk': torque.providers.splunk
   },
 
   renderers: {
@@ -2401,6 +2403,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
   },
 
   initialize: function(options) {
+
     var self = this;
     if (!torque.isBrowserSupported()) {
       throw new Error("browser is not supported by torque");
@@ -2448,6 +2451,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     this.options.provider = this.options.provider || 'windshaft';
 
     options.ready = function() {
+      
       self.fire("change:bounds", {
         bounds: self.provider.getBounds()
       });
@@ -2460,6 +2464,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     };
 
     this.provider = new this.providers[this.options.provider](options);
+
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), options);
 
     this.renderer.on("allIconsLoaded", this.render.bind(this));
@@ -2467,7 +2472,10 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     // for each tile shown on the map request the data
     this.on('tileAdded', function(t) {
+ 
       var tileData = this.provider.getTileData(t, t.zoom, function(tileData) {
+
+     
         // don't load tiles that are not being shown
         if (t.zoom !== self._map.getZoom()) return;
         self._tileLoaded(t, tileData);
@@ -3066,10 +3074,11 @@ module.exports = Profiler;
 module.exports = {
     json: require('./json'),
     JsonArray: require('./jsonarray'),
-    windshaft: require('./windshaft')
+    windshaft: require('./windshaft'),
+    splunk: require('./splunk')
 };
 
-},{"./json":19,"./jsonarray":20,"./windshaft":21}],19:[function(require,module,exports){
+},{"./json":19,"./jsonarray":20,"./splunk":21,"./windshaft":22}],19:[function(require,module,exports){
 var torque = require('../');
 var Profiler = require('../profiler');
 
@@ -3898,6 +3907,614 @@ var Profiler = require('../profiler');
     return str;
   }
 
+
+
+  var splunk = function (options) {
+
+    this._ready = false;
+    this._tileQueue = [];
+    this.options = options;
+
+    this.options.is_time = this.options.is_time === undefined ? true: this.options.is_time;
+    this.options.tiler_protocol = options.tiler_protocol || 'http';
+    this.options.tiler_domain = options.tiler_domain || 'cartodb.com';
+    this.options.tiler_port = options.tiler_port || 80;
+
+    // backwards compatible
+    if (!options.maps_api_template) {
+      this._buildMapsApiTemplate(this.options);
+    } else {
+      this.options.maps_api_template =  options.maps_api_template;
+    }
+
+    this.options.coordinates_data_type = this.options.coordinates_data_type || Uint8Array;
+
+    if (this.options.data_aggregation) {
+      this.options.cumulative = this.options.data_aggregation === 'cumulative';
+    }
+    if (this.options.auth_token) {
+      var e = this.options.extra_params || (this.options.extra_params = {});
+      e.auth_token = this.options.auth_token;
+    }
+    if (!this.options.no_fetch_map) {
+      this._fetchMap();
+    }
+  };
+
+  splunk.prototype = {
+
+    /**
+     * return the torque tile encoded in an efficient javascript
+     * structure:
+     * {
+     *   x:Uint8Array x coordinates in tile reference system, normally from 0-255
+     *   y:Uint8Array y coordinates in tile reference system
+     *   Index: Array index to the properties
+     * }
+     */
+    proccessTile: function(rows, coord, zoom) {
+      var r;
+      var x = new this.options.coordinates_data_type(rows.length);
+      var y = new this.options.coordinates_data_type(rows.length);
+
+      var prof_mem = Profiler.metric('torque.provider.splunk.mem');
+      var prof_point_count = Profiler.metric('torque.provider.splunk.points');
+      var prof_process_time = Profiler.metric('torque.provider.splunk.process_time').start();
+
+      // count number of dates
+      var dates = 0;
+      var maxDateSlots = -1;
+      for (r = 0; r < rows.length; ++r) {
+        var row = rows[r];
+        dates += row.dates__uint16.length;
+        for(var d = 0; d < row.dates__uint16.length; ++d) {
+          maxDateSlots = Math.max(maxDateSlots, row.dates__uint16[d]);
+        }
+      }
+
+      if(this.options.cumulative) {
+        dates = (1 + maxDateSlots) * rows.length;
+      }
+
+      var type = this.options.cumulative ? Uint32Array: Uint8ClampedArray;
+
+      // reserve memory for all the dates
+      var timeIndex = new Int32Array(maxDateSlots + 1); //index-size
+      var timeCount = new Int32Array(maxDateSlots + 1);
+      var renderData = new (this.options.valueDataType || type)(dates);
+      var renderDataPos = new Uint32Array(dates);
+
+      prof_mem.inc(
+        4 * maxDateSlots + // timeIndex
+        4 * maxDateSlots + // timeCount
+        dates + //renderData
+        dates * 4
+      ); //renderDataPos
+
+      prof_point_count.inc(rows.length);
+
+      var rowsPerSlot = {};
+
+      // precache pixel positions
+      for (var r = 0; r < rows.length; ++r) {
+        var row = rows[r];
+        x[r] = row.x__uint8 * this.options.resolution;
+        y[r] = row.y__uint8 * this.options.resolution;
+
+        var dates = row.dates__uint16;
+        var vals = row.vals__uint8;
+        if (!this.options.cumulative) {
+          for (var j = 0, len = dates.length; j < len; ++j) {
+              var rr = rowsPerSlot[dates[j]] || (rowsPerSlot[dates[j]] = []);
+              if(this.options.cumulative) {
+                  vals[j] += prev_val;
+              }
+              prev_val = vals[j];
+              rr.push([r, vals[j]]);
+          }
+        } else {
+          var valByDate = {}
+          for (var j = 0, len = dates.length; j < len; ++j) {
+            valByDate[dates[j]] = vals[j];
+          }
+          var accum = 0;
+
+          // extend the latest to the end
+          for (var j = dates[0]; j <= maxDateSlots; ++j) {
+              var rr = rowsPerSlot[j] || (rowsPerSlot[j] = []);
+              var v = valByDate[j];
+              if (v) {
+                accum += v;
+              }
+              rr.push([r, accum]);
+          }
+
+          /*var lastDateSlot = dates[dates.length - 1];
+          for (var j = lastDateSlot + 1; j <= maxDateSlots; ++j) {
+            var rr = rowsPerSlot[j] || (rowsPerSlot[j] = []);
+            rr.push([r, prev_val]);
+          }
+          */
+        }
+
+      }
+
+      // for each timeslot search active buckets
+      var renderDataIndex = 0;
+      var timeSlotIndex = 0;
+      var i = 0;
+      for(var i = 0; i <= maxDateSlots; ++i) {
+        var c = 0;
+        var slotRows = rowsPerSlot[i]
+        if(slotRows) {
+          for (var r = 0; r < slotRows.length; ++r) {
+            var rr = slotRows[r];
+            ++c;
+            renderDataPos[renderDataIndex] = rr[0]
+            renderData[renderDataIndex] = rr[1];
+            ++renderDataIndex;
+          }
+        }
+        timeIndex[i] = timeSlotIndex;
+        timeCount[i] = c;
+        timeSlotIndex += c;
+      }
+
+      prof_process_time.end();
+
+      return {
+        x: x,
+        y: y,
+        z: zoom,
+        coord: {
+          x: coord.x,
+          y: coord.y,
+          z: zoom
+        },
+        timeCount: timeCount,
+        timeIndex: timeIndex,
+        renderDataPos: renderDataPos,
+        renderData: renderData,
+        maxDate: maxDateSlots
+      };
+    },
+
+    /*setCartoCSS: function(c) {
+      this.options.cartocss = c;
+    },*/
+
+    setSteps: function(steps, opt) { 
+      opt = opt || {};
+      if (this.options.steps !== steps) {
+        this.options.steps = steps;
+        this.options.step = (this.options.end - this.options.start)/this.getSteps();
+        this.options.step = this.options.step || 1;
+        if (!opt.silent) this.reload();
+      }
+    },
+
+    setOptions: function(opt) {
+      var refresh = false;
+
+      if(opt.resolution !== undefined && opt.resolution !== this.options.resolution) {
+        this.options.resolution = opt.resolution;
+        refresh = true;
+      }
+
+      if(opt.steps !== undefined && opt.steps !== this.options.steps) {
+        this.setSteps(opt.steps, { silent: true });
+        refresh = true;
+      }
+
+      if(opt.column !== undefined && opt.column !== this.options.column) {
+        this.options.column = opt.column;
+        refresh = true;
+      }
+
+      if(opt.countby !== undefined && opt.countby !== this.options.countby) {
+        this.options.countby = opt.countby;
+        refresh = true;
+      }
+
+      if(opt.data_aggregation !== undefined) {
+        var c = opt.data_aggregation === 'cumulative';
+        if (this.options.cumulative !== c) {
+          this.options.cumulative = c;
+          refresh = true;
+        }
+      }
+
+      if (refresh) this.reload();
+      return refresh;
+    },
+
+    _extraParams: function(e) {
+      e = torque.extend(torque.extend({}, e), this.options.extra_params);
+      if (e) {
+        var p = [];
+        for(var k in e) {
+          var v = e[k];
+          if (v) {
+            if (torque.isArray(v)) {
+              for (var i = 0, len = v.length; i < len; i++) {
+                p.push(k + "[]=" + encodeURIComponent(v[i]));
+              }
+            } else {
+              p.push(k + "=" + encodeURIComponent(v));
+            }
+          }
+        }
+        return p.join('&');
+      }
+      return null;
+    },
+
+    getTileData: function(coord, zoom, callback) {
+      if(!this._ready) {
+  
+        this._tileQueue.push([coord, zoom, callback]);
+      } else {
+    
+        this._getTileData(coord, zoom, callback);
+      }
+    },
+
+    _setReady: function(ready) {
+      this._ready = true;
+      this._processQueue();
+      this.options.ready && this.options.ready();
+    },
+
+    _processQueue: function() {
+      var item;
+      while (item = this._tileQueue.pop()) {
+        this._getTileData.apply(this, item);
+      }
+    },
+
+    /**
+     * `coord` object like {x : tilex, y: tiley }
+     * `zoom` quadtree zoom level
+     */
+    _getTileData: function(coord, zoom, callback) {
+    
+       
+
+      var self = this;
+      // var prof_fetch_time = Profiler.metric('torque.provider.splunk.tile.fetch').start();
+      // var subdomains = this.options.subdomains || '0123';
+      // var limit_x = Math.pow(2, zoom);
+      // var corrected_x = ((coord.x % limit_x) + limit_x) % limit_x;
+      // var index = Math.abs(corrected_x + coord.y) % subdomains.length;
+      // var url = this.templateUrl
+      //           .replace('{x}', corrected_x)
+      //           .replace('{y}', coord.y)
+      //           .replace('{z}', zoom)
+      //           .replace('{s}', subdomains[index])
+
+      // var extra = this._extraParams();
+      // torque.net.get( url + (extra ? "?" + extra: ''), function (data) {
+      //   console.log(data);
+      //   prof_fetch_time.end();
+
+      getSplunkData(function(data){
+    
+        var tile = parseData(data);
+       
+        if (tile) {
+          var rows = tile;
+
+          console.log(rows);
+
+          callback(self.proccessTile(rows, coord, zoom));
+        } else {
+          Profiler.metric('torque.provider.splunk.tile.error').inc();
+          callback(null);
+        }
+      })
+
+
+    function getSplunkData(callback) {
+    var query = 'search source="earthquake2.csv" lat>-90 lat<90 | bucket _time span=1010384s | geostats count by _time binspanlat=1.40625 binspanlong=2.8125 maxzoomlevel=0 globallimit=129',
+
+
+    // var query = 'search source="torquetest.csv" lat>-90 lat<90 | bucket _time span=1d | geostats count by _time binspanlat=1.40625 binspanlong=2.8125 maxzoomlevel=0 globallimit=128',
+
+    queryString = 'search=' + query + '&output_mode=json'
+
+
+
+  
+
+    $.ajax({
+        type: "POST",
+        crossDomain: true,
+        url: "https://localhost:8089/servicesNS/admin/search/search/jobs/export",
+        username: 'admin',
+        password: 'cartodb',
+        dataType: 'text',
+        data: queryString,
+        success: callback,
+        beforeSend: function(xhr) {
+          xhr.setRequestHeader(
+              'Authorization',
+              'Basic ' + window.btoa(unescape(encodeURIComponent('admin' + ':' + 'cartodb')))
+          )
+        }
+      });
+    }
+
+
+    function parseData(data) {
+        data = '[' + data.split('}}').join('}},').replace(/,\s*$/, "") + ']';
+
+        data = JSON.parse(data);
+       
+
+        var torqueTile = [];
+
+        data.forEach(function(box) {
+            var b = box.result;
+            // define rectangle geographical bounds bottomleftlatlng, toprightlatlng
+            //var bounds = [[54.559322, -5.767822], [56.1210604, -3.021240]];
+            // var bounds = [[b._geo_bounds_south,b._geo_bounds_west],[b._geo_bounds_north,b._geo_bounds_east]];
+
+            // // create an orange rectangle
+            // L.rectangle(bounds, {color: "#ff7800", weight: 1, geobin: b.geobin})
+            // .on('mouseover',function(e){
+                
+            //     $('#note').html(e.target.options.geobin)
+            // })
+            // .addTo(map);
+
+            //transform each geobin to a valid torque bin and push to torqeTile array.
+            
+            torqueTile.push(torqueTransform(b)); 
+            
+            function torqueTransform(bin){
+              var binSpan = 1010384; //hard coded to figure out step from unixtimestamp, TODO figure out how we will deal with the time range and bin span
+              var torqueBin = new Object;
+
+            
+
+              //first parse out the x and y offsets
+              var split = bin.geobin.split('_');
+              torqueBin.x__uint8 = parseInt(split[7]);
+              torqueBin.y__uint8 = parseInt(split[5]);
+
+              //next translate timestamps into time offsets
+              var dates = [],
+                  vals = [];
+              for (var key in bin) {
+                  if(/^\d+$/.test(key)) { //only use keys that are numbers
+                      var step = Math.floor((key-1261969616)/binSpan); 
+                      dates.push(step); 
+                      vals.push(parseInt(bin[key]));
+                  }      
+              }
+
+              torqueBin.vals__uint8 = vals;
+              torqueBin.dates__uint16 = dates;
+
+
+              return torqueBin;
+
+          }
+
+        });
+
+
+        return torqueTile;
+    }
+        
+    
+    },
+
+
+
+    getKeySpan: function() {
+      return {
+        start: this.options.start,
+        end: this.options.end,
+        step: this.options.step,
+        steps: this.options.steps,
+        columnType: this.options.column_type
+      };
+    },
+
+    setColumn: function(column, isTime) {
+      this.options.column = column;
+      this.options.is_time = isTime === undefined ? true: false;
+      this.reload();
+    },
+
+    reload: function() {
+      this._ready = false;
+      this._fetchMap();
+    },
+
+    getSteps: function() {
+      return Math.min(this.options.steps, this.options.data_steps);
+    },
+
+    getBounds: function() {
+      return this.options.bounds;
+    },
+
+    getSQL: function() {
+      return this.options.sql || "select * from " + this.options.table;
+    },
+
+    setSQL: function(sql) {
+      if (this.options.sql != sql) {
+        this.options.sql = sql;
+        this.reload();
+      }
+    },
+
+    _buildMapsApiTemplate: function(opts) {
+       var user = opts.user_name || opts.user;
+       opts.maps_api_template = opts.tiler_protocol +
+           "://" + ((user) ? "{user}.":"")  +
+           opts.tiler_domain +
+           ((opts.tiler_port != "") ? (":" + opts.tiler_port) : "");
+    },
+
+    _tilerHost: function() {
+      var opts = this.options;
+      var user = opts.user_name || opts.user;
+      return opts.maps_api_template.replace('{user}', user);
+    },
+
+    url: function () {
+      var opts = this.options;
+      var cdn_host = opts.cdn_url;
+      var has_empty_cdn = !cdn_host || (cdn_host && (!cdn_host.http && !cdn_host.https));
+
+      if (opts.no_cdn || has_empty_cdn) {
+        return this._tilerHost();
+      } else {
+        var protocol = this.isHttps() ? 'https': 'http';
+        var h = protocol + "://";
+        if (!this.isHttps()) {
+          h += "{s}.";
+        }
+        var cdn_url = cdn_host[protocol];
+        // build default template url if the cdn url is not templatized
+        // this is for backwards compatiblity, ideally we should use the url
+        // that tiler sends to us right away
+        if (!this._isUserTemplateUrl(cdn_url)) {
+          cdn_url = cdn_url  + "/{user}";
+        }
+        var user = opts.user_name || opts.user;
+        h += cdn_url.replace('{user}', user)
+        return h;
+      }
+
+    },
+
+    _isUserTemplateUrl: function(t) {
+      return t && t.indexOf('{user}') !== -1;
+    },
+
+    isHttps: function() {
+      return this.options.maps_api_template.indexOf('https') === 0;
+    },
+
+    _generateCartoCSS: function() {
+      var attr = {
+        '-torque-frame-count': this.options.steps,
+        '-torque-resolution': this.options.resolution,
+        '-torque-aggregation-function': "'" + this.options.countby + "'",
+        '-torque-time-attribute': "'" + this.options.column + "'",
+        '-torque-data-aggregation': this.options.cumulative ? 'cumulative': 'linear',
+      };
+      var st = 'Map{';
+      for (var k in attr) {
+        st += k + ":" + attr[k] + ";";
+      }
+      return st + "}";
+    },
+
+    // _fetchMap: function(callback) {
+      
+    //       var opt = {start: 1262311701000, end: 1391640787000, data_steps: 8247, column_type: "date"};
+
+    //       for(var k in opt) {
+    //         this.options[k] = opt[k];
+    //       }
+         
+    //       console.log(this.options);
+
+    //       this._setReady(true);
+    // },
+    _fetchMap: function(callback) {
+    
+      var self = this;
+      var layergroup = {};
+      var host = this.options.dynamic_cdn ? this.url().replace('{s}', '0'): this._tilerHost();
+      var url = host + "/api/v1/map";
+      var named = this.options.named_map;
+      var allParams = {};
+
+      if(named) {
+        //tiles/template
+        url = host + "/api/v1/map/named/" + named.name + "/jsonp";
+        if(typeof named.params !== "undefined"){
+          layergroup = named.params;
+        }
+      } else {
+        layergroup = {
+          "version": "1.0.1",
+          "stat_tag": this.options.stat_tag || 'torque',
+          "layers": [{
+            "type": "torque",
+            "options": {
+              "cartocss_version": "1.0.0",
+              "cartocss": this._generateCartoCSS(),
+              "sql": this.getSQL()
+            }
+          }]
+        };
+      }
+      
+      if(this.options.stat_tag){
+        allParams["stat_tag"] = this.options.stat_tag;
+      }
+
+      extra = this._extraParams(allParams);
+
+      // tiler needs map_key instead of api_key
+      // so replace it
+      if (extra) {
+        extra = extra.replace('api_key=', 'map_key=');
+      }
+
+      url = url +
+        "?config=" + encodeURIComponent(JSON.stringify(layergroup)) +
+        "&callback=?" + (extra ? "&" + extra: '');
+
+      var map_instance_time = Profiler.metric('torque.provider.windshaft.layergroup.time').start();
+ 
+      // var opt = {start: 1000, end: 5000, data_steps: 5, column_type: "number"}; 
+
+      var opt = {start: 1262311701000, end: 1391640787000, data_steps: 8247, column_type: "date"};
+         
+      for(var k in opt) {
+        self.options[k] = opt[k];
+      }
+
+      setTimeout(function(){
+        self._setReady(true);
+      },500)
+
+    }
+
+
+  };
+
+  module.exports = splunk;
+
+},{"../":10,"../profiler":17}],22:[function(require,module,exports){
+  var torque = require('../');
+  var Profiler = require('../profiler');
+
+  var Uint8Array = torque.types.Uint8Array;
+  var Int32Array = torque.types.Int32Array;
+  var Uint32Array = torque.types.Uint32Array;
+  var Uint8ClampedArray = torque.types.Uint8ClampedArray;
+
+  // format('hello, {0}', 'rambo') -> "hello, rambo"
+  function format(str) {
+    for(var i = 1; i < arguments.length; ++i) {
+      var attrs = arguments[i];
+      for(var attr in attrs) {
+        str = str.replace(RegExp('\\{' + attr + '\\}', 'g'), attrs[attr]);
+      }
+    }
+    return str;
+  }
+
   var windshaft = function (options) {
     this._ready = false;
     this._tileQueue = [];
@@ -4180,6 +4797,7 @@ var Profiler = require('../profiler');
         prof_fetch_time.end();
         if (data && data.responseText) {
           var rows = JSON.parse(data.responseText);
+          console.log(rows);
           callback(self.proccessTile(rows, coord, zoom));
         } else {
           Profiler.metric('torque.provider.windshaft.tile.error').inc();
@@ -4214,6 +4832,8 @@ var Profiler = require('../profiler');
     },
 
     getBounds: function() {
+      console.log("bounds");
+      console.log(this.options.bounds)
       return this.options.bounds;
     },
 
@@ -4293,6 +4913,7 @@ var Profiler = require('../profiler');
     },
 
     _fetchMap: function(callback) {
+    
       var self = this;
       var layergroup = {};
       var host = this.options.dynamic_cdn ? this.url().replace('{s}', '0'): this._tilerHost();
@@ -4347,9 +4968,11 @@ var Profiler = require('../profiler');
           }
           var torque_key = Object.keys(data.metadata.torque)[0]
           var opt = data.metadata.torque[torque_key];
+         
           for(var k in opt) {
             self.options[k] = opt[k];
           }
+          console.log(self.options);
           // use cdn_url if present
           if (data.cdn_url) {
             var c = self.options.cdn_url = self.options.cdn_url || {};
@@ -4368,7 +4991,7 @@ var Profiler = require('../profiler');
 
   module.exports = windshaft;
 
-},{"../":10,"../profiler":17}],22:[function(require,module,exports){
+},{"../":10,"../profiler":17}],23:[function(require,module,exports){
   var TAU = Math.PI*2;
   // min value to render a line. 
   // it does not make sense to render a line of a width is not even visible
@@ -4459,13 +5082,13 @@ module.exports = {
     renderRectangle: renderRectangle
 };
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 module.exports = {
     cartocss: require('./cartocss_render'),
     Point: require('./point'),
     Rectangle: require('./rectangle')
 };
-},{"./cartocss_render":22,"./point":24,"./rectangle":25}],24:[function(require,module,exports){
+},{"./cartocss_render":23,"./point":25,"./rectangle":26}],25:[function(require,module,exports){
 (function (global){
 var torque = require('../');
 var cartocss = require('./cartocss_render');
@@ -4916,7 +5539,7 @@ var Filters = require('./torque_filters');
 module.exports = PointRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"../profiler":17,"./cartocss_render":22,"./torque_filters":26,"carto":undefined}],25:[function(require,module,exports){
+},{"../":10,"../profiler":17,"./cartocss_render":23,"./torque_filters":27,"carto":undefined}],26:[function(require,module,exports){
 (function (global){
 var carto = global.carto || require('carto');
 
@@ -5080,7 +5703,7 @@ var carto = global.carto || require('carto');
 module.exports = RectanbleRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":undefined}],26:[function(require,module,exports){
+},{"carto":undefined}],27:[function(require,module,exports){
 /*
  Based on simpleheat, a tiny JavaScript library for drawing heatmaps with Canvas, 
  by Vladimir Agafonkin
@@ -5172,7 +5795,7 @@ torque_filters.prototype = {
 
 module.exports = torque_filters;
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (global){
 var torque = require('./core');
 
