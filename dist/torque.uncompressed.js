@@ -669,6 +669,7 @@ module.exports.TorqueLayer = TorqueLayer;
   // types
   var types = {
     Uint8Array: typeof(global['Uint8Array']) !== 'undefined' ? global.Uint8Array : Array,
+    Uint8ClampedArray: typeof(global['Uint8ClampedArray']) !== 'undefined' ? global.Uint8ClampedArray: Array,
     Uint32Array: typeof(global['Uint32Array']) !== 'undefined' ? global.Uint32Array : Array,
     Int16Array: typeof(global['Int16Array']) !== 'undefined' ? global.Int16Array : Array,
     Int32Array: typeof(global['Int32Array']) !== 'undefined' ? global.Int32Array: Array
@@ -1613,6 +1614,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
 
     this.provider = new this.providers[this.options.provider](this.options);
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), this.options);
+    this.renderer.options.errorCallback = this.options.errorCallback;
 
     // this listener should be before tile loader
     this._cacheListener = google.maps.event.addListener(this.options.map, 'zoom_changed', function() {
@@ -1643,6 +1645,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   setSQL: function(sql) {
+    if (this.provider.options.named_map) throw new Error("SQL queries on named maps are read-only");
     if (!this.provider || !this.provider.setSQL) {
       throw new Error("this provider does not support SQL");
     }
@@ -1787,6 +1790,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
    * set the cartocss for the current renderer
    */
   setCartoCSS: function(cartocss) {
+    if (this.provider.options.named_map) throw new Error("CartoCSS style on named maps is read-only");
     var shader = new carto.RendererJS().render(cartocss);
     this.shader = shader;
     if (this.renderer) {
@@ -1815,6 +1819,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   onRemove: function() {
+    this.fire('remove');
     CanvasLayer.prototype.onRemove.call(this);
     this.animator.stop();
     this._removeTileLoader();
@@ -1855,6 +1860,11 @@ GMapsTorqueLayer.prototype = torque.extend({},
       }
     }
     return sum;
+  },
+  
+  error: function (callback) {
+    this.options.errorCallback = callback;
+    return this;
   }
 
 });
@@ -2135,6 +2145,11 @@ L.CanvasLayer = L.Class.extend({
 
   addTo: function (map) {
     map.addLayer(this);
+    return this;
+  },
+
+  error: function (callback) {
+    this.provider.options.errorCallback = callback;
     return this;
   },
 
@@ -2493,6 +2508,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
   },
 
   onRemove: function(map) {
+    this.fire('remove');
     this._removeTileLoader();
     map.off({
       'zoomend': this._clearCaches,
@@ -2533,6 +2549,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
   },
 
   setSQL: function(sql) {
+    if (this.provider.options.named_map) throw new Error("SQL queries on named maps are read-only");
     if (!this.provider || !this.provider.setSQL) {
       throw new Error("this provider does not support SQL");
     }
@@ -2693,6 +2710,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
    * set the cartocss for the current renderer
    */
   setCartoCSS: function(cartocss) {
+    if (this.provider.options.named_map) throw new Error("CartoCSS style on named maps is read-only");
     if (!this.renderer) throw new Error('renderer is not valid');
     var shader = new carto.RendererJS().render(cartocss);
     this.renderer.setShader(shader);
@@ -3867,6 +3885,7 @@ var Profiler = require('../profiler');
   var Uint8Array = torque.types.Uint8Array;
   var Int32Array = torque.types.Int32Array;
   var Uint32Array = torque.types.Uint32Array;
+  var Uint8ClampedArray = torque.types.Uint8ClampedArray;
 
   // format('hello, {0}', 'rambo') -> "hello, rambo"
   function format(str) {
@@ -3879,7 +3898,7 @@ var Profiler = require('../profiler');
     return str;
   }
 
-  var json = function (options) {
+  var windshaft = function (options) {
     this._ready = false;
     this._tileQueue = [];
     this.options = options;
@@ -3888,6 +3907,13 @@ var Profiler = require('../profiler');
     this.options.tiler_protocol = options.tiler_protocol || 'http';
     this.options.tiler_domain = options.tiler_domain || 'cartodb.com';
     this.options.tiler_port = options.tiler_port || 80;
+
+    // backwards compatible
+    if (!options.maps_api_template) {
+      this._buildMapsApiTemplate(this.options);
+    } else {
+      this.options.maps_api_template =  options.maps_api_template;
+    }
 
     this.options.coordinates_data_type = this.options.coordinates_data_type || Uint8Array;
 
@@ -3903,7 +3929,7 @@ var Profiler = require('../profiler');
     }
   };
 
-  json.prototype = {
+  windshaft.prototype = {
 
     /**
      * return the torque tile encoded in an efficient javascript
@@ -3938,7 +3964,7 @@ var Profiler = require('../profiler');
         dates = (1 + maxDateSlots) * rows.length;
       }
 
-      var type = this.options.cumulative ? Uint32Array: Uint8Array;
+      var type = this.options.cumulative ? Uint32Array: Uint8ClampedArray;
 
       // reserve memory for all the dates
       var timeIndex = new Int32Array(maxDateSlots + 1); //index-size
@@ -4202,31 +4228,53 @@ var Profiler = require('../profiler');
       }
     },
 
-    _tilerHost: function() {
-      var opts = this.options;
-      var user = (opts.user_name || opts.user);
-      return opts.tiler_protocol +
-           "://" + (user ? user + "." : "")  +
+    _buildMapsApiTemplate: function(opts) {
+       var user = opts.user_name || opts.user;
+       opts.maps_api_template = opts.tiler_protocol +
+           "://" + ((user) ? "{user}.":"")  +
            opts.tiler_domain +
            ((opts.tiler_port != "") ? (":" + opts.tiler_port) : "");
     },
 
-    url: function() {
+    _tilerHost: function() {
       var opts = this.options;
-      var protocol = opts.tiler_protocol || 'http';
-      if (!this.options.cdn_url || this.options.no_cdn) {
-        return this._tilerHost();
-      }
-      var h = protocol + "://"
-      if (protocol === 'http') {
-        h += "{s}.";
-      }
+      var user = opts.user_name || opts.user;
+      return opts.maps_api_template.replace('{user}', user);
+    },
+
+    url: function () {
+      var opts = this.options;
       var cdn_host = opts.cdn_url;
-      if(!cdn_host.http && !cdn_host.https) {
-        throw new Error("cdn_host should contain http and/or https entries");
+      var has_empty_cdn = !cdn_host || (cdn_host && (!cdn_host.http && !cdn_host.https));
+
+      if (opts.no_cdn || has_empty_cdn) {
+        return this._tilerHost();
+      } else {
+        var protocol = this.isHttps() ? 'https': 'http';
+        var h = protocol + "://";
+        if (!this.isHttps()) {
+          h += "{s}.";
+        }
+        var cdn_url = cdn_host[protocol];
+        // build default template url if the cdn url is not templatized
+        // this is for backwards compatiblity, ideally we should use the url
+        // that tiler sends to us right away
+        if (!this._isUserTemplateUrl(cdn_url)) {
+          cdn_url = cdn_url  + "/{user}";
+        }
+        var user = opts.user_name || opts.user;
+        h += cdn_url.replace('{user}', user)
+        return h;
       }
-      h += cdn_host[protocol] + "/" + (opts.user_name || opts.user);
-      return h;
+
+    },
+
+    _isUserTemplateUrl: function(t) {
+      return t && t.indexOf('{user}') !== -1;
+    },
+
+    isHttps: function() {
+      return this.options.maps_api_template.indexOf('https') === 0;
     },
 
     _generateCartoCSS: function() {
@@ -4293,6 +4341,10 @@ var Profiler = require('../profiler');
       torque.net.jsonp(url, function (data) {
         map_instance_time.end();
         if (data) {
+          if (data.errors){
+            self.options.errorCallback && self.options.errorCallback(data.errors);
+            return;
+          }
           var torque_key = Object.keys(data.metadata.torque)[0]
           var opt = data.metadata.torque[torque_key];
           for(var k in opt) {
@@ -4314,7 +4366,7 @@ var Profiler = require('../profiler');
 
   };
 
-  module.exports = json;
+  module.exports = windshaft;
 
 },{"../":10,"../profiler":17}],22:[function(require,module,exports){
   var TAU = Math.PI*2;
