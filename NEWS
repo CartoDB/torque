@@ -3,6 +3,7 @@
     - Fixed custom marker-file functionality in Firefox
     - Fixed inertia mismatch of Torque's canvas layer
     - Added opacity get/setter to canvas layer in Google Maps
+    - Fixed issue with `_super` being removed from listeners
 2.11.2
     - Added error handling to Torque
     - Fixed 'remove' event triggering when removing a Torque layer.
