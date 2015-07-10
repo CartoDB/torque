@@ -9,11 +9,72 @@
                 padding: 0;
                 margin: 0;
             }
+            #control {
+                display:none;
+                z-index: 10;
+                position: absolute;
+                left: 10px;
+                bottom: 10px;
+                background: #fff;
+                border-radius: 4px;
+                box-shadow: 0 0 4px rgba(0, 0, 0, .2);
+                padding: 8px;
+                margin: 0;
+                cursor: pointer;
+            }
+            #control:hover {
+                background: #f5f5f5;
+            }
+            #control span {
+                display: block;
+                width: 12px;
+                height: 12px;
+                vertical-align: middle;
+                position:relative
+            }
+            #control span.play:before {
+                content:"";
+                position: absolute;
+                display: block;
+                height: 10px;
+                width: 3px;
+                background: #666;
+                left: 2px;
+                top: 1px;
+                -webkit-border-radius: 4px;
+                -moz-border-radius: 4px;
+                border-radius: 4px;
+            }
+            #control span.play:after {
+                content:"";
+                position: absolute;
+                display: block;
+                height: 10px;
+                width: 3px;
+                background: #666;
+                right: 1px;
+                top: 1px;
+                -webkit-border-radius: 4px;
+                -moz-border-radius: 4px;
+                border-radius: 4px;
+            }
+
+            #control span.pause:before {
+                content:"";
+                position: absolute;
+                display: block;
+                height: 0px;
+                width: 0px;
+                border: 6px solid transparent;
+                border-left: 8px solid #666;
+                left: 3px;
+
+            }
         </style>
     </head>
     <body>
         <input type="file" id="files" name="files" />
-        <div id="map"></div>
+        <div id="map"><div id="control"><span class="play"></span></div></div>
 
         <script src="vendor/leaflet.js"></script>
         <script src="vendor/papaparse.min.js"></script>
@@ -23,8 +84,8 @@
         <script>
             var map = new L.Map('map', {
                 zoomControl: true,
-                center: [40, -100],
-                zoom: 5
+                center: [40, 0],
+                zoom: 6
             });
 
             L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
@@ -101,11 +162,11 @@
                     '}'
             ].join('\n');
 
-            var pointsToLoad = 1000;
+            var pointsToLoad = 50000;
 
             var animationDuration = 60;
-            var steps = pointsToLoad;
-            var cumulative = true;
+            var steps = 2048;
+            var cumulative = false;
             var loop = true;
             var cartocss = CARTOCSS_NORMAL;
 
@@ -127,14 +188,25 @@
                     complete: function (results) {
                         for (var i = 1; i <= pointsToLoad && i < results.data.length; i++) {
                             var point = results.data[i];
-                            torqueLayer.provider.addPoint(point[1], point[0], point[3], point[2]);
+                            torqueLayer.provider.addPoint(point[2], point[1], point[0], point[3]);
                         }
                         torqueLayer.provider.setReady();
+                        document.getElementById('control').style.visibility = "visible";
                         torqueLayer.play();
+
                     }
                 });
             }
             document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+            function handlePlayPause(evt) {
+                if (torqueLayer.isRunning()) {
+                    torqueLayer.pause();
+                } else {
+                    torqueLayer.play();
+                }
+            }
+            document.getElementById('control').addEventListener('click', handlePlayPause, false);
         </script>
     </body>
 </html>
