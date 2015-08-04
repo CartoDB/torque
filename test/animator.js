@@ -13,7 +13,6 @@ QUnit.module('animator', {
 asyncTest('time moves', function(assert) {
 	animator.start();
 	setTimeout(function(){
-		console.log(animator.running);
 		assert.notEqual(animator._time, 0);
 		QUnit.start();
 	}, 100)
