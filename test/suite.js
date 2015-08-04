@@ -7,3 +7,4 @@ require('./provider.jsonarray');
 require('./provider.windshaft.test');
 require('./provider.json');
 require('./request');
+require('./animator');
