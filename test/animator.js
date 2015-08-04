@@ -72,12 +72,12 @@ asyncTest("tick should set time to zero if steps are bigger than range", functio
 });
 
 QUnit.test("tick should pause animation on end if loop is disabled", function(assert){
-	animator.options.loop = false;
 	var done = assert.async();
+	animator.options.loop = false;
 	animator.toggle();
+	animator.step(600);
 	setTimeout(function(){
-		assert.notEqual(animator._time, 0);
+		assert.equal(animator._time,animator.options.animationDuration);
 		done();
-	}, 100)
-	animator.pause();
+	}, 200);
 });
