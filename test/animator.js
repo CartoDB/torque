@@ -70,14 +70,14 @@ test("stop should call onStop", function(assert){
 // 	animator.pause();
 // });
 
-QUnit.test("tick should pause animation on end if loop is disabled", function(assert){
-	animator.options.loop = false;
-	assert.ok(!animator.running);
-	animator.toggle();
-	assert.ok(animator.running);
-	setTimeout(function(){
-		assert.notEqual(animator._time, 0);
-		QUnit.start();
-	}, 100)
-	animator.pause();
-});
+// QUnit.test("tick should pause animation on end if loop is disabled", function(assert){
+// 	animator.options.loop = false;
+// 	assert.ok(!animator.running);
+// 	animator.toggle();
+// 	assert.ok(animator.running);
+// 	setTimeout(function(){
+// 		assert.notEqual(animator._time, 0);
+// 		QUnit.start();
+// 	}, 100)
+// 	animator.pause();
+// });
