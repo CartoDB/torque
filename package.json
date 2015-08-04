@@ -1,28 +1,27 @@
 {
-  "name": "torque.js",
-  "version": "2.11.1",
-  "description": "Torque javascript library",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/CartoDB/torque.git"
-  },
-  "author": {
-    "name": "CartoDB",
-    "url": "http://cartodb.com/",
-    "email": "wadus@cartodb.com"
-  },
-  "contributors": [
-    "Andrew Hill <andrew@vizzuality.com>",
-    "Simon Tokumine <tokumine@google.com>",
-    "Javier Alvarez <jmedina@vizzuality.com>",
-    "Javier Arce <javierarce@vizzuality.com>",
-    "Javier Santana <jsantana@vizzuality.com>",
-    "Raúl Ochoa <rochoa@cartodb.com>",
-    "Nicklas Gummesson <nicklas@cartodb.com>",
-    "Francisco Dans <francisco@cartodb.com>"
-  ],
-  "licenses": [
-    {
+    "name": "torque.js",
+    "version": "2.11.3",
+    "description": "Temporal mapping for CartoDB",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/CartoDB/torque.git"
+    },
+    "author": {
+        "name": "CartoDB",
+        "url": "http://cartodb.com/",
+        "email": "wadus@cartodb.com"
+    },
+    "contributors": [
+        "Andrew Hill <andrew@vizzuality.com>",
+        "Simon Tokumine <tokumine@google.com>",
+        "Javier Alvarez <jmedina@vizzuality.com>",
+        "Javier Arce <javierarce@vizzuality.com>",
+        "Javier Santana <jsantana@vizzuality.com>",
+        "Raúl Ochoa <rochoa@cartodb.com>",
+        "Nicklas Gummesson <nicklas@cartodb.com>",
+        "Francisco Dans <francisco@cartodb.com>"
+    ],
+    "licenses": [{
       "type": "BSD"
     }
   ],
