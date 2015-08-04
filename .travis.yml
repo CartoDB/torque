@@ -2,10 +2,10 @@ language: node_js
 node_js:
   - "0.10"
 addons:
-	apt:
-		packages:
-		- pkg-config
-		- libcairo2-dev
-		- libjpeg8-dev
-		- libgif-dev
+  apt:
+    packages:
+    - pkg-config
+    - libcairo2-dev
+    - libjpeg8-dev
+    - libgif-dev
 sudo: false
