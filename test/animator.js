@@ -26,6 +26,12 @@ test("rescale should resume animation if previously playing", function(assert){
 	animator.pause()
 });
 
+test("rescale shouldn't resume animation if previously paused", function(assert){
+	animator.pause();
+	animator.rescale();
+	assert.notOk(animator.running);
+});
+
 asyncTest("onStart runs properly", function(assert){
 	animator.options.onStart = function(){
 		assert.ok(true);
