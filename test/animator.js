@@ -2,12 +2,15 @@ var torque = require('../lib/torque');
 var sinon = require('sinon');
 require('phantomjs-polyfill');
 
-QUnit.module('animator');
+var animator;
 
-var animator = new torque.Animator(function(){}, {steps: 500});
+QUnit.module('animator', {
+  beforeEach: function() {
+  	animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
+  }
+});
 
 asyncTest('time moves', function(assert) {
-	// Function.prototype.bind = _.bind;
 	animator.start();
 	setTimeout(function(){
 		console.log(animator.running);
@@ -16,12 +19,6 @@ asyncTest('time moves', function(assert) {
 	}, 100)
 	animator.pause();
 });
-
-// test("rescale shouldn't resume animation if previously paused", function(assert){
-// 	animator.pause();
-// 	animator.rescale();
-// 	assert.notOk(animator.running);
-// });
 
 test("rescale should resume animation if previously playing", function(assert){
 	animator.toggle();
@@ -36,7 +33,7 @@ asyncTest("onStart runs properly", function(assert){
 		animator.pause();
 		QUnit.start();
 	};
-	animator.toggle();
+	animator.start();
 });
 
 test("stop should take the pointer to position zero", function(assert){
@@ -50,34 +47,32 @@ test("stop should call onStop", function(assert){
 		animator.pause();
 	};
 	animator.stop();
-
 });
 
-// test("altering steps should rescale", function(assert){
-// 	sinon.spy(animator, "rescale");
-// 	animator.start = torque.Animator.prototype.start;
-// 	animator.steps(600); // thanks QUnit :/
-// 	assert.ok(animator.rescale.calledOnce);
-// });
+test("altering steps should rescale", function(assert){
+	sinon.spy(animator, "rescale");
+	animator.steps(600);
+	assert.ok(animator.rescale.calledOnce);
+});
 
-// asyncTest("tick should set time to zero if steps are bigger than range", function(assert){
-// 	animator.step(800);
-// 	setTimeout(function(){
-// 		console.log(animator.step())
-// 		assert.ok(animator.step() < 800);
-// 		QUnit.start();
-// 	}, 200);
-// 	animator.pause();
-// });
+asyncTest("tick should set time to zero if steps are bigger than range", function(assert){
+	animator.start();
+	setTimeout(function(){
+		animator._time = 0;
+		animator.step(800);
+		assert.ok(animator.step() < 800);
+		QUnit.start();
+	}, 200);
+	animator.pause();
+});
 
-// QUnit.test("tick should pause animation on end if loop is disabled", function(assert){
-// 	animator.options.loop = false;
-// 	assert.ok(!animator.running);
-// 	animator.toggle();
-// 	assert.ok(animator.running);
-// 	setTimeout(function(){
-// 		assert.notEqual(animator._time, 0);
-// 		QUnit.start();
-// 	}, 100)
-// 	animator.pause();
-// });
+QUnit.test("tick should pause animation on end if loop is disabled", function(assert){
+	animator.options.loop = false;
+	var done = assert.async();
+	animator.toggle();
+	setTimeout(function(){
+		assert.notEqual(animator._time, 0);
+		done();
+	}, 100)
+	animator.pause();
+});
