@@ -1,5 +1,5 @@
 /**
-Torque 2.11.3
+Torque 2.11.4
 Temporal mapping for CartoDB
 https://github.com/cartodb/torque
 **/
