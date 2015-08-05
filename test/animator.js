@@ -2,15 +2,15 @@ var torque = require('../lib/torque');
 var sinon = require('sinon');
 require('phantomjs-polyfill');
 
-// asyncTest('time moves', function(assert) {
-// 	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
-// 	animator.start();
-// 	setTimeout(function(){
-// 		assert.notEqual(animator._time, 0);
-// 		QUnit.start();
-// 	}, 100)
-// 	animator.pause();
-// });
+asyncTest('time moves', function(assert) {
+	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
+	animator.start();
+	setTimeout(function(){
+		assert.notEqual(animator._time, 0);
+		QUnit.start();
+	}, 100)
+	animator.pause();
+});
 
 test("rescale should resume animation if previously playing", function(assert){
 	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
@@ -27,15 +27,14 @@ test("rescale shouldn't resume animation if previously paused", function(assert)
 	assert.notOk(animator.running);
 });
 
-// asyncTest("onStart runs properly", function(assert){
-// 	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
-// 	animator.options.onStart = function(){
-// 		assert.ok(true);
-// 		animator.pause();
-// 		QUnit.start();
-// 	};
-// 	animator.start();
-// });
+test("onStart runs properly", function(assert){
+	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
+	animator.options.onStop = function(){
+		assert.ok(true);
+		animator.pause();
+	};
+	animator.stop();
+});
 
 test("stop should take the pointer to position zero", function(assert){
 	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
