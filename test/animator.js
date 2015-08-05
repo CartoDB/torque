@@ -2,6 +2,8 @@ var torque = require('../lib/torque');
 var sinon = require('sinon');
 require('phantomjs-polyfill');
 
+QUnit.module('animator');
+
 test('time moves', function(assert) {
 	var done = assert.async();
 	var animatora = new torque.Animator(function(){}, {steps: 500, animationDuration: 2});
