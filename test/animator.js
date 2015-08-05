@@ -4,13 +4,13 @@ require('phantomjs-polyfill');
 
 test('time moves', function(assert) {
 	var done = assert.async();
-	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 2});
-	animator.start();
+	var animatora = new torque.Animator(function(){}, {steps: 500, animationDuration: 2});
+	animatora.start();
 	setTimeout(function(){
-		assert.notEqual(animator._time, 0);
+		assert.notEqual(animatora._time, 0);
 		done();
 	}, 20)
-	animator.pause();
+	animatora.pause();
 });
 
 test("rescale should resume animation if previously playing", function(assert){
@@ -61,15 +61,15 @@ test("altering steps should rescale", function(assert){
 
 test("tick should set time to zero if steps are bigger than range", function(assert){
 	var done = assert.async();
-	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 2});
-	animator.start();
+	var animatorb = new torque.Animator(function(){}, {steps: 500, animationDuration: 2});
+	animatorb.start();
+	animatorb.step(800);
 	setTimeout(function(){
-		animator._time = 0;
-		animator.step(800);
-		assert.ok(animator.step() < 800);
+		console.log(animatorb.step());
+		assert.ok(animatorb.step() < 800);
 		done();
 	}, 20);
-	animator.pause();
+	animatorb.pause();
 });
 
 test("tick should pause animation on end if loop is disabled", function(assert){
