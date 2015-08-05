@@ -58,26 +58,25 @@ test("altering steps should rescale", function(assert){
 	assert.ok(animator.rescale.calledOnce);
 });
 
-// asyncTest("tick should set time to zero if steps are bigger than range", function(assert){
-// 	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
-// 	animator.start();
-// 	setTimeout(function(){
-// 		animator._time = 0;
-// 		animator.step(800);
-// 		assert.ok(animator.step() < 800);
-// 		QUnit.start();
-// 	}, 200);
-// 	animator.pause();
-// });
+asyncTest("tick should set time to zero if steps are bigger than range", function(assert){
+	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
+	animator.start();
+	setTimeout(function(){
+		animator._time = 0;
+		animator.step(800);
+		assert.ok(animator.step() < 800);
+		QUnit.start();
+	}, 200);
+	animator.pause();
+});
 
-// QUnit.test("tick should pause animation on end if loop is disabled", function(assert){
-// 	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
-// 	var done = assert.async();
-// 	animator.options.loop = false;
-// 	animator.toggle();
-// 	animator.step(600);
-// 	setTimeout(function(){
-// 		assert.equal(animator._time,animator.options.animationDuration);
-// 		done();
-// 	}, 200);
-// });
+asyncTest("tick should pause animation on end if loop is disabled", function(assert){
+	var animator = new torque.Animator(function(){}, {steps: 500, animationDuration: 10});
+	animator.options.loop = false;
+	animator.toggle();
+	animator.step(600);
+	setTimeout(function(){
+		assert.equal(animator._time,animator.options.animationDuration);
+		QUnit.start();
+	}, 200);
+});
