@@ -9,16 +9,16 @@
 
 	var canvas = document.getElementById("sample");
 	var ctx = canvas.getContext("2d");
-	// for (var y = 0;  y < grid.length; y++){
-	// 	for (var x = 0;  x < grid[0].length; x++){
-	// 		ctx.beginPath();
-	// 		ctx.arc(20 + x*20, 20 + y*20, 3, 0, 2 * Math.PI, false);
-	// 		var value = grid[y][x];
-	// 		ctx.fillStyle = "rgb("+0+", "+value * 50+", "+value * 50+")";
-	// 		if(value === 0) ctx.fillStyle = "red";
-	// 		ctx.fill();
-	// 	}
-	// }
+	for (var y = 0;  y < grid.length; y++){
+		for (var x = 0;  x < grid[0].length; x++){
+			ctx.beginPath();
+			ctx.arc(20 + x*20, 20 + y*20, 3, 0, 2 * Math.PI, false);
+			var value = grid[y][x];
+			ctx.fillStyle = "rgb("+0+", "+value * 50+", "+value * 50+")";
+			if(value === 0) ctx.fillStyle = "red";
+			ctx.fill();
+		}
+	}
 
 	var cellsX = grid[0].length-1;
 	var cellsY = grid.length-1;
