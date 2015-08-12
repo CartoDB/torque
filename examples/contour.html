@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+<canvas id = "sample" width = "600" height = "600"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<script type="text/javascript">
+
+	var grid = [[0,0,1,0,0,0,0,0,0,0,0,0,1,2,0,0],[0,0,0,1,0,2,0,1,1,1,0,0,3,0,1,3],[5,1,1,0,0,0,1,0,2,0,2,0,0,0,3,0],[0,1,2,1,1,2,0,1,0,2,2,3,0,1,1,1],[2,3,2,1,1,7,4,2,4,1,1,0,0,1,0,1],[0,2,2,2,0,1,2,2,3,0,3,0,2,2,1,2],[3,0,1,1,0,1,1,3,1,3,1,1,2,1,1,1],[2,0,4,1,1,1,4,0,1,1,1,1,0,0,7,2],[4,0,1,2,0,2,0,3,3,6,2,0,2,0,2,0],[0,1,0,0,0,0,1,6,0,1,2,0,0,0,0,2],[0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,1,5,0,3,0,1,1,0],[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],[0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,0],[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,4],[0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1]].reverse();
+
+
+	var canvas = document.getElementById("sample");
+	var ctx = canvas.getContext("2d");
+	// for (var y = 0;  y < grid.length; y++){
+	// 	for (var x = 0;  x < grid[0].length; x++){
+	// 		ctx.beginPath();
+	// 		ctx.arc(20 + x*20, 20 + y*20, 3, 0, 2 * Math.PI, false);
+	// 		var value = grid[y][x];
+	// 		ctx.fillStyle = "rgb("+0+", "+value * 50+", "+value * 50+")";
+	// 		if(value === 0) ctx.fillStyle = "red";
+	// 		ctx.fill();
+	// 	}
+	// }
+
+	var cellsX = grid[0].length-1;
+	var cellsY = grid.length-1;
+	var contourValues = [0,2];
+	for(var c = 0; c < contourValues.length; c++){
+		for (var y = 0;  y < cellsY; y++){
+			for (var x = 0;  x < cellsX; x++){
+				var currentCell = [grid[y][x], grid[y][x+1], grid[y+1][x+1], grid[y+1][x]];
+				var pipe = getPipe(currentCell, contourValues[c]);
+				if (pipe){
+					ctx.beginPath();
+					ctx.moveTo(20 + x*20 + 20 * pipe[0][0], 20 + y*20 + 20 * pipe[0][1]);
+					ctx.lineTo(20 + x*20 + 20 * pipe[1][0], 20 + y*20 + 20 * pipe[1][1]);
+					ctx.stroke();
+					if (pipe.length === 4){
+						ctx.beginPath();
+						ctx.moveTo(20 + x*20 + 20 * pipe[2][0], 20 + y*20 + 20 * pipe[2][1]);
+						ctx.lineTo(20 + x*20 + 20 * pipe[3][0], 20 + y*20 + 20 * pipe[3][1]);
+						ctx.stroke();
+					}
+				}
+			}
+		}
+	}
+
+	function getPipe(cell, contour){
+		var parsedCell = cell.map(function(cornerValue){
+				if (cornerValue > contour){
+					return "1";
+				}
+				return "0";
+			}).join("");
+		var type = parseInt(parsedCell, 2);
+		var N = [lerp(cell[1], cell[0], contour), 0], 
+		    S = [lerp(cell[2], cell[3], contour), 1], 
+		    E = [1, lerp(cell[2], cell[1], contour)], 
+		    W = [0, lerp(cell[3], cell[0], contour)]
+		// Blank
+		if (type === 0 || type === 15) return null;
+		// W - S
+		if (type === 1 || type === 14) return [W, S]	
+		// S - E
+		if (type === 2 || type === 13) return [S, E]
+		// W - E	
+		if (type === 3 || type === 12) return [W, E]	
+		// N - E
+		if (type === 4 || type === 11) return [N, E]	
+		// N - S
+		if (type === 6 || type === 9) return [N, S]
+		// W - N
+		if (type === 7 || type === 8) return [W, N]	
+		// W - N / S - E
+		if (type === 5) return [W, N, S, E]
+		// W - S / N - E
+		if (type === 10) return [W, S, N, E]
+	}
+	
+	// Linear interpolation
+	function lerp(valueA, valueB, contourValue){
+		return Math.max(Math.min(1 + (-0.5) * (contourValue - valueA) / (valueB - valueA), 0.8), 0.2);
+	}
+
+</script>
