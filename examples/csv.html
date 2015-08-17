@@ -10,13 +10,13 @@
                 margin: 0;
             }
             #control {
-                display:none;
-                z-index: 10;
+                display:block;
+                z-index: 10000;
                 position: absolute;
                 left: 10px;
                 bottom: 10px;
                 background: #fff;
-                border-radius: 4px;
+                border-radius: 50%;
                 box-shadow: 0 0 4px rgba(0, 0, 0, .2);
                 padding: 8px;
                 margin: 0;
@@ -73,8 +73,121 @@
         </style>
     </head>
     <body>
+        <style type="text/css">
+            #timeline {
+                background: rgba(0, 0, 0, .6);
+                position: absolute;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                padding: 25px 20px 20px 50px;
+                z-index: 1000;
+                overflow: visible;
+            }
+            .timeline-inner {
+                border-radius: 50px;
+                height: 6px;
+                background: #fff;
+            }
+            .timeline-progress{
+                display: inline-block;
+                border-radius: 50px;
+                height: 6px;
+                background: #0090D7;
+                vertical-align: top;
+                position: relative;
+            }
+            .timeline-progress > span {
+                width: 18px;
+                height: 18px;
+                position: absolute;
+                top: -8px;
+                right: 0;
+                background: #FFFFFF;
+                display: inline-block;
+                border-radius: 50%;
+                border: 1px solid rgba(0, 0, 0, .2);
+                box-shadow: 0px 1px 2px 0px rgba(0,0,0,0.30);
+            }
+            #filter {
+                z-index: 10;
+                position: absolute;
+                right: 10px;
+                top: 10px;
+                background: #fff;
+                border-radius: 4px;
+                box-shadow: 0 0 4px rgba(0, 0, 0, .2);
+                padding: 8px 12px;
+                margin: 0;
+                cursor: pointer;
+            }
+            #filter:hover {
+                background: #f5f5f5;
+            }
+
+            #filter *:focus {
+              outline: none;
+            }
+            #filter  p {
+                display: inline-block;
+                vertical-align: middle;
+                font-size: 12px;
+                margin-right: 4px;
+            }
+            #filter input[type=checkbox] {
+              cursor: pointer;
+              -webkit-appearance: none;
+                 -moz-appearance: none;
+                      appearance: none;
+            }
+            #filter input[type=checkbox].toogle {
+              border: 0;
+              box-shadow: inset 0 1px 0 rgba(0, 0, 0, .1);
+              background: #ddd;
+              border-radius: 50px;
+              width: 36px;
+              height: 20px;
+              position: relative;
+              display: inline-block;
+              vertical-align: middle;
+            }
+            #filter input[type=checkbox].toogle:before {
+              content: "";
+              top: 4px;
+              left: 4px;
+              position: absolute;
+              width: 12px;
+              height: 12px;
+              background: #fff;
+              border-radius: 50%;
+              position: absolute;
+              box-shadow: 0 1px 0 rgba(0, 0, 0, .1);
+            }
+            #filter input[type=checkbox]:checked.toogle {
+              background: #8FB83F
+            }
+            #filter input[type=checkbox]:checked.toogle:before {
+              left: auto;
+              right: 4px;
+            }
+
+
+        </style>
         <input type="file" id="files" name="files" />
-        <div id="map"><div id="control"><span class="play"></span></div></div>
+        <div id="map">
+            <div id="control"><span class="play"></span></div>
+            <div id="filter">
+                <p>Filter zone</p>
+                <input type="checkbox" class="toogle" name="foo" value="foo">
+             </div>
+            <div id="timeline">
+                <div class="timeline-inner">
+                    <div class="timeline-progress" style="width: 50%;">
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script src="vendor/leaflet.js"></script>
         <script src="vendor/papaparse.min.js"></script>
@@ -188,7 +301,7 @@
                     complete: function (results) {
                         for (var i = 1; i <= pointsToLoad && i < results.data.length; i++) {
                             var point = results.data[i];
-                            torqueLayer.provider.addPoint(point[2], point[1], point[0], point[3]);
+                            torqueLayer.provider.addPoint(point[1], point[0], point[3], point[2]);
                         }
                         torqueLayer.provider.setReady();
                         document.getElementById('control').style.visibility = "visible";
