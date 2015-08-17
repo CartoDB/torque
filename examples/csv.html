@@ -10,17 +10,15 @@
                 margin: 0;
             }
             #control {
-                display:block;
+                display:inline-block;
                 z-index: 10000;
-                position: absolute;
-                left: 10px;
-                bottom: 10px;
                 background: #fff;
                 border-radius: 50%;
                 box-shadow: 0 0 4px rgba(0, 0, 0, .2);
                 padding: 8px;
-                margin: 0;
                 cursor: pointer;
+                float: left;
+                display: inline;
             }
             #control:hover {
                 background: #f5f5f5;
@@ -74,20 +72,13 @@
     </head>
     <body>
         <style type="text/css">
-            #timeline {
-                background: rgba(0, 0, 0, .6);
-                position: absolute;
-                right: 0;
-                bottom: 0;
-                left: 0;
-                padding: 25px 20px 20px 50px;
-                z-index: 1000;
-                overflow: visible;
-            }
             .timeline-inner {
                 border-radius: 50px;
                 height: 6px;
                 background: #fff;
+                display: block;
+                margin-left: 46px;
+                margin-top: 10px;
             }
             .timeline-progress{
                 display: inline-block;
@@ -101,28 +92,13 @@
                 width: 18px;
                 height: 18px;
                 position: absolute;
-                top: -8px;
+                top: -6px;
                 right: 0;
                 background: #FFFFFF;
                 display: inline-block;
                 border-radius: 50%;
                 border: 1px solid rgba(0, 0, 0, .2);
                 box-shadow: 0px 1px 2px 0px rgba(0,0,0,0.30);
-            }
-            #filter {
-                z-index: 10;
-                position: absolute;
-                right: 10px;
-                top: 10px;
-                background: #fff;
-                border-radius: 4px;
-                box-shadow: 0 0 4px rgba(0, 0, 0, .2);
-                padding: 8px 12px;
-                margin: 0;
-                cursor: pointer;
-            }
-            #filter:hover {
-                background: #f5f5f5;
             }
 
             #filter *:focus {
@@ -171,10 +147,101 @@
               right: 4px;
             }
 
-
+            #container {
+                position: absolute;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                height: 50px;
+                background: rgba(0, 0, 0, .8);
+                z-index: 1000;
+                width: 100%;
+                overflow: hidden;
+                border-top: 1px solid #000;
+            }
+             #container * {
+                box-sizing: border-box;
+             }
+            #container > ul {
+                padding: 0;
+                margin: 0;
+            }
+            #container li:first-child {
+                margin-left: 0;
+            }
+            #container li {
+                list-style-type: none;
+                display: inline-block;
+                vertical-align: middle;
+                margin: 0;
+                margin-left: -4px;
+            }
+            .container-filter {
+                width: 15%;
+                height: 50px;
+                padding: 0;
+            }
+            .container-action {
+                width: 15%;
+                padding: 0;
+            }
+            .container-timeline {
+                width: 70%;
+                padding: 10px 20px 0 20px;
+                height: 50px;
+                border-left: 1px solid rgba(255, 255, 255, .2);
+                border-right: 1px solid rgba(255, 255, 255, .2);
+            }
+            .ButtonAction {
+                text-align: center;
+                margin: 0;
+            }
+            .ButtonAction > a{
+                background: #3aa9e3;
+                display: inline-block;
+                padding: 8px 20px;
+                color: #fff;
+                border-radius: 50px;
+                text-align: center;
+                text-decoration: none;
+            }
+            .ButtonAction > a:hover {
+                text-decoration: none;
+                background: #249fe0
+            }
+            .container-filter {
+                text-align: center;
+                padding-top: 4px;
+            }
+            .container-filter p {
+                display: inline-block;
+                vertical-align: middle;
+                color: #fff;
+            }
         </style>
         <input type="file" id="files" name="files" />
         <div id="map">
+
+            <div id="container">
+                <ul>
+                    <li class="container-filter" id="filter">
+                        <p>Filter zone</p>
+                        <input type="checkbox" class="toogle" name="foo" value="foo">
+                    </li>
+                    <li class="container-timeline">
+                        <div id="control"><span class="play"></span></div>
+                        <div class="timeline-inner">
+                            <div class="timeline-progress" style="width: 50%;">
+                                <span></span>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="container-action">
+                        <p class="ButtonAction"><a href="#">Analyze your data</a></p>
+                    </li>
+            </div>
+
+<!--
             <div id="control"><span class="play"></span></div>
             <div id="filter">
                 <p>Filter zone</p>
@@ -186,7 +253,7 @@
                         <span></span>
                     </div>
                 </div>
-            </div>
+            </div>-->
         </div>
 
         <script src="vendor/leaflet.js"></script>
@@ -200,6 +267,7 @@
                 center: [40, 0],
                 zoom: 6
             });
+
 
             L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
