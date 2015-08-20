@@ -16,33 +16,42 @@
       // define the torque layer style using cartocss
       var CARTOCSS = [
           'Map {',
-          '-torque-time-attribute: "cartodb_id";',
+          '-torque-time-attribute: "date";',
           '-torque-aggregation-function: "count(cartodb_id)";',
-          '-torque-frame-count: 1;',
-          '-torque-animation-duration: 1;',
-          '-torque-resolution: 16',
+          '-torque-frame-count: 760;',
+          '-torque-animation-duration: 15;',
+          '-torque-resolution: 2',
           '}',
           '#layer {',
-          '-isoline-line-ramp: colorize-alpha(blue, cyan, lightgreen, yellow , orange, red);',
-          '-isoline-line-width: 0.4;',
-          '-isoline-line-opacity: 0.5',
+          '  marker-width: 3;',
+          '  marker-fill-opacity: 0.8;',
+          '  marker-fill: #FEE391; ',
+          '  comp-op: "lighten";',
+          '  [value > 2] { marker-fill: #FEC44F; }',
+          '  [value > 3] { marker-fill: #FE9929; }',
+          '  [value > 4] { marker-fill: #EC7014; }',
+          '  [value > 5] { marker-fill: #CC4C02; }',
+          '  [value > 6] { marker-fill: #993404; }',
+          '  [value > 7] { marker-fill: #662506; }',
+          '  [frame-offset = 1] { marker-width: 10; marker-fill-opacity: 0.05;}',
+          '  [frame-offset = 2] { marker-width: 15; marker-fill-opacity: 0.02;}',
           '}'
       ].join('\n');
 
         
       var map = new L.Map('map', {
         zoomControl: true,
-        center: [41.36031866306708, -73.388671875],
-        zoom: 4
+        center: [40, 0],
+        zoom: 3
       });
 
-      L.tileLayer('http://{s}.api.cartocdn.com/base-light/{z}/{x}/{y}.png', {
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
-        user       : 'fdansv',
-        table      : 'twitter_roosterteeth_roosterteeth_lege',
+        user       : 'viz2',
+        table      : 'ow',
         cartocss: CARTOCSS
       });
       torqueLayer.error(function(err){
