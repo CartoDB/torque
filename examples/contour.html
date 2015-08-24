@@ -24,46 +24,105 @@
 	var cellsX = grid[0].length-1;
 	var cellsY = grid.length-1;
 	var contourValues = [0,2];
+	var lines = [];
+	var pointsTraveled = new Set();
 	for(var c = 0; c < contourValues.length; c++){
-		for (var y = 0;  y < cellsY; y++){
-			for (var x = 0;  x < cellsX; x++){
+		var pointerX = 0, pointerY = 0, x = 0, y = 0;
+		var line = [];
+		var xy = march(0,0);
+
+		while(xy){
+			xy = march(xy.x, xy.y);
+		}
+
+		function march(x,y){
+			var marchTo;
+			if(x >= grid[0].length){
+				pointerX = 0;
+				pointerY++;
+			}
+			if (y > grid.length) return;
+			if (pointsTraveled.has(x+":"+y) && line.length === 0){
+				pointerX ++;
+				return {x: pointerX, y: pointerY };
+			}
+			else{
+				pointsTraveled.add(x+":"+y);
 				var currentCell = [grid[y][x], grid[y][x+1], grid[y+1][x+1], grid[y+1][x]];
-				var pipe = getPipe(currentCell, contourValues[c]);
+				var pipe = getPipe(currentCell, contourValues[c], line);
 				if (pipe){
-					ctx.beginPath();
-					ctx.moveTo(20 + x*20 + 20 * pipe[0][0], 20 + y*20 + 20 * pipe[0][1]);
-					ctx.lineTo(20 + x*20 + 20 * pipe[1][0], 20 + y*20 + 20 * pipe[1][1]);
-					ctx.stroke();
-					if (pipe.length === 4){
-						ctx.beginPath();
-						ctx.moveTo(20 + x*20 + 20 * pipe[2][0], 20 + y*20 + 20 * pipe[2][1]);
-						ctx.lineTo(20 + x*20 + 20 * pipe[3][0], 20 + y*20 + 20 * pipe[3][1]);
-						ctx.stroke();
+					if (line.length > 0 && (x+":"+y === line[0].coordStr)){
+						lines.push(line);
+						line = [];
+						pointerX ++;
+						return {x: pointerX, y: pointerY };
 					}
+					else{
+						var next = pipe.next[0];
+						if(line.length > 0){
+							var gp = line[line.length-1].gridPos;
+							if(x + pipe.next[0][0] === gp[0] && y + pipe.next[0][1] === gp[1]){
+								next = pipe.next[1]
+							}
+						}
+						line.push({"pipe": pipe, "coordStr": x+":"+y, geom: [20 + x*20 + 20 * pipe.c[0][0], 20 + y*20 + 20 * pipe.c[0][1], 20 + x*20 + 20 * pipe.c[1][0], 20 + y*20 + 20 * pipe.c[1][1]] , "gridPos": [x, y]});
+						return {x: x + next[0], y: y + next[1] };
+					} 
+				}
+				else{
+					pointerX ++;
+					return {x: pointerX, y: pointerY };
 				}
 			}
 		}
 	}
 
+	debugger;
+
+	function callback(){
+		console.log("wololo");
+	}
+
+	// for(var c = 0; c < contourValues.length; c++){
+	// 	for (var y = 0;  y < cellsY; y++){
+	// 		for (var x = 0;  x < cellsX; x++){
+	// 			var currentCell = [grid[y][x], grid[y][x+1], grid[y+1][x+1], grid[y+1][x]];
+	// 			var pipe = getPipe(currentCell, contourValues[c], line);
+	// 			if (pipe){
+	// 				ctx.beginPath();
+	// 				ctx.moveTo(20 + x*20 + 20 * pipe[0][0], 20 + y*20 + 20 * pipe[0][1]);
+	// 				ctx.lineTo(20 + x*20 + 20 * pipe[1][0], 20 + y*20 + 20 * pipe[1][1]);
+	// 				ctx.stroke();
+	// 				if (pipe.length === 4){
+	// 					ctx.beginPath();
+	// 					ctx.moveTo(20 + x*20 + 20 * pipe[2][0], 20 + y*20 + 20 * pipe[2][1]);
+	// 					ctx.lineTo(20 + x*20 + 20 * pipe[3][0], 20 + y*20 + 20 * pipe[3][1]);
+	// 					ctx.stroke();
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
+
 	function gridData(tile){
-    var res = 16;
-    var grid = new Array(256/res);
-    for(var i =0; i<grid.length; i ++){
-      grid[i] = new Array(256/res);
-      for(var j =0; j < grid[i].length; j++){
-        grid[i][j] = 0;
-      }
-    }
+	    var res = 16;
+	    var grid = new Array(256/res);
+	    for(var i =0; i<grid.length; i ++){
+	      grid[i] = new Array(256/res);
+	      for(var j =0; j < grid[i].length; j++){
+	        grid[i][j] = 0;
+	      }
+	    }
 
-    for(var i =0; i < tile.renderData.length; i++){
-      var x = tile.x[i], y = tile.y[i];
-      grid[y/res][x/res] = tile.renderData[i];
-    }
+	    for(var i =0; i < tile.renderData.length; i++){
+	      var x = tile.x[i], y = tile.y[i];
+	      grid[y/res][x/res] = tile.renderData[i];
+	    }
 
-    return grid;
-  }
+	    return grid;
+	}
 
-	function getPipe(cell, contour){
+	function getPipe(cell, contour, line){
 		var parsedCell = cell.map(function(cornerValue){
 				if (cornerValue > contour){
 					return "1";
@@ -75,24 +134,38 @@
 		    S = [lerp(cell[2], cell[3], contour), 1], 
 		    E = [1, lerp(cell[2], cell[1], contour)], 
 		    W = [0, lerp(cell[3], cell[0], contour)]
-		// Blank
+
 		if (type === 0 || type === 15) return null;
-		// W - S
-		if (type === 1 || type === 14) return [W, S]	
-		// S - E
-		if (type === 2 || type === 13) return [S, E]
-		// W - E	
-		if (type === 3 || type === 12) return [W, E]	
-		// N - E
-		if (type === 4 || type === 11) return [N, E]	
-		// N - S
-		if (type === 6 || type === 9) return [N, S]
-		// W - N
-		if (type === 7 || type === 8) return [W, N]	
-		// W - N / S - E
-		if (type === 5) return [W, N, S, E]
-		// W - S / N - E
-		if (type === 10) return [W, S, N, E]
+
+		if (type === 1 || type === 14) return {"c":[W, S], "next": [[0,1],[-1,0]]}	
+
+		if (type === 2 || type === 13) return {"c":[S, E], "next": [[1,0],[0,1]]}
+
+		if (type === 3 || type === 12) return {"c":[W, E], "next": [[1,0],[-1,0]]}	
+
+		if (type === 4 || type === 11) return {"c":[N, E], "next": [[1,0],[0,-1]]}	
+
+		if (type === 6 || type === 9) return {"c":[N, S], "next": [[0,1],[0,-1]]}
+
+		if (type === 7 || type === 8) return {"c":[W, N], "next": [[0,-1],[-1,0]]}	
+
+		if (type === 5) {
+			if(JSON.stringify(line[line.length-1].pipe.next).indexOf("[1,0]")){
+				return {"c":[W, N], "next": [[0,-1],[-1,0]]}
+			}
+			else{
+				return {"c":[S, E], "next": [[1,0],[0,1]]}
+			}
+		}
+
+		if (type === 10) {
+			if(JSON.stringify(line[line.length-1].pipe.next).indexOf("[1,0]")){
+				return {"c":[N, E], "next": [[1,0],[0,-1]]}	
+			}
+			else{
+				return {"c":[W, S], "next": [[0,1],[-1,0]]}	
+			}
+		}
 	}
 	
 	// Linear interpolation
