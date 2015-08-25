@@ -42,7 +42,7 @@
 				pointerY++;
 				return {x: pointerX, y: pointerY };
 			}
-			if (y > grid.length) return;
+			if (y > grid.length-2) return;
 			if (pointsTraveled.has(x+":"+y) && line.length === 0){
 				pointerX ++;
 				return {x: pointerX, y: pointerY };
@@ -114,20 +114,15 @@
 		else if (type === 6 || type === 9) next = [N,S];
 		else if (type === 7 || type === 8) next = [N,W];
 		else if (type === 5 || type === 10) {
-			var avg = cornerValues.reduce(function(a, b) { return a + b; }) / cornerValues.length;
-			if(type === 10){
-					next = [[N,W],[E,S]];
-			}
-			else{
-					next = [[N,E],[W,S]];
-			}
 			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
-			for(var i =0; i<next.length; i++){
-				for(var j = 0; j<next.length; j++){
-					if(JSON.stringify(diff) === JSON.stringify(next[i][j])){
-						next = next[(i+1)%1];
-					}
-				}
+			if (diff[0] === -1){
+				return {x: currentPos.x, y: currentPos.y - 1};
+			} else if (diff[0] === 1){
+				return {x: currentPos.x, y: currentPos.y + 1};
+			} else if (diff[1] === -1){
+				return {x: currentPos.x + 1, y: currentPos.y};
+			} else if (diff[1] === 1){
+				return {x: currentPos.x - 1, y: currentPos.y};
 			}
 		}	
 
