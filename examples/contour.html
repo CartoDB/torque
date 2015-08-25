@@ -40,6 +40,7 @@
 			if(x >= grid[0].length){
 				pointerX = 0;
 				pointerY++;
+				return {x: pointerX, y: pointerY };
 			}
 			if (y > grid.length) return;
 			if (pointsTraveled.has(x+":"+y) && line.length === 0){
@@ -48,61 +49,29 @@
 			}
 			else{
 				pointsTraveled.add(x+":"+y);
-				var currentCell = [grid[y][x], grid[y][x+1], grid[y+1][x+1], grid[y+1][x]];
-				var pipe = getPipe(currentCell, contourValues[c], line);
-				if (pipe){
-					if (line.length > 0 && (x+":"+y === line[0].coordStr)){
+				var cornerValues = [grid[y][x], grid[y][x+1], grid[y+1][x+1], grid[y+1][x]];
+				var currentPos = {x: x, y: y};
+				var previousPos = line.length > 0? {x: line[line.length-1].coord.x, y: line[line.length-1].coord.y}: null;
+				var next = getNext(currentPos, previousPos, cornerValues, contourValues[c]);
+				if (next){
+					if (line.length > 0 && (line[0].coord.x === x && line[0].coord.y === y)){
 						lines.push(line);
 						line = [];
 						pointerX ++;
 						return {x: pointerX, y: pointerY };
 					}
 					else{
-						var next = pipe.next[0];
-						if(line.length > 0){
-							var gp = line[line.length-1].gridPos;
-							if(x + pipe.next[0][0] === gp[0] && y + pipe.next[0][1] === gp[1]){
-								next = pipe.next[1]
-							}
-						}
-						line.push({"pipe": pipe, "coordStr": x+":"+y, geom: [20 + x*20 + 20 * pipe.c[0][0], 20 + y*20 + 20 * pipe.c[0][1], 20 + x*20 + 20 * pipe.c[1][0], 20 + y*20 + 20 * pipe.c[1][1]] , "gridPos": [x, y]});
-						return {x: x + next[0], y: y + next[1] };
+						line.push({coord: {x: x, y: y}, values: cornerValues});
+						return next;
 					} 
 				}
-				else{
+				else {
 					pointerX ++;
 					return {x: pointerX, y: pointerY };
 				}
 			}
 		}
 	}
-
-	debugger;
-
-	function callback(){
-		console.log("wololo");
-	}
-
-	// for(var c = 0; c < contourValues.length; c++){
-	// 	for (var y = 0;  y < cellsY; y++){
-	// 		for (var x = 0;  x < cellsX; x++){
-	// 			var currentCell = [grid[y][x], grid[y][x+1], grid[y+1][x+1], grid[y+1][x]];
-	// 			var pipe = getPipe(currentCell, contourValues[c], line);
-	// 			if (pipe){
-	// 				ctx.beginPath();
-	// 				ctx.moveTo(20 + x*20 + 20 * pipe[0][0], 20 + y*20 + 20 * pipe[0][1]);
-	// 				ctx.lineTo(20 + x*20 + 20 * pipe[1][0], 20 + y*20 + 20 * pipe[1][1]);
-	// 				ctx.stroke();
-	// 				if (pipe.length === 4){
-	// 					ctx.beginPath();
-	// 					ctx.moveTo(20 + x*20 + 20 * pipe[2][0], 20 + y*20 + 20 * pipe[2][1]);
-	// 					ctx.lineTo(20 + x*20 + 20 * pipe[3][0], 20 + y*20 + 20 * pipe[3][1]);
-	// 					ctx.stroke();
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
 
 	function gridData(tile){
 	    var res = 16;
@@ -122,50 +91,50 @@
 	    return grid;
 	}
 
-	function getPipe(cell, contour, line){
-		var parsedCell = cell.map(function(cornerValue){
-				if (cornerValue > contour){
+	function getNext(currentPos, previousPos, cornerValues, contourValue){
+		var binaryCell = cornerValues.map(function(cornerValue){
+				if (cornerValue > contourValue){
 					return "1";
 				}
 				return "0";
 			}).join("");
-		var type = parseInt(parsedCell, 2);
-		var N = [lerp(cell[1], cell[0], contour), 0], 
-		    S = [lerp(cell[2], cell[3], contour), 1], 
-		    E = [1, lerp(cell[2], cell[1], contour)], 
-		    W = [0, lerp(cell[3], cell[0], contour)]
+		var type = parseInt(binaryCell, 2);
+		var N = [0, -1], 
+		    S = [0, 1], 
+		    E = [1, 0], 
+		    W = [-1, 0];
+
+		var next;
 
 		if (type === 0 || type === 15) return null;
-
-		if (type === 1 || type === 14) return {"c":[W, S], "next": [[0,1],[-1,0]]}	
-
-		if (type === 2 || type === 13) return {"c":[S, E], "next": [[1,0],[0,1]]}
-
-		if (type === 3 || type === 12) return {"c":[W, E], "next": [[1,0],[-1,0]]}	
-
-		if (type === 4 || type === 11) return {"c":[N, E], "next": [[1,0],[0,-1]]}	
-
-		if (type === 6 || type === 9) return {"c":[N, S], "next": [[0,1],[0,-1]]}
-
-		if (type === 7 || type === 8) return {"c":[W, N], "next": [[0,-1],[-1,0]]}	
-
-		if (type === 5) {
-			if(JSON.stringify(line[line.length-1].pipe.next).indexOf("[1,0]")){
-				return {"c":[W, N], "next": [[0,-1],[-1,0]]}
+		else if (type === 1 || type === 14) next = [S,W];
+		else if (type === 2 || type === 13) next = [E,S];
+		else if (type === 3 || type === 12) next = [E,W];
+		else if (type === 4 || type === 11) next = [N,E];
+		else if (type === 6 || type === 9) next = [N,S];
+		else if (type === 7 || type === 8) next = [N,W];
+		else if (type === 5 || type === 10) {
+			var avg = cornerValues.reduce(function(a, b) { return a + b; }) / cornerValues.length;
+			if(type === 10){
+					next = [[N,W],[E,S]];
 			}
 			else{
-				return {"c":[S, E], "next": [[1,0],[0,1]]}
+					next = [[N,E],[W,S]];
 			}
-		}
+			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
+			for(var i =0; i<next.length; i++){
+				for(var j = 0; j<next.length; j++){
+					if(JSON.stringify(diff) === JSON.stringify(next[i][j])){
+						next = next[(i+1)%1];
+					}
+				}
+			}
+		}	
 
-		if (type === 10) {
-			if(JSON.stringify(line[line.length-1].pipe.next).indexOf("[1,0]")){
-				return {"c":[N, E], "next": [[1,0],[0,-1]]}	
-			}
-			else{
-				return {"c":[W, S], "next": [[0,1],[-1,0]]}	
-			}
+		if (!previousPos || (currentPos.x + next[0][0] === previousPos.x && currentPos.y + next[0][1] === previousPos.y)){
+			return {x: currentPos.x + next[1][0], y: currentPos.y + next[1][1]};
 		}
+		else return {x: currentPos.x + next[0][0], y: currentPos.y + next[0][1]};
 	}
 	
 	// Linear interpolation
