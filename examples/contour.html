@@ -23,7 +23,7 @@
 
 	var cellsX = grid[0].length-1;
 	var cellsY = grid.length-1;
-	var contourValues = [0,2];
+	var contourValues = [0,1,2,4];
 	var lines = [];
 	var pointsTraveled = new Set();
 	for(var c = 0; c < contourValues.length; c++){
@@ -61,7 +61,7 @@
 						return {x: pointerX, y: pointerY };
 					}
 					else{
-						line.push({coord: {x: x, y: y}, values: cornerValues});
+						line.push({coord: {x: x, y: y, interpolation: next.interpolation}, values: cornerValues});
 						return next;
 					} 
 				}
@@ -71,6 +71,28 @@
 				}
 			}
 		}
+	}
+
+	ctx.strokeStyle = "black"
+	for (var l = 0; l < lines.length; l++){
+		var line = cardinalSpline(lines[l]);
+		ctx.beginPath();
+		ctx.moveTo(line[0][0], line[0][1]);
+		for (var p = 2; p < line.length; p+=2){
+			ctx.lineTo(line[p], line[p+1]);
+		}
+		ctx.closePath();
+		ctx.stroke();
+	}
+
+	function cardinalSpline(line){
+		var plainArray = [];
+		for (var p = 0; p < line.length; p++){
+			var interpolation = line[p].coord.interpolation || {x: 0.5, y: 0.5};
+			plainArray.push(20 + 20*line[p].coord.x + 20 * interpolation.x);
+			plainArray.push(20 + 20*line[p].coord.y + 20 * interpolation.y);
+		}
+		return cSpline(plainArray, 0.5, 25, true);
 	}
 
 	function gridData(tile){
@@ -104,15 +126,51 @@
 		    E = [1, 0], 
 		    W = [-1, 0];
 
-		var next;
+		var next, interpolation;
 
 		if (type === 0 || type === 15) return null;
-		else if (type === 1 || type === 14) next = [S,W];
-		else if (type === 2 || type === 13) next = [E,S];
-		else if (type === 3 || type === 12) next = [E,W];
-		else if (type === 4 || type === 11) next = [N,E];
-		else if (type === 6 || type === 9) next = [N,S];
-		else if (type === 7 || type === 8) next = [N,W];
+		else if (type === 1 || type === 14){
+			next = [S,W];
+			interpolation = {
+				x: lerp(cornerValues[2], cornerValues[3], contourValue), 
+				y: lerp(cornerValues[0], cornerValues[3], contourValue)
+			};	
+		} 
+		else if (type === 2 || type === 13){
+			next = [E,S];
+			interpolation = {
+				x: lerp(cornerValues[3], cornerValues[2], contourValue), 
+				y: lerp(cornerValues[1], cornerValues[2], contourValue)
+			};	
+		} 
+		else if (type === 3 || type === 12) {
+			next = [E,W];
+			interpolation = {
+				x: 0.5, 
+				y: 0.5
+			};	
+		} 
+		else if (type === 4 || type === 11){
+			next = [N,E];
+			interpolation = {
+				x: lerp(cornerValues[0], cornerValues[1], contourValue), 
+				y: lerp(cornerValues[2], cornerValues[1], contourValue)
+			};	
+		} 
+		else if (type === 6 || type === 9) {
+			next = [N,S];
+			interpolation = {
+				x: 0.5, 
+				y: 0.5
+			};	
+		} 
+		else if (type === 7 || type === 8) {
+			next = [N,W];
+			interpolation = {
+				x: lerp(cornerValues[1], cornerValues[0], contourValue), 
+				y: lerp(cornerValues[3], cornerValues[0], contourValue)
+			};	
+		} 
 		else if (type === 5 || type === 10) {
 			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
 			if (diff[0] === -1){
@@ -127,14 +185,99 @@
 		}	
 
 		if (!previousPos || (currentPos.x + next[0][0] === previousPos.x && currentPos.y + next[0][1] === previousPos.y)){
-			return {x: currentPos.x + next[1][0], y: currentPos.y + next[1][1]};
+			return {x: currentPos.x + next[1][0], y: currentPos.y + next[1][1], interpolation};
 		}
-		else return {x: currentPos.x + next[0][0], y: currentPos.y + next[0][1]};
+		else return {x: currentPos.x + next[0][0], y: currentPos.y + next[0][1], interpolation};
 	}
 	
 	// Linear interpolation
 	function lerp(valueA, valueB, contourValue){
 		return Math.max(Math.min(1 + (-0.5) * (contourValue - valueA) / (valueB - valueA), 0.8), 0.2);
 	}
+
+	function cSpline(points, tension, numOfSeg, close) {
+	    tension = (typeof tension === 'number') ? tension : 0.5;
+	    numOfSeg = numOfSeg ? numOfSeg : 25;
+
+	    var pts; // for cloning point array
+	    var i = 1;
+	    var l = points.length;
+	    var rPos = 0;
+	    var rLen = (l - 2) * numOfSeg + 2 + (close ? 2 * numOfSeg : 0);
+	    var res = new Float32Array(rLen);
+	    var cache = new Float32Array((numOfSeg + 2) * 4);
+	    var cachePtr = 4;
+	    var st, st2, st3, st23, st32, parse;
+
+	    pts = points.slice(0);
+	    if (close) {
+	        pts.unshift(points[l - 1]); // insert end point as first point
+	        pts.unshift(points[l - 2]);
+	        pts.push(points[0], points[1]); // first point as last point
+	    } else {
+	        pts.unshift(points[1]); // copy 1. point and insert at beginning
+	        pts.unshift(points[0]);
+	        pts.push(points[l - 2], points[l - 1]); // duplicate end-points
+	    }
+	    // cache inner-loop calculations as they are based on t alone
+	    cache[0] = 1; // 1,0,0,0
+	    for (; i < numOfSeg; i++) {
+	        st = i / numOfSeg;
+	        st2 = st * st;
+	        st3 = st2 * st;
+	        st23 = st3 * 2;
+	        st32 = st2 * 3;
+	        cache[cachePtr++] = st23 - st32 + 1; // c1
+	        cache[cachePtr++] = st32 - st23; // c2
+	        cache[cachePtr++] = st3 - 2 * st2 + st; // c3
+	        cache[cachePtr++] = st3 - st2; // c4
+	    }
+	    cache[++cachePtr] = 1; // 0,1,0,0
+
+	    parse = function (pts, cache, l) {
+
+	        var i = 2;
+	        var t, pt1, pt2, pt3, pt4, t1x, t1y, t2x, t2y, c, c1, c2, c3, c4;
+
+	        for (i; i < l; i += 2) {
+	            pt1 = pts[i];
+	            pt2 = pts[i + 1];
+	            pt3 = pts[i + 2];
+	            pt4 = pts[i + 3];
+	            t1x = (pt3 - pts[i - 2]) * tension;
+	            t1y = (pt4 - pts[i - 1]) * tension;
+	            t2x = (pts[i + 4] - pt1) * tension;
+	            t2y = (pts[i + 5] - pt2) * tension;
+	            for (t = 0; t < numOfSeg; t++) {
+	                //t * 4;
+	                c = t << 2; //jshint ignore: line
+	                c1 = cache[c];
+	                c2 = cache[c + 1];
+	                c3 = cache[c + 2];
+	                c4 = cache[c + 3];
+
+	                res[rPos++] = c1 * pt1 + c2 * pt3 + c3 * t1x + c4 * t2x;
+	                res[rPos++] = c1 * pt2 + c2 * pt4 + c3 * t1y + c4 * t2y;
+	            }
+	        }
+	    };
+
+	    // calc. points
+	    parse(pts, cache, l);
+
+	    if (close) {
+	        //l = points.length;
+	        pts = [];
+	        pts.push(points[l - 4], points[l - 3], points[l - 2], points[l - 1]); // second last and last
+	        pts.push(points[0], points[1], points[2], points[3]); // first and second
+	        parse(pts, cache, 4);
+	    }
+	    // add last point
+	    l = close ? 0 : points.length - 2;
+	    res[rPos++] = points[l];
+	    res[rPos] = points[l + 1];
+
+	    return res;
+	};
 
 </script>
