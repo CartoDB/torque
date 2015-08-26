@@ -23,10 +23,10 @@
 
 	var cellsX = grid[0].length-1;
 	var cellsY = grid.length-1;
-	var contourValues = [0,1,2,4];
+	var contourValues = [0];
 	var lines = [];
-	var pointsTraveled = new Set();
 	for(var c = 0; c < contourValues.length; c++){
+		var pointsTraveled = new Set();
 		var pointerX = 0, pointerY = 0, x = 0, y = 0;
 		var line = [];
 		var xy = march(0,0);
@@ -36,20 +36,23 @@
 		}
 
 		function march(x,y){
-			var marchTo;
 			if(x >= grid[0].length){
 				pointerX = 0;
 				pointerY++;
 				return {x: pointerX, y: pointerY };
 			}
-			if (y > grid.length-2) return;
+			if (pointerX === 0 && y > grid.length-2) return;
 			if (pointsTraveled.has(x+":"+y) && line.length === 0){
 				pointerX ++;
 				return {x: pointerX, y: pointerY };
 			}
 			else{
 				pointsTraveled.add(x+":"+y);
-				var cornerValues = [grid[y][x], grid[y][x+1], grid[y+1][x+1], grid[y+1][x]];
+				var NW = grid[y][x],
+						    NE = grid[y][x+1],
+						    SE = grid[y+1]? grid[y+1][x+1]: 0,
+						    SW = grid[y+1]? grid[y+1][x]: 0
+				var cornerValues = [NW, NE, SE, SW];
 				var currentPos = {x: x, y: y};
 				var previousPos = line.length > 0? {x: line[line.length-1].coord.x, y: line[line.length-1].coord.y}: null;
 				var next = getNext(currentPos, previousPos, cornerValues, contourValues[c]);
