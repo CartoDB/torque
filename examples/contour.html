@@ -177,13 +177,41 @@
 		else if (type === 5 || type === 10) {
 			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
 			if (diff[0] === -1){
-				return {x: currentPos.x, y: currentPos.y - 1};
+				return {
+					x: currentPos.x, 
+					y: currentPos.y - 1,
+					interpolation: {
+						x: lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: lerp(cornerValues[3], cornerValues[0], contourValue)
+					}
+				};
 			} else if (diff[0] === 1){
-				return {x: currentPos.x, y: currentPos.y + 1};
+				return {
+					x: currentPos.x, 
+					y: currentPos.y + 1,
+					interpolation: {
+						x: lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: lerp(cornerValues[1], cornerValues[2], contourValue)
+					}
+				};
 			} else if (diff[1] === -1){
-				return {x: currentPos.x + 1, y: currentPos.y};
+				return {
+					x: currentPos.x + 1, 
+					y: currentPos.y,
+					interpolation: {
+						x: lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: lerp(cornerValues[3], cornerValues[0], contourValue)
+					}
+				};
 			} else if (diff[1] === 1){
-				return {x: currentPos.x - 1, y: currentPos.y};
+				return {
+					x: currentPos.x - 1, 
+					y: currentPos.y,
+					interpolation: {
+						x: lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: lerp(cornerValues[1], cornerValues[2], contourValue)
+					}
+				};
 			}
 		}	
 
