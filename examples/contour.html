@@ -2,7 +2,6 @@
 <meta charset="utf-8">
 <body>
 <canvas id = "sample" width = "600" height = "600"></canvas>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
 <script type="text/javascript">
 
 	var tile = {"x":[96,64,160,64,48,192,16,80,112,16,64,176,80,64,32,176,16,144,176,176,112,128,224,16,16,176,16,0,64,160,128,160,208,80,192,0,80,16,192,128,208,160,128,192,32,112,144,112,80,32,80,112,32,80,112,80,32,144,112,144,32,80,32,176,112,208,32,96,192,144,160,144,208,144,0,112,224,160,16,0,208,128,48,0,176,96,96,48,48,64,96,48,96,48,96],"y":[176,192,208,160,176,208,224,32,48,64,144,224,208,128,96,240,112,208,160,192,208,208,240,192,240,144,80,160,208,160,176,192,240,128,240,240,144,48,192,224,192,240,16,160,176,16,224,224,240,224,192,176,16,160,240,224,160,240,160,192,80,176,240,208,192,224,112,208,224,128,176,144,176,112,224,144,208,224,176,208,208,96,64,32,176,112,144,144,112,176,192,160,160,240,240],"z":6,"coord":{"x":18,"y":24,"z":6},"timeCount":[95],"timeIndex":[0],"renderDataPos":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94],"renderData":[3,4,3,3,3,4,2,1,1,1,1,5,2,3,1,11,2,5,2,6,2,4,4,5,1,1,1,1,1,1,2,1,8,7,15,1,8,1,1,4,3,6,1,1,1,2,2,1,5,2,4,1,1,2,2,1,1,5,2,4,1,1,2,2,2,5,2,6,8,1,2,1,1,2,1,1,1,2,3,1,4,1,2,1,3,1,4,1,1,2,1,2,2,4,2],"maxDate":0};
@@ -11,21 +10,32 @@
 	var canvas = document.getElementById("sample");
 	var ctx = canvas.getContext("2d");
 	for (var y = 0;  y < grid.length; y++){
+		if (y < 15){
+			ctx.fillStyle = "black";
+			ctx.fillText(y,42 + y*30, 10);
+			ctx.fill();
+			ctx.fillText(y,10, 46 + y*30);
+			ctx.fill();
+		}
 		for (var x = 0;  x < grid[0].length; x++){
 			ctx.beginPath();
-			ctx.arc(20 + x*20, 20 + y*20, 3, 0, 2 * Math.PI, false);
+			//ctx.arc(30 + x*30, 30 + y*30, 3, 0, 2 * Math.PI, false);
 			var value = grid[y][x];
 			ctx.fillStyle = "rgb("+0+", "+value * 50+", "+value * 50+")";
 			if(value === 0) ctx.fillStyle = "red";
+			ctx.textAlign = "center"
+			ctx.fillText(value,30 + x*30, 34 + y*30);
 			ctx.fill();
 		}
 	}
 
 	var cellsX = grid[0].length-1;
 	var cellsY = grid.length-1;
-	var contourValues = [0];
+	// var contourValues = [1,2,3,4,5,6];
+	var contourValues = [1,2];
 	var lines = [];
 	for(var c = 0; c < contourValues.length; c++){
+		lines[c] = [];
 		var pointsTraveled = new Set();
 		var pointerX = 0, pointerY = 0, x = 0, y = 0;
 		var line = [];
@@ -35,8 +45,8 @@
 			xy = march(xy.x, xy.y);
 		}
 
-		function march(x,y){
-			if(x >= grid[0].length){
+		function march(x,y) {
+			if(x >= grid[0].length) {
 				pointerX = 0;
 				pointerY++;
 				return {x: pointerX, y: pointerY };
@@ -58,13 +68,13 @@
 				var next = getNext(currentPos, previousPos, cornerValues, contourValues[c]);
 				if (next){
 					if (line.length > 0 && (line[0].coord.x === x && line[0].coord.y === y)){
-						lines.push(line);
+						lines[c].push(line);
 						line = [];
 						pointerX ++;
 						return {x: pointerX, y: pointerY };
 					}
 					else{
-						line.push({coord: {x: x, y: y, interpolation: next.interpolation}, values: cornerValues});
+						line.push({coord: {x: x, y: y, relativePosition: next.relativePosition}, values: cornerValues});
 						return next;
 					} 
 				}
@@ -76,26 +86,38 @@
 		}
 	}
 
-	ctx.strokeStyle = "black"
-	for (var l = 0; l < lines.length; l++){
-		var line = cardinalSpline(lines[l]);
-		ctx.beginPath();
-		ctx.moveTo(line[0][0], line[0][1]);
-		for (var p = 2; p < line.length; p+=2){
-			ctx.lineTo(line[p], line[p+1]);
+	for (var c = 0; c < lines.length; c++){
+		var thisContour = lines[c];
+		ctx.strokeStyle = 'hsl(' + 360 * Math.random() + ', 50%, 50%)';
+		for (var l = 0; l < thisContour.length; l++){
+			var line = cardinalSpline(thisContour[l]);
+			ctx.beginPath();
+			ctx.moveTo(line[0], line[1]);
+			for (var p = 2; p < line.length; p+=2){
+				ctx.lineTo(line[p], line[p+1]);
+			}
+			ctx.closePath();
+			ctx.stroke();
 		}
-		ctx.closePath();
-		ctx.stroke();
 	}
 
 	function cardinalSpline(line){
 		var plainArray = [];
 		for (var p = 0; p < line.length; p++){
-			var interpolation = line[p].coord.interpolation || {x: 0.5, y: 0.5};
-			plainArray.push(20 + 20*line[p].coord.x + 20 * interpolation.x);
-			plainArray.push(20 + 20*line[p].coord.y + 20 * interpolation.y);
+			var relativePosition = line[p].coord.relativePosition || {x: 0.5, y: 0.5};
+			if (relativePosition.length){
+				// plainArray.push(30 + 30*line[p].coord.x + 30 * relativePosition[0].x);
+				// plainArray.push(30 + 30*line[p].coord.y + 30 * relativePosition[0].y);
+				plainArray.push(30 + 30*line[p].coord.x + 30 * relativePosition[1].x);
+				plainArray.push(30 + 30*line[p].coord.y + 30 * relativePosition[1].y);
+			}
+			else {
+				plainArray.push(30 + 30*line[p].coord.x + 30 * relativePosition.x);
+				plainArray.push(30 + 30*line[p].coord.y + 30 * relativePosition.y);
+			}
 		}
-		return cSpline(plainArray, 0.5, 25, true);
+		// return plainArray;
+		return cSpline(plainArray, 0.5, 10, true);
 	}
 
 	function gridData(tile){
@@ -118,7 +140,7 @@
 
 	function getNext(currentPos, previousPos, cornerValues, contourValue){
 		var binaryCell = cornerValues.map(function(cornerValue){
-				if (cornerValue > contourValue){
+				if (cornerValue >= contourValue){
 					return "1";
 				}
 				return "0";
@@ -129,101 +151,265 @@
 		    E = [1, 0], 
 		    W = [-1, 0];
 
-		var next, interpolation;
+		var next, relativePosition;
+
+
 
 		if (type === 0 || type === 15) return null;
 		else if (type === 1 || type === 14){
 			next = [S,W];
-			interpolation = {
-				x: lerp(cornerValues[2], cornerValues[3], contourValue), 
-				y: lerp(cornerValues[0], cornerValues[3], contourValue)
-			};	
+			if (type === 1){
+				relativePosition = [{
+					x: 1 - this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+					y: 1
+				},{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				}];		
+			}
+			else{
+				relativePosition = [{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+			}
 		} 
 		else if (type === 2 || type === 13){
 			next = [E,S];
-			interpolation = {
-				x: lerp(cornerValues[3], cornerValues[2], contourValue), 
-				y: lerp(cornerValues[1], cornerValues[2], contourValue)
-			};	
+			if (type === 13){
+				relativePosition = [{
+					x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+					y: 1
+				},{
+					x: 1, 
+					y: 1 - this._lerp(cornerValues[2], cornerValues[1], contourValue)
+				}];	
+			} else {
+				relativePosition = [{
+					x: 1, 
+					y: 1 - this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+			}	
 		} 
-		else if (type === 3 || type === 12) {
+		else if (type === 12 || type === 3) {
 			next = [E,W];
-			interpolation = {
-				x: 0.5, 
-				y: 0.5
-			};	
+			if (type === 3){
+				relativePosition = [{
+					x: 1, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				}];	
+			} else {
+				relativePosition = [{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				},{
+					x: 1, 
+					y: 1 - this._lerp(cornerValues[2], cornerValues[1], contourValue)
+				}];	
+			}
 		} 
 		else if (type === 4 || type === 11){
 			next = [N,E];
-			interpolation = {
-				x: lerp(cornerValues[0], cornerValues[1], contourValue), 
-				y: lerp(cornerValues[2], cornerValues[1], contourValue)
-			};	
+
+			if (type === 11){
+				relativePosition = [{
+					x: 1, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+					y: 0
+				}];	
+			} else {
+				relativePosition = [{
+					x: this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+					y: 0
+				},{
+					x: 1,
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				}];	
+			}
 		} 
 		else if (type === 6 || type === 9) {
 			next = [N,S];
-			interpolation = {
-				x: 0.5, 
-				y: 0.5
-			};	
+			if (type === 6){
+				relativePosition = [{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+			} else {
+				relativePosition = [{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				},{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				}];	
+			}	
 		} 
 		else if (type === 7 || type === 8) {
 			next = [N,W];
-			interpolation = {
-				x: lerp(cornerValues[1], cornerValues[0], contourValue), 
-				y: lerp(cornerValues[3], cornerValues[0], contourValue)
-			};	
+			if (type === 7){
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				},{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				}];	
+			} else {
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[3], cornerValues[0], contourValue),
+				},{
+					x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+					y: 0
+				}];	
+			}	
 		} 
-		else if (type === 5 || type === 10) {
+		else if (type === 5) {
+			if (!previousPos) return null;
 			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
+			// 8
+			if (diff[0] === -1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y + 1,
+					relativePosition: [{
+						x: 0, 
+						y: this._lerp(cornerValues[3], cornerValues[0], contourValue),
+					},{
+						x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+				}]
+				};
+			// 13
+			} else if (diff[0] === 1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y - 1,
+					relativePosition: [{
+						x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: 1, 
+						y: 1 - this._lerp(cornerValues[2], cornerValues[1], contourValue)
+					}]
+				};
+			// 2
+			} else if (diff[1] === -1){
+				return {
+					x: currentPos.x - 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 1, 
+						y: 1 - this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}]
+				};
+			// 7
+			} else if (diff[1] === 1){
+				return {
+					x: currentPos.x + 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					},{
+						x: 1, 
+						y: this._lerp(cornerValues[2], cornerValues[1], contourValue)
+					}]
+				};
+			}
+		}	
+		else if (type === 10) {
+			if (!previousPos) return null;
+			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
+			// 11
 			if (diff[0] === -1){
 				return {
 					x: currentPos.x, 
 					y: currentPos.y - 1,
-					interpolation: {
-						x: lerp(cornerValues[1], cornerValues[0], contourValue), 
-						y: lerp(cornerValues[3], cornerValues[0], contourValue)
-					}
+					relativePosition: [{
+						x: 1, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+					}]
 				};
+			// 14
 			} else if (diff[0] === 1){
 				return {
 					x: currentPos.x, 
 					y: currentPos.y + 1,
-					interpolation: {
-						x: lerp(cornerValues[3], cornerValues[2], contourValue), 
-						y: lerp(cornerValues[1], cornerValues[2], contourValue)
-					}
+					relativePosition: [{
+						x: 0, 
+						y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+					},{
+						x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: 1
+					}]
 				};
+			// 4
 			} else if (diff[1] === -1){
 				return {
 					x: currentPos.x + 1, 
 					y: currentPos.y,
-					interpolation: {
-						x: lerp(cornerValues[1], cornerValues[0], contourValue), 
-						y: lerp(cornerValues[3], cornerValues[0], contourValue)
-					}
+					relativePosition: [{
+						x: this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+					},{
+						x: 1,
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					}]	
 				};
+			// 1
 			} else if (diff[1] === 1){
 				return {
 					x: currentPos.x - 1, 
 					y: currentPos.y,
-					interpolation: {
-						x: lerp(cornerValues[3], cornerValues[2], contourValue), 
-						y: lerp(cornerValues[1], cornerValues[2], contourValue)
-					}
+					relativePosition: [{
+						x: 1 - this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}]
 				};
 			}
 		}	
 
 		if (!previousPos || (currentPos.x + next[0][0] === previousPos.x && currentPos.y + next[0][1] === previousPos.y)){
-			return {x: currentPos.x + next[1][0], y: currentPos.y + next[1][1], interpolation};
+			return {x: currentPos.x + next[1][0], y: currentPos.y + next[1][1], relativePosition};
 		}
-		else return {x: currentPos.x + next[0][0], y: currentPos.y + next[0][1], interpolation};
+		else return {x: currentPos.x + next[0][0], y: currentPos.y + next[0][1], relativePosition};
 	}
 	
-	// Linear interpolation
-	function lerp(valueA, valueB, contourValue){
-		return Math.max(Math.min(1 + (-0.5) * (contourValue - valueA) / (valueB - valueA), 0.8), 0.2);
+	// Linear relativePosition
+	// function _lerp(valueA, valueB, contourValue){
+	// 	return Math.max(Math.min(1 + (-0.5) * (contourValue - valueA) / (valueB - valueA), 0.8), 0.2);
+	// }
+
+	function map_range(value, low1, high1, low2, high2) {
+	    return low2 + (high2 - low2) * (value - low1) / (high1 - low1);
+	}
+
+	function _lerp (istart, istop, value) {
+		return 0.2 + (0.6) * ((value - istart) / (istop - istart));
 	}
 
 	function cSpline(points, tension, numOfSeg, close) {
