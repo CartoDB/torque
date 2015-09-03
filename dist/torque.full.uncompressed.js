@@ -3948,6 +3948,17 @@ var Profiler = require('../profiler');
 
   splunk.prototype = {
 
+    setManager: function (PostProcessManager, managerId) {
+      this.searchManagerId = managerId;
+      this.managerClass = PostProcessManager;
+      this.managers = [];
+    },
+
+    setMap: function(map,rectsLayer) {
+      this.map=map;
+      this.rectsLayer=rectsLayer;
+    },
+
     /**
      * return the torque tile encoded in an efficient javascript
      * structure:
@@ -4088,7 +4099,7 @@ var Profiler = require('../profiler');
       this.options.cartocss = c;
     },*/
 
-    setSteps: function(steps, opt) { 
+    setSteps: function(steps, opt) {
       opt = opt || {};
       if (this.options.steps !== steps) {
         this.options.steps = steps;
@@ -4156,10 +4167,10 @@ var Profiler = require('../profiler');
 
     getTileData: function(coord, zoom, callback) {
       if(!this._ready) {
-  
+
         this._tileQueue.push([coord, zoom, callback]);
       } else {
-    
+
         this._getTileData(coord, zoom, callback);
       }
     },
@@ -4183,7 +4194,7 @@ var Profiler = require('../profiler');
      */
     _getTileData: function(coord, zoom, callback) {
       console.log("Fetching tile " + coord.zoom + '/' + coord.x + '/' + coord.y);
-       
+
 
       var self = this;
 
@@ -4191,11 +4202,14 @@ var Profiler = require('../profiler');
       getSplunkData(function(data){
         //parseData converts splunk results into a valid torque tile
         var tile = parseData(data);
-       
+
+
+
         if (tile) {
           var rows = tile;
 
-         
+          console.log(rows,coord,zoom);
+
 
           callback(self.proccessTile(rows, coord, zoom));
         } else {
@@ -4206,13 +4220,13 @@ var Profiler = require('../profiler');
 
 
     function getSplunkData(callback) {
- 
+
 
     var tileBounds = boundsFromTile(coord.zoom,coord.x,coord.y);
 
     //console.log(tileBounds);
 
-    //validate bounds
+    // //validate bounds
     if(
         tileBounds.minLat > -86 &&
         tileBounds.maxLat < 86 &&
@@ -4220,40 +4234,20 @@ var Profiler = require('../profiler');
         tileBounds.maxLng <= 180
     ) {
 
-        var options = {
-          host: 'localhost',
-          port: '8000',
-          sid: '1439866488.13',
-          bounds: tileBounds
-        }
-
-        var template = 'http://{{host}}:{{port}}/en-US/splunkd/__raw/services/search/jobs/{{sid}}/results_preview?output_mode=json_rows&count=65536&show_metadata=false&search=geofilter+south={{bounds.minLat}}+west={{bounds.minLng}}+north={{bounds.maxLat}}+east={{bounds.maxLng}}+maxclusters%3D65536';
-
-        var queryString = Mustache.render(template,options);
-
-        console.log(queryString);
-
-
-        $.getJSON(queryString,function(data) {
-          console.log("Got " + (data.rows.length-8) + " bins for this tile");
-          callback(data);
+      if (!self.managers[coord.zoom + "_" + coord.x + "_" + coord.y]) {
+        self.managers[coord.zoom + "_" + coord.x + "_" + coord.y] = new self.managerClass({
+          id: self.searchManagerId + '::' + coord.zoom + "_" + coord.x + "_" + coord.y,
+          managerid: self.searchManagerId,
+          search: "geofilter south=" + tileBounds.minLat + " west=" + tileBounds.minLng + " north=" + tileBounds.maxLat + " east=" + tileBounds.maxLng + " maxclusters=65536"
         });
-        // $.ajax({
-        //   type: "POST",
-        //   crossDomain: true,
-        //   url: "https://localhost:8089/servicesNS/admin/search/search/jobs/export",
-        //   username: 'admin',
-        //   password: 'cartodb',
-        //   dataType: 'text',
-        //   data: queryString,
-        //   success: callback,
-        //   beforeSend: function(xhr) {
-        //     xhr.setRequestHeader(
-        //         'Authorization',
-        //         'Basic ' + window.btoa(unescape(encodeURIComponent('admin' + ':' + 'cartodb')))
-        //     )
-        //   }
-        // });
+        self.managers[coord.zoom + "_" + coord.x + "_" + coord.y].data("results", {count: 0, output_mode: 'json_rows'}).on("data", function (results) {
+          console.log("Got " + (results.data().rows.length) + " bins for this tile");
+          console.log(results.data());
+          callback(results.data());
+        });
+      }
+
+      self.managers[coord.zoom + "_" + coord.x + "_" + coord.y].startSearch();
 
       }
     }
@@ -4263,7 +4257,7 @@ var Profiler = require('../profiler');
     var bounds = tileBounds(z,x,y);
         mins = metersToLatLng(bounds[0]);
         maxs = metersToLatLng(bounds[1]);
-           
+
         bounds={
           minLat:mins[1],
           maxLat:maxs[1],
@@ -4276,17 +4270,17 @@ var Profiler = require('../profiler');
 
     function metersToLatLng(coord) {
       lng = (coord[0] / (2 * Math.PI * 6378137 / 2.0)) * 180.0
-      
+
       lat = (coord[1] / (2 * Math.PI * 6378137 / 2.0)) * 180.0
       lat = 180 / Math.PI * (2 * Math.atan( Math.exp( lat * Math.PI / 180.0)) - Math.PI / 2.0)
-      
+
       return [lng,lat]
     }
 
     function tileBounds(z,x,y) {
       var mins = pixelsToMeters( z, x*256, (y+1)*256 )
       var maxs = pixelsToMeters( z, (x+1)*256, y*256 )
-          
+
       return [mins,maxs];
     }
 
@@ -4306,46 +4300,61 @@ var Profiler = require('../profiler');
         // data = '[' + data.split('}}').join('}},').replace(/,\s*$/, "") + ']';
 
         // data = JSON.parse(data);
-       
+
+        //get indices of boundfields (for some reason they like to move around)
+        var f=data.fields;
+
+        var boundFields = {
+          south: f.indexOf("_geo_bounds_south"),
+          north: f.indexOf("_geo_bounds_north"),
+          east: f.indexOf("_geo_bounds_east"),
+          west: f.indexOf("_geo_bounds_west"),
+        }
+
+        console.log(boundFields);
+
 
         var torqueTile = [];
 
         //iterate over bounding boxes
         data.rows.forEach(function(bin) {
 
-            //console.log(bin);
+            //console.log("bin", bin);
 
             torqueTile.push(torqueTransform(bin));
-  
-            
+
+
             function torqueTransform(bin){
-            
-              //var binSpan = 1010384; //hard coded to figure out step from unixtimestamp, TODO figure out how we will deal with the time range and bin span
 
+              // [[y1, x1], [y2, x2]];
 
+              
+              var b = boundFields;
+              var bounds = [[bin[b.south],bin[b.west]],[bin[b.north],bin[b.east]]];
 
-              var bounds = [[bin[bin.length-4],bin[bin.length-3]],[bin[bin.length-5],bin[bin.length-6]]];
+              console.log('binbounds',bounds);
 
-              //console.log(bounds);
+              
 
-              //create an orange rectangle
-              // L.rectangle(bounds, {color: "#ff7800", weight: 1})
-              // .addTo(map);
+              //draw an orange rectangle using the tile bounds to see what we're getting back
+              // L.rectangle(bounds, {color: "#ff7800", weight: 1}).addTo(self.rectsLayer);
 
               var torqueBin = {};
 
-              var lat = bin[0],
-              lng = bin[1];
+              var lat = parseFloat(bin[0]),
+              lng = parseFloat(bin[1]);
+
+           
 
               //convert bin lat/lng to tile x/y
-              var point = latLngToTileXY(parseInt(lat),parseInt(lng),zoom)
+              var point = latLngToTileXY(lat,lng,zoom)
 
               //console.log('tileXY', point)
-          
+
               torqueBin.x__uint8 = point.x;
               torqueBin.y__uint8 = point.y;
-              
-    
+
+
 
               //iterate over remaining rows minus the last 6
               var dates = [],
@@ -4354,13 +4363,13 @@ var Profiler = require('../profiler');
                 if(bin[i] !== null) {
                   dates.push(i);
                   vals.push(bin[i]);
-                } 
+                }
               }
 
               torqueBin.vals__uint8 = vals;
               torqueBin.dates__uint16 = dates;
 
-              //console.log(torqueBin);
+              console.log(torqueBin);
               return torqueBin;
 
             }
@@ -4372,7 +4381,7 @@ var Profiler = require('../profiler');
                 MaxLongitude = 180,
                 mapSize = Math.pow(2, zoom) * 256;
 
-         
+
 
             latitude = clip(lat, MinLatitude, MaxLatitude)
             longitude = clip(lng, MinLongitude, MaxLongitude)
@@ -4381,12 +4390,12 @@ var Profiler = require('../profiler');
             p.x = (longitude + 180.0) / 360.0 * (1 << zoom)
             p.y = (1.0 - Math.log(Math.tan(latitude * Math.PI / 180.0) + 1.0 / Math.cos(lat.toRad())) / Math.PI) / 2.0 * (1 << zoom)
 
-        
+
 
             var tilex  = parseInt(Math.trunc(p.x));
             var tiley  = parseInt(Math.trunc(p.y));
 
-     
+
 
             var pixelX = clipByRange((tilex * 256) + ((p.x - tilex) * 256), mapSize - 1)/2 //<-- divide by 2 because we only have 128 bins
             var pixelY = (256 - clipByRange((tiley * 256) + ((p.y - tiley) * 256), mapSize - 1))/2
@@ -4401,7 +4410,7 @@ var Profiler = require('../profiler');
             }
 
             function clipByRange(n,range) {
-    
+
                 return n % range;
             }
         }
@@ -4412,8 +4421,8 @@ var Profiler = require('../profiler');
 
         return torqueTile;
     }
-        
-    
+
+
     },
 
 
@@ -4524,7 +4533,7 @@ var Profiler = require('../profiler');
 
 
     _fetchMap: function(callback) {
-    
+
       var self = this;
       var layergroup = {};
       var host = this.options.dynamic_cdn ? this.url().replace('{s}', '0'): this._tilerHost();
@@ -4552,7 +4561,7 @@ var Profiler = require('../profiler');
           }]
         };
       }
-      
+
       if(this.options.stat_tag){
         allParams["stat_tag"] = this.options.stat_tag;
       }
@@ -4570,22 +4579,17 @@ var Profiler = require('../profiler');
         "&callback=?" + (extra ? "&" + extra: '');
 
       var map_instance_time = Profiler.metric('torque.provider.windshaft.layergroup.time').start();
- 
-      // var opt = {start: 1000, end: 5000, data_steps: 5, column_type: "number"}; 
 
-      var opt = {start: 1262311701000, 
-        end: 1391640787000, 
-        data_steps: 8247, 
+      // var opt = {start: 1000, end: 5000, data_steps: 5, column_type: "number"};
+
+      var opt = {start: 1262311701000,
+        end: 1391640787000,
+        data_steps: 8247,
         column_type: "date"};
-         
+
       for(var k in opt) {
         self.options[k] = opt[k];
       }
-
-      //in Windshaft, this was happening after an ajax call.  Calling self._setReady() too early causes the viz to fail, so it is delayed here. We should fix this
-      setTimeout(function(){
-        self._setReady(true);
-      },500)
     }
   };
 
