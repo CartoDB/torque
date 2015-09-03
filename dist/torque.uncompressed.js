@@ -3948,10 +3948,12 @@ var Profiler = require('../profiler');
 
   splunk.prototype = {
 
-    setManager: function (PostProcessManager, managerId) {
-      this.searchManagerId = managerId;
-      this.managerClass = PostProcessManager;
+    setManager: function (SearchManager, searchQuery, span) {
+      //this.searchManagerId = managerId;
+      this.managerClass = SearchManager;
       this.managers = [];
+      this.searchQuery = searchQuery;
+      this.span = span;
     },
 
     setMap: function(map,rectsLayer) {
@@ -4208,7 +4210,7 @@ var Profiler = require('../profiler');
         if (tile) {
           var rows = tile;
 
-          console.log(rows,coord,zoom);
+        
 
 
           callback(self.proccessTile(rows, coord, zoom));
@@ -4220,11 +4222,19 @@ var Profiler = require('../profiler');
 
 
     function getSplunkData(callback) {
-
+     
 
     var tileBounds = boundsFromTile(coord.zoom,coord.x,coord.y);
 
-    //console.log(tileBounds);
+ 
+
+    self.latspan = 0.70312500000000,
+    self.lonspan = 1.40625000000000;
+
+    for(var i=0;i<coord.zoom;i++) {
+      self.latspan = self.latspan/2;
+      self.lonspan = self.lonspan/2;
+    }
 
     // //validate bounds
     if(
@@ -4235,19 +4245,28 @@ var Profiler = require('../profiler');
     ) {
 
       if (!self.managers[coord.zoom + "_" + coord.x + "_" + coord.y]) {
+     
         self.managers[coord.zoom + "_" + coord.x + "_" + coord.y] = new self.managerClass({
-          id: self.searchManagerId + '::' + coord.zoom + "_" + coord.x + "_" + coord.y,
-          managerid: self.searchManagerId,
-          search: "geofilter south=" + tileBounds.minLat + " west=" + tileBounds.minLng + " north=" + tileBounds.maxLat + " east=" + tileBounds.maxLng + " maxclusters=65536"
+          id: coord.zoom + "_" + coord.x + "_" + coord.y,
+          //managerid: self.searchManagerId,
+          search: self.searchQuery + " longitude > " 
+          + tileBounds.minLng 
+          + " latitude > " + tileBounds.minLat
+          + " longitude < " + tileBounds.maxLng 
+          + " latitude < " + tileBounds.maxLat + "| bucket _time span=" + self.span + " | eval lat = floor(('latitude' + 90.000000) / " + self.latspan + " ) | eval lon = floor(('longitude' + 180.000000) / " + self.lonspan + ") | eval latlon = lat.\"-\".lon | chart count by latlon,_time limit=256"
         });
+
         self.managers[coord.zoom + "_" + coord.x + "_" + coord.y].data("results", {count: 0, output_mode: 'json_rows'}).on("data", function (results) {
           console.log("Got " + (results.data().rows.length) + " bins for this tile");
-          console.log(results.data());
+        
           callback(results.data());
         });
       }
 
+ 
       self.managers[coord.zoom + "_" + coord.x + "_" + coord.y].startSearch();
+
+ 
 
       }
     }
@@ -4301,17 +4320,19 @@ var Profiler = require('../profiler');
 
         // data = JSON.parse(data);
 
-        //get indices of boundfields (for some reason they like to move around)
-        var f=data.fields;
 
-        var boundFields = {
-          south: f.indexOf("_geo_bounds_south"),
-          north: f.indexOf("_geo_bounds_north"),
-          east: f.indexOf("_geo_bounds_east"),
-          west: f.indexOf("_geo_bounds_west"),
-        }
 
-        console.log(boundFields);
+        // //get indices of boundfields (for some reason they like to move around)
+        // var f=data.fields;
+
+        // var boundFields = {
+        //   south: f.indexOf("_geo_bounds_south"),
+        //   north: f.indexOf("_geo_bounds_north"),
+        //   east: f.indexOf("_geo_bounds_east"),
+        //   west: f.indexOf("_geo_bounds_west"),
+        // }
+
+ 
 
 
         var torqueTile = [];
@@ -4319,7 +4340,6 @@ var Profiler = require('../profiler');
         //iterate over bounding boxes
         data.rows.forEach(function(bin) {
 
-            //console.log("bin", bin);
 
             torqueTile.push(torqueTransform(bin));
 
@@ -4329,10 +4349,23 @@ var Profiler = require('../profiler');
               // [[y1, x1], [y2, x2]];
 
               
-              var b = boundFields;
-              var bounds = [[bin[b.south],bin[b.west]],[bin[b.north],bin[b.east]]];
+              // var b = boundFields;
+              // var bounds = [[bin[b.south],bin[b.west]],[bin[b.north],bin[b.east]]];
 
-              console.log('binbounds',bounds);
+          
+              var latlon = bin[0];
+
+              lat = latlon.split('-')[0];
+              lon = latlon.split('-')[1];
+
+
+              lat = ( lat * self.latspan ) - 90;
+              lon = ( lon * self.lonspan ) - 180;
+
+              lat = parseFloat(lat.toFixed(6));
+              lon = parseFloat(lon.toFixed(6));
+
+
 
               
 
@@ -4341,15 +4374,13 @@ var Profiler = require('../profiler');
 
               var torqueBin = {};
 
-              var lat = parseFloat(bin[0]),
-              lng = parseFloat(bin[1]);
-
+            
            
 
               //convert bin lat/lng to tile x/y
-              var point = latLngToTileXY(lat,lng,zoom)
+              var point = latLngToTileXY(lat,lon,zoom)
 
-              //console.log('tileXY', point)
+            
 
               torqueBin.x__uint8 = point.x;
               torqueBin.y__uint8 = point.y;
@@ -4369,12 +4400,15 @@ var Profiler = require('../profiler');
               torqueBin.vals__uint8 = vals;
               torqueBin.dates__uint16 = dates;
 
-              console.log(torqueBin);
+          
               return torqueBin;
 
             }
 
           function latLngToTileXY(lat,lng,zoom) {
+          
+
+
             var MinLatitude = -85.05112878,
                 MaxLatitude = 85.05112878,
                 MinLongitude = -180,
