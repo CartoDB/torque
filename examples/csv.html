@@ -365,6 +365,7 @@
                     complete: function (results) {
                         for (var i = 1; i <= pointsToLoad && i < results.data.length; i++) {
                             var point = results.data[i];
+                            //torqueLayer.provider.addPoint(point[2], point[1], point[0], point[3]);
                             torqueLayer.provider.addPoint(point[1], point[0], point[3], point[2]);
                         }
                         torqueLayer.provider.setReady();
