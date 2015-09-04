@@ -1,5 +1,9 @@
+2.11.5
+    
 2.11.4
     - Static torque maps now draw correctly when unhiding them
+    - Fixed animation always playing when rescaling
+    - Added animator tests
 2.11.3
     - Limited sprite radius to a maximum of 255px
     - Fixed custom marker-file functionality in Firefox

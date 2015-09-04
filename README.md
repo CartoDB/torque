@@ -17,7 +17,7 @@ Have fun!
 
 Torque lets you render big, timeseries or categorical data in the client. This is useful for many modern applications that need more than just a static map. Early versions of Torque have been used to visualize human movement, Twitter activity, biodiversity data, and many more large-scale datasets.
 
-The library uses CartoDB to generate a [layercube]() format. For a brief introduction to the format and methods, see our [presentation slides](http://gijs.github.com/images/cartodb_datacubes.pdf). If you are not using CartoDB to host your data, you can modify the input parameters to point toward any layercube service.
+The library uses CartoDB to generate a [layercube](https://github.com/CartoDB/tilecubes/blob/master/2.0/spec.md) format. For a brief introduction to the format and methods, see our [presentation slides](http://gijs.github.com/images/cartodb_datacubes.pdf). If you are not using CartoDB to host your data, you can modify the input parameters to point toward any layercube service.
 
 ### Getting started
 
