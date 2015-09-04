@@ -250,6 +250,7 @@
                         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAAAXNSR0IArs4c6QAAAclJREFUSA3VlzFLA0EQhe80BC2sRNDSLp2dIApaCVb+BC1tbBQrW4vUIthKWsHCSrESLUQsRdBCsDBJYUARC0E9vwm33uVyyc1uSIIDj5mdnZmX3Z3sJl4QBHlQBGXQbREO4cp7odFtwmT9oo+n7HneBOilVIQ46CWj4RowRq/1vyU+YaemwIP1jiXbzWJ8RuygEKLXLfLqoZ00V8H3/fuQeAT9DESrxPaMf6h6DE4NqbBgv6MOxNaKDfE5RWWVy+irFII9fC8p/nSX8mwOicuZCthLYMiM4xr/BsgUaYwseSWg6ezwjQM/Tio2vhy4Bm1Fs9U34Rk2cOCrgqZbD98XgfsNwSkDDfFbSl6W6y4rQEOsb5iIbSwy0y0N8QqHtZqe3tI723LGTLTtgGjyE3PR5CQ1c3JzLYgfPQwyf1RoViz18uCIgjMyiAu+bcaTYC7076Cz33cSbaRGcCEkkNVtgTVwCUbBJlCJy139CLG8SB+gBuS+vgDzYBqoxIVYCsv39BbsgvoLhbYS7Rkni8oqq+A7OaEd/92/2oQw7gktj780nZO4brUTWTzJdavjNZzsvhJXnD5yZ0kVWXGpsxpO2SW5ffryp+0XLlaMejDd+O4AAAAASUVORK5CYII="/>
                     </a>
                 </li>
+            </ul>
         </div>
 
         <script src="vendor/leaflet.js"></script>
@@ -365,8 +366,8 @@
                     complete: function (results) {
                         for (var i = 1; i <= pointsToLoad && i < results.data.length; i++) {
                             var point = results.data[i];
-                            //torqueLayer.provider.addPoint(point[2], point[1], point[0], point[3]);
-                            torqueLayer.provider.addPoint(point[1], point[0], point[3], point[2]);
+                            torqueLayer.provider.addPoint(point[2], point[1], point[0], point[3]);
+                            //torqueLayer.provider.addPoint(point[1], point[0], point[3], point[2]);
                         }
                         torqueLayer.provider.setReady();
                         document.getElementById('control').style.visibility = "visible";
