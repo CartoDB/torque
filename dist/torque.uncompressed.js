@@ -4612,6 +4612,30 @@ var Filters = require('./torque_filters');
       this._sprites = [];
     },
 
+    processScaleFunction:function(input, opts){
+
+      if(typeof(input)!='string'){
+        return input;
+      }
+
+      var matches = input.match(/scale_(.*)\((.*)\)/)
+      if(matches){
+        var type = matches[1];
+        var params = matches[2].split(",");
+
+        var variable  = params[0]
+        var domain = params.slice(1,3);
+        var range  = params.slice(3,params.length);
+
+        var scale = {lin: d3.scale.linear, log: d3.scale.log, quant: d3.scale.quantize, sqrt: d3.scale.sqrt}[type]
+
+        var s = scale().domain(domain).range(range)
+        return s(opts[variable])
+      }
+      else{
+        return input;
+      }
+    },
 
     //
     // generate sprite based on cartocss style
