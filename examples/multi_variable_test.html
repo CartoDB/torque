@@ -1,0 +1,152 @@
+
+<html>
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <style>
+    #map, html, body {
+      width: 100%; height: 100%; padding: 0; margin: 0;
+    }
+    #title {
+      position: absolute;
+      top: 100px;
+      left: 50px;
+      color: white;
+      font-size: 27px;
+      font-family: Helvetica, sans-serif;
+    }
+  </style>
+  <body>
+    <div id="map"></div>
+
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    <script src="../dist/torque.full.uncompressed.js"></script>
+
+
+    <script>
+      // define the torque layer style using cartocss
+      // this creates a kind of density map
+      //color scale from http://colorbrewer2.org/
+      var CARTOCSS = [
+          'Map {',
+          '-torque-time-attribute: "time";',
+          '-torque-aggregation-function: "avg(mag*10);avg(depth)";',
+          '-torque-frame-count: 256;',
+          '-torque-animation-duration: 30;',
+          '-torque-resolution: 1',
+          '}',
+          '#all_day {',
+          '  marker-width: 4;',
+          '  marker-fill-opacity: 0.7;',
+          '  marker-type: ellipse;',
+          'marker-fill: #FFFFB2;',
+          '}',
+          '#all_day [ value1 <= 250] {',
+          '  marker-width: 15.0;',
+          '}',
+          '#all_day [ value1 <= 50.15] {',
+          '  marker-width: 14.0;',
+          '}',
+          '#all_day [ value1 <= 18.5095] {',
+          '  marker-width: 13.0;',
+          '}',
+          '#all_day [ value1 <= 14.5909] {',
+          '  marker-width: 12.0;',
+          '}',
+          '#all_day [ value1 <= 11.785] {',
+          '  marker-width: 11.0;',
+          '}',
+          '#all_day [ value1 <= 9.30425] {',
+          '  marker-width: 10.0;',
+          '}',
+          '#all_day [ value1 <= 7.10635] {',
+          '  marker-width: 9.0;',
+          '}',
+          '#all_day [ value1 <= 5.4714] {',
+          '  marker-width: 8.0;',
+          '}',
+          '#all_day [ value1 <= 2.825] {',
+          '  marker-width: 7.0;',
+          '}',
+          '#all_day [ value1 <= 1.7035] {',
+          '  marker-width: 6.0;',
+          '}',
+          '#all_day [ value0 <= 80.2] {',
+          'marker-fill: #B10026;',
+          '}',
+          '#all_day [ value0 <= 60.2] {',
+            'marker-fill: #E31A1C;',
+          '}',
+          '#all_day [ value0 <= 40.58] {',
+            'marker-fill: #FC4E2A;',
+          '}',
+          '#all_day [ value0 <= 30.92] {',
+            'marker-fill: #FD8D3C;',
+          '}',
+          '#all_day [ value0 <= 30.6] {',
+            'marker-fill: #FEB24C;',
+          '}',
+          '#all_day [ value0 <= 30.35] {',
+            'marker-fill: #FED976;',
+          '}',
+          '#all_day [ value0 <= 3.16] {',
+            'marker-fill: #FFFFB2;',
+          '}'
+
+      ].join('\n');
+
+
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
+
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        user       : 'stuartlynn',
+        table      : 'quakes_2014',
+        provider   : 'sql_api',
+        cartocss: CARTOCSS
+      });
+      torqueLayer.addTo(map);
+      torqueLayer.play();
+
+      map.on('click', function(e) {
+        var p = e.containerPoint
+        var value = torqueLayer.getValueForPos(p.x, p.y);
+        if (value !== null) {
+          map.openPopup('average temperature: ' + value.value + "C", e.latlng);
+        }
+      });
+
+
+      // show small rectable and change cursor on hover
+      var hover = null;
+      map.on('mousemove', function(e) {
+        var p = e.containerPoint
+        var value = torqueLayer.getValueForPos(p.x, p.y);
+
+        // remove previous hover box
+        if (hover) {
+          map.removeLayer(hover);
+          hover = null;
+        }
+
+        if (value !== null) {
+          hover = L.rectangle(value.bbox, {
+            color: '#000',
+            weight: 1
+          }).addTo(map);
+          map._container.style.cursor = 'pointer';
+        } else {
+          map._container.style.cursor = 'auto';
+        }
+      });
+
+
+    </script>
+  </body>
+</html>
