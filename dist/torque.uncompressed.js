@@ -4406,9 +4406,9 @@ var Profiler = require('../profiler');
 
 },{"../":10,"../profiler":17}],22:[function(require,module,exports){
   var TAU = Math.PI*2;
-  // min value to render a line. 
+  // min value to render a line.
   // it does not make sense to render a line of a width is not even visible
-  var LINEWIDTH_MIN_VALUE = 0.05; 
+  var LINEWIDTH_MIN_VALUE = 0.05;
   var MAX_SPRITE_RADIUS = 255;
 
   function renderPoint(ctx, st) {
@@ -4480,6 +4480,20 @@ var Profiler = require('../profiler');
     }
   }
 
+  function renderText(ctx,st){
+    var width = st['marker-width']
+
+    var text = st['text-name']
+    var font = st['text-face-name'] ? st['text-face-name'] : 'Droid Sans Regular'
+    var textSize = st['text-size'] ? st['text-size'] : '10px'
+    var color    = st['text-fill'] ? st['text-fill'] : 'white'
+
+    // ctx.font = textSize+"px "+font
+    ctx.fillStyle = color
+    ctx.font= textSize + " " + font
+    ctx.fillText(text, -width/2.0, width/2.0 )
+  }
+
   function renderSprite(ctx, img, st) {
 
     if(img.complete){
@@ -4494,6 +4508,7 @@ module.exports = {
     renderPoint: renderPoint,
     renderSprite: renderSprite,
     renderRectangle: renderRectangle,
+    renderText: renderText,
     MAX_SPRITE_RADIUS: MAX_SPRITE_RADIUS
 };
 
@@ -4564,7 +4579,7 @@ var Filters = require('./torque_filters');
     this.TILE_SIZE = 256;
     this._style = null;
     this._gradients = {};
-    
+
     this._forcePoints = false;
   }
 
@@ -4666,13 +4681,19 @@ var Filters = require('./torque_filters');
           cartocss.renderPoint(ctx, st);
         }
       }
+
+      if(st['text-name']){
+        st['text-name'] = st['text-name'].replace("{{value}}",value)
+        cartocss.renderText(ctx,st)
+      }
+
       prof.end(true);
       if (torque.flags.sprites_to_images) {
         var i = this._createImage();
         i.src = canvas.toDataURL();
         return i;
       }
-      
+
       return canvas;
     },
 
@@ -4700,7 +4721,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
       prof.end(true);
 
       return callback && callback(null);
@@ -4744,7 +4765,7 @@ var Filters = require('./torque_filters');
     },
 
     //
-    // renders a tile in the canvas for key defined in 
+    // renders a tile in the canvas for key defined in
     // the torque tile
     //
     _renderTile: function(tile, key, frame_offset, sprites, shader, shaderVars) {
@@ -4781,7 +4802,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
 
       prof.end(true);
     },
@@ -4932,7 +4953,7 @@ var Filters = require('./torque_filters');
           }
           gradient = {};
           var colorize = this._style['image-filters'].args;
-          
+
           var increment = 1/colorize.length;
           for (var i = 0; i < colorize.length; i++){
             var key = increment * i + increment;
@@ -4973,7 +4994,7 @@ var carto = global.carto || require('carto');
 
   //
   // this renderer just render points depending of the value
-  // 
+  //
   function RectanbleRenderer(canvas, options) {
     this.options = options;
     carto.tree.Reference.set(torque['torque-reference']);
@@ -5050,7 +5071,7 @@ var carto = global.carto || require('carto');
           // by-pass the style generation for improving performance
           color = this._shader['polygon-fill']({ value: value }, { zoom: 0 });
           ctx.fillStyle = color;
-          //TODO: each function should have a default value for each 
+          //TODO: each function should have a default value for each
           //property defined in the cartocss
           alpha = polygon_alpha({ value: value }, { zoom: 0 });
           if(alpha === null) {
@@ -5064,7 +5085,7 @@ var carto = global.carto || require('carto');
     },
 
     //
-    // renders a tile in the canvas for key defined in 
+    // renders a tile in the canvas for key defined in
     // the torque tile
     //
     renderTile: function(tile, key, callback) {
