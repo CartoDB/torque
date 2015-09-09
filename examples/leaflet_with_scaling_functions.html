@@ -39,7 +39,7 @@
           '}',
           '#all_month_3 {',
           '  marker-width: "scale_sqrt(value,0,5,0,10)";',
-          '  marker-fill-opacity: "scale_lin(frame-offset,0,5,1,0)";',
+          '  marker-fill-opacity: "scale_sqrt(frame-offset,0,9,1,0)";',
           '  marker-type: ellipse;',
           '  marker-fill: "scale_log(value,0.1,255,red,blue,green)";',
           '}',
@@ -48,6 +48,10 @@
           '#all_month_3[frame-offset=3]{}',
           '#all_month_3[frame-offset=4]{}',
           '#all_month_3[frame-offset=5]{}',
+          '#all_month_3[frame-offset=6]{}',
+          '#all_month_3[frame-offset=7]{}',
+          '#all_month_3[frame-offset=8]{}',
+          '#all_month_3[frame-offset=9]{}',
       ].join('\n');
 
 
