@@ -16,10 +16,12 @@
   </style>
   <body>
     <div id="map"></div>
-    <div id="title">Average temperature collected by Britain's Royal Navy (1913-1925)</div>
+    <div id="title">Example wind map using torque vector</div>
 
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
     <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+
     <script src="../dist/torque.full.uncompressed.js"></script>
 
 
@@ -32,29 +34,23 @@
         '  -torque-frame-count:1;',
         '  -torque-animation-duration:1;',
         '  -torque-time-attribute:"date";',
-        '  -torque-aggregation-function:"avg(angle*40)";',
-        '  -torque-resolution:4;',
+        '  -torque-aggregation-function: "avg(angle*40);avg(mag)";',
+        '  -torque-resolution:1;',
         '  -torque-data-aggregation:linear;',
         '}',
           '#wind {',
           '  marker-width: 4;',
           '  marker-fill-opacity: 1.0;',
-          '  marker-stroke: red; ',
           '  marker-max-mag: 7; ',
           '  marker-type: vector;',
-          '  marker-mag : 7;',
+          '  marker-mag: "scale_log(value1, 0,61.76,0,7)";',
+          '  marker-stroke : "scale_log(value1,0.1,61.76,#FFFFB2,#B10026)";',
+          '  marker-angle : "scale_lin(value0,0,255,0,6.283185)";',
           '}'
 
       ]
 
-      for(var i=0 ; i  < 255; i++){
-        CARTOCSS.push('#wind[value <= '+(255-i)+'] { marker-angle:'+ (255-i)/40+'; marker-stroke: rgb('+i+','+(255-i)+',255); }')
-      }
-      console.log(CARTOCSS)
-
       CARTOCSS = CARTOCSS.join("\n")
-
-
       var map = new L.Map('map', {
         zoomControl: true,
         center: [40, 0],
@@ -68,6 +64,7 @@
       var torqueLayer = new L.TorqueLayer({
         user       : 'stuartlynn',
         table      : 'wind',
+        provider   : 'sql_api',
         cartocss: CARTOCSS
       });
 
