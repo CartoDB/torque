@@ -4501,13 +4501,14 @@ var Profiler = require('../profiler');
 
       var scaled_mag = (mag/max_mag)*max_line_length
 
-      ctx.lineWidth = 1
+      ctx.lineWidth = 2
 
       // ctx.strokeStyle='green'
       // ctx.strokeRect(-max_line_length,-max_line_length,max_line_length*2,max_line_length*2)
-      ctx.translate(max_line_length/2.0, -max_line_length/2.0)
+      // ctx.translate(max_line_length/2.0, 0)
       ctx.rotate(angle)
       ctx.strokeStyle = color
+
       ctx.moveTo(0,-max_line_length*2)
       ctx.lineTo(0,max_line_length*2)
       ctx.stroke();
@@ -4731,7 +4732,7 @@ var Filters = require('./torque_filters');
       for(var key in shaderVars){ processingVars[key]= shaderVars[key]}
       for(var key in values){processingVars[key] = values[key]}
 
-      var varsToProcess = ['marker-width', 'marker-fill-opacity', 'marker-fill', 'marker-stroke']
+      var varsToProcess = ['marker-width', 'marker-fill-opacity', 'marker-fill', 'marker-stroke', 'marker-angle', 'marker-mag']
       varsToProcess.forEach(function(key){
         if(st[key]){
           st[key] = this.processScaleFunction(st[key], processingVars)
