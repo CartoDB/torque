@@ -16,7 +16,6 @@
   </style>
   <body>
     <div id="map"></div>
-    <div id="title">Average temperature collected by Britain's Royal Navy (1913-1925)</div>
 
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
@@ -32,16 +31,16 @@
       var CARTOCSS = [
           'Map {',
           '-torque-time-attribute: "time";',
-          '-torque-aggregation-function: "avg(abs(depth))";',
+          '-torque-aggregation-function: "avg(abs(depth));avg(mag)";',
           '-torque-frame-count: 200;',
           '-torque-animation-duration: 20;',
           '-torque-resolution: 1',
           '}',
           '#all_month_3 {',
-          '  marker-width: "scale_sqrt(value,0,5,0,10)";',
+          '  marker-width: "scale_lin(value0,0.0,10,0,5)";',
           '  marker-fill-opacity: "scale_sqrt(frame-offset,0,9,1,0)";',
           '  marker-type: ellipse;',
-          '  marker-fill: "scale_log(value,0.1,255,red,blue,green)";',
+          '  marker-fill: "scale_lin(value1,0.1,5,blue,red)";',
           '}',
           '#all_month_3[frame-offset=1]{}',
           '#all_month_3[frame-offset=2]{}',
@@ -68,6 +67,7 @@
       var torqueLayer = new L.TorqueLayer({
         user       : 'eschbacher',
         table      : 'all_month_3',
+        provider   : 'sql_api',
         cartocss: CARTOCSS
       });
       torqueLayer.addTo(map);
