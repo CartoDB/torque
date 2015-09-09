@@ -4557,7 +4557,7 @@ var Filters = require('./torque_filters');
     this.TILE_SIZE = 256;
     this._style = null;
     this._gradients = {};
-    
+
     this._forcePoints = false;
   }
 
@@ -4639,6 +4639,18 @@ var Filters = require('./torque_filters');
       var st = shader.getStyle({
         value: value
       }, shaderVars);
+
+      var processingVars = {}
+      for(var key in shaderVars){ processingVars[key]= shaderVars[key]}
+      processingVars.value = value
+
+      var varsToProcess = ['marker-width', 'marker-fill-opacity', 'marker-fill', 'marker-stroke']
+      varsToProcess.forEach(function(key){
+        if(st[key]){
+          st[key] = this.processScaleFunction(st[key], processingVars)
+        }
+      }.bind(this))
+
       if(this._style === null || this._style !== st){
         this._style = st;
       }
@@ -4689,7 +4701,7 @@ var Filters = require('./torque_filters');
         i.src = canvas.toDataURL();
         return i;
       }
-      
+
       return canvas;
     },
 
@@ -4717,7 +4729,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
       prof.end(true);
 
       return callback && callback(null);
@@ -4761,7 +4773,7 @@ var Filters = require('./torque_filters');
     },
 
     //
-    // renders a tile in the canvas for key defined in 
+    // renders a tile in the canvas for key defined in
     // the torque tile
     //
     _renderTile: function(tile, key, frame_offset, sprites, shader, shaderVars) {
@@ -4798,7 +4810,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
 
       prof.end(true);
     },
@@ -4949,7 +4961,7 @@ var Filters = require('./torque_filters');
           }
           gradient = {};
           var colorize = this._style['image-filters'].args;
-          
+
           var increment = 1/colorize.length;
           for (var i = 0; i < colorize.length; i++){
             var key = increment * i + increment;
