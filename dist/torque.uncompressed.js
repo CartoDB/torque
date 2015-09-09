@@ -2814,7 +2814,6 @@ L.TorqueLayer = L.CanvasLayer.extend({
           var bb = thisValue.bbox;
           var xy = this._map.latLngToContainerPoint([bb[1].lat, bb[1].lon]);
           if(xy.x < xf && xy.y < yf){
-            console.log("just before sum value ", this.Value.value)
             sum += thisValue.value;
           }
         }
@@ -3442,7 +3441,6 @@ var Profiler = require('../profiler');
       if(this.options.is_time) {
         column_conv = format("date_part('epoch', {column})", this.options);
       }
-      console.log("columns are ", this.options.countby)
 
       var sql = "" +
         "WITH " +
@@ -3488,7 +3486,6 @@ var Profiler = require('../profiler');
         _sql: this.getSQL()
       });
 
-      console.log("sql is ", query)
 
       var self = this;
       this.sql(query, function (data) {
@@ -3610,7 +3607,7 @@ var Profiler = require('../profiler');
         "layers": [{
           "type": "cartodb",
           "options": {
-            "cartocss_version": "2.1.1",
+            "cartocss_version": "2.1.1", 
             "cartocss": "#layer {}",
             "sql": this.getSQL()
           }
@@ -4159,7 +4156,7 @@ var Profiler = require('../profiler');
       this.options.cartocss = c;
     },*/
 
-    setSteps: function(steps, opt) {
+    setSteps: function(steps, opt) { 
       opt = opt || {};
       if (this.options.steps !== steps) {
         this.options.steps = steps;
@@ -4264,12 +4261,10 @@ var Profiler = require('../profiler');
                 .replace('{s}', subdomains[index])
 
       var extra = this._extraParams();
-      
       torque.net.get( url + (extra ? "?" + extra: ''), function (data) {
         prof_fetch_time.end();
         if (data && data.responseText) {
           var rows = JSON.parse(data.responseText);
-          console.log("tile data ", rows)
           callback(self.proccessTile(rows, coord, zoom));
         } else {
           Profiler.metric('torque.provider.windshaft.tile.error').inc();
@@ -4410,7 +4405,7 @@ var Profiler = require('../profiler');
           }]
         };
       }
-
+      
       if(this.options.stat_tag){
         allParams["stat_tag"] = this.options.stat_tag;
       }
@@ -4460,9 +4455,9 @@ var Profiler = require('../profiler');
 
 },{"../":10,"../profiler":17}],22:[function(require,module,exports){
   var TAU = Math.PI*2;
-  // min value to render a line.
+  // min value to render a line. 
   // it does not make sense to render a line of a width is not even visible
-  var LINEWIDTH_MIN_VALUE = 0.05;
+  var LINEWIDTH_MIN_VALUE = 0.05; 
   var MAX_SPRITE_RADIUS = 255;
 
   function renderPoint(ctx, st) {
@@ -4532,21 +4527,6 @@ var Profiler = require('../profiler');
         ctx.strokeRect(-pixel_size, -pixel_size, w, w)
       }
     }
-  }
-
-  function renderVector(ctx,img,st){
-    var markerWidth = st['maker-width']
-    var direction   = st['vector-direction']
-    var mag         = st['vector-mag']
-    var lineWidth   = st['marker-line-width']
-    var strokeStyle = st['marker-line-color']
-    ctx.lineWidth   = lineWidth
-    ctx.strokeStyle = strokeStyle
-
-    ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.lineTo(300,150);
-    ctx.stroke();
   }
 
   function renderSprite(ctx, img, st) {
@@ -4904,7 +4884,6 @@ var Filters = require('./torque_filters');
     // return the value for x, y (tile coordinates)
     // null for no value
     getValueFor: function(tile, step, px, py) {
-      // console.log('getting value for tile ', tile, step, px, py)
       var mercator = new torque.Mercator();
       var res = this.options.resolution;
       var res2 = res >> 1;
@@ -4915,15 +4894,15 @@ var Filters = require('./torque_filters');
       var pixelIndex = tile.timeIndex[step];
       for(var p = 0; p < activePixels; ++p) {
         var posIdx = tile.renderDataPos[pixelIndex + p];
-        var c = [tile.renderData[0][pixelIndex + p], tile.renderData[1][pixelIndex + p]]
-        // console.log("tile.renderData ", tile.renderData[pixelIndex + p] )
+
+        var c =tile.renderData.map(function(r){ return r[pixelIndex + p]}) 
+
         if (c) {
          var x = tile.x[posIdx];
          var y = tileMax - tile.y[posIdx];
          var dx = px + res2 - x;
          var dy = py + res2 - y;
          if (dx >= 0 && dx < res && dy >= 0 && dy < res) {
-          //  console.log('returning value ', c, " from ", tile.renderData[pixelIndex + p])
            return {
              value: c,
              bbox: mercator.tilePixelBBox(
