@@ -4399,9 +4399,9 @@ var Profiler = require('../profiler');
 
 },{"../":10,"../profiler":17}],22:[function(require,module,exports){
   var TAU = Math.PI*2;
-  // min value to render a line. 
+  // min value to render a line.
   // it does not make sense to render a line of a width is not even visible
-  var LINEWIDTH_MIN_VALUE = 0.05; 
+  var LINEWIDTH_MIN_VALUE = 0.05;
   var MAX_SPRITE_RADIUS = 255;
 
   function renderPoint(ctx, st) {
@@ -4441,6 +4441,31 @@ var Profiler = require('../profiler');
       }
     }
   }
+
+  function renderVector(ctx, st){
+      var angle = st['marker-angle']
+      var color = st['marker-stroke']
+      var mag   = st['marker-mag']
+      var max_mag   = st['marker-max-mag'] ?  st['marker-max-mag'] : 10
+      var max_line_length = st['marker-width']
+      console.log("trying ", angle, mag, max_mag, max_line_length )
+
+      var scaled_mag = (mag/max_mag)*max_line_length
+
+      ctx.lineWidth = 1
+
+      // ctx.strokeStyle='green'
+      // ctx.strokeRect(-max_line_length,-max_line_length,max_line_length*2,max_line_length*2)
+      ctx.translate(max_line_length/2.0, -max_line_length/2.0)
+      ctx.rotate(angle)
+      ctx.strokeStyle = color
+      ctx.moveTo(0,-max_line_length*2)
+      ctx.lineTo(0,max_line_length*2)
+      ctx.stroke();
+
+
+    }
+
 
   function renderRectangle(ctx, st) {
     ctx.fillStyle = st['marker-fill'];
@@ -4487,6 +4512,7 @@ module.exports = {
     renderPoint: renderPoint,
     renderSprite: renderSprite,
     renderRectangle: renderRectangle,
+    renderVector: renderVector,
     MAX_SPRITE_RADIUS: MAX_SPRITE_RADIUS
 };
 
@@ -4557,7 +4583,7 @@ var Filters = require('./torque_filters');
     this.TILE_SIZE = 256;
     this._style = null;
     this._gradients = {};
-    
+
     this._forcePoints = false;
   }
 
@@ -4594,6 +4620,7 @@ var Filters = require('./torque_filters');
 
     setShader: function(shader) {
       // clean sprites
+
       this._sprites = [];
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
@@ -4618,6 +4645,8 @@ var Filters = require('./torque_filters');
       if(this._style === null || this._style !== st){
         this._style = st;
       }
+
+      console.log("VALUE IS ", value)
 
       var pointSize = st['marker-width'];
       if (!pointSize) {
@@ -4655,7 +4684,10 @@ var Filters = require('./torque_filters');
         var mt = st['marker-type'];
         if (mt && mt === 'rectangle') {
           cartocss.renderRectangle(ctx, st);
-        } else {
+        } else if(mt && mt === 'vector') {
+          cartocss.renderVector(ctx,st);
+        }
+        else{
           cartocss.renderPoint(ctx, st);
         }
       }
@@ -4665,7 +4697,7 @@ var Filters = require('./torque_filters');
         i.src = canvas.toDataURL();
         return i;
       }
-      
+
       return canvas;
     },
 
@@ -4693,7 +4725,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
       prof.end(true);
 
       return callback && callback(null);
@@ -4737,7 +4769,7 @@ var Filters = require('./torque_filters');
     },
 
     //
-    // renders a tile in the canvas for key defined in 
+    // renders a tile in the canvas for key defined in
     // the torque tile
     //
     _renderTile: function(tile, key, frame_offset, sprites, shader, shaderVars) {
@@ -4774,7 +4806,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
 
       prof.end(true);
     },
@@ -4925,7 +4957,7 @@ var Filters = require('./torque_filters');
           }
           gradient = {};
           var colorize = this._style['image-filters'].args;
-          
+
           var increment = 1/colorize.length;
           for (var i = 0; i < colorize.length; i++){
             var key = increment * i + increment;
@@ -13932,7 +13964,7 @@ module.exports={
   "url": "https://github.com/cartodb/carto",
   "repository": {
     "type": "git",
-    "url": "http://github.com/cartodb/carto.git"
+    "url": "git+ssh://git@github.com/cartodb/carto.git"
   },
   "author": {
     "name": "CartoDB",
@@ -14003,7 +14035,7 @@ module.exports={
   "bugs": {
     "url": "https://github.com/cartodb/carto/issues"
   },
-  "homepage": "https://github.com/cartodb/carto",
+  "homepage": "https://github.com/cartodb/carto#readme",
   "_id": "carto@0.15.1-cdb1",
   "_shasum": "62534c2975cbee073f10c6c14a0c7e889c9469e7",
   "_resolved": "https://github.com/CartoDB/carto/archive/master.tar.gz",
