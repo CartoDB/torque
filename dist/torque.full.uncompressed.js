@@ -4449,9 +4449,9 @@ var Profiler = require('../profiler');
 
 },{"../":10,"../profiler":17}],22:[function(require,module,exports){
   var TAU = Math.PI*2;
-  // min value to render a line. 
+  // min value to render a line.
   // it does not make sense to render a line of a width is not even visible
-  var LINEWIDTH_MIN_VALUE = 0.05; 
+  var LINEWIDTH_MIN_VALUE = 0.05;
   var MAX_SPRITE_RADIUS = 255;
 
   function renderPoint(ctx, st) {
@@ -4491,6 +4491,30 @@ var Profiler = require('../profiler');
       }
     }
   }
+
+  function renderVector(ctx, st){
+      var angle = st['marker-angle']
+      var color = st['marker-stroke']
+      var mag   = st['marker-mag']
+      var max_mag   = st['marker-max-mag'] ?  st['marker-max-mag'] : 10
+      var max_line_length = st['marker-width']
+
+      var scaled_mag = (mag/max_mag)*max_line_length
+
+      ctx.lineWidth = 1
+
+      // ctx.strokeStyle='green'
+      // ctx.strokeRect(-max_line_length,-max_line_length,max_line_length*2,max_line_length*2)
+      ctx.translate(max_line_length/2.0, -max_line_length/2.0)
+      ctx.rotate(angle)
+      ctx.strokeStyle = color
+      ctx.moveTo(0,-max_line_length*2)
+      ctx.lineTo(0,max_line_length*2)
+      ctx.stroke();
+
+
+    }
+
 
   function renderRectangle(ctx, st) {
     ctx.fillStyle = st['marker-fill'];
@@ -4537,6 +4561,7 @@ module.exports = {
     renderPoint: renderPoint,
     renderSprite: renderSprite,
     renderRectangle: renderRectangle,
+    renderVector: renderVector,
     MAX_SPRITE_RADIUS: MAX_SPRITE_RADIUS
 };
 
@@ -4644,6 +4669,7 @@ var Filters = require('./torque_filters');
 
     setShader: function(shader) {
       // clean sprites
+
       this._sprites = [];
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
@@ -4752,7 +4778,10 @@ var Filters = require('./torque_filters');
         var mt = st['marker-type'];
         if (mt && mt === 'rectangle') {
           cartocss.renderRectangle(ctx, st);
-        } else {
+        } else if(mt && mt === 'vector') {
+          cartocss.renderVector(ctx,st);
+        }
+        else{
           cartocss.renderPoint(ctx, st);
         }
       }
