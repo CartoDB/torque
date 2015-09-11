@@ -44,11 +44,11 @@ def getSql(table, agg, tcol, steps, min_o, res, x, y, zoom, webmercator = 'the_g
             ", CDB_XYZ_Extent(%s, %s, %s) as ext " % (x, y, zoom),
             "),", 
             "cte AS ( ",
-            "  SELECT ST_SnapToGrid(i.the_geom_webmercator, p.res) g", 
+            "  SELECT ST_SnapToGrid(%s, p.res) g" % (webmercator), 
             ", %s c" % (agg), 
             ", floor((%s - %s)/%s) d" % (tcol, min_o, steps), 
             "  FROM %s i, par p " % (table), 
-            "  WHERE i.%s && p.ext " % (webmercator), 
+            "  WHERE %s && p.ext " % (webmercator), 
             "  GROUP BY g, d", 
             ") ", 
             "", 
@@ -65,7 +65,7 @@ class PostGIS:
         self.psycopg2 = psycopg2
         self.options = options
 
-        conn_string = "host='%s' dbname='%s' user='%s'" % (self.options['pg_host', 'pg_db', 'pg_user'])
+        conn_string = "host='%s' dbname='%s' user='%s'" % (self.options['pg_host'], self.options['pg_db'], self.options['pg_user'])
         if self.options['pg_pass']:
             conn_string += "password='%s'" % self.options['pg_pass']
 
@@ -86,7 +86,8 @@ class PostGIS:
     def _getMin(self, table, tcol, o):
         sql = getMin(table, tcol, o)
         data = self.psql(sql)
-        return data['rows'][0]['min_o']
+        print data
+        return data[0][0]
 
     def run(self):
         table = self.options['t']
@@ -109,7 +110,10 @@ class PostGIS:
                     z = str(zoom_c)
                     tile = TorqueTile({"directory": self.options['d']})
                     tile.setXYZ(x, y, z)
-                    sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z)
+                    if self.options['wm']:
+                        sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z, self.options['wm'])
+                    else:
+                        sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z)
                     self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
                     tile.setData(self.psql(sql))
                     tile.save()
@@ -173,10 +177,7 @@ class CartoDB:
                     z = str(zoom_c)
                     tile = TorqueTile({"directory": self.options['d']})
                     tile.setXYZ(x, y, z)
-                    if self.options['wm']:
-                        sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z, self.options['wm'])
-                    else:
-                        sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z)
+                    sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z)
                     self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
                     tile.setData(self.sql_api(sql))
                     tile.save()
