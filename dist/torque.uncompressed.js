@@ -4555,6 +4555,20 @@ var Profiler = require('../profiler');
     }
   }
 
+  function renderText(ctx,st){
+    var width = st['marker-width']
+
+    var text = st['text-name']
+    var font = st['text-face-name'] ? st['text-face-name'] : 'Droid Sans Regular'
+    var textSize = st['text-size'] ? st['text-size'] : '10px'
+    var color    = st['text-fill'] ? st['text-fill'] : 'white'
+
+    // ctx.font = textSize+"px "+font
+    ctx.fillStyle = color
+    ctx.font= textSize + " " + font
+    ctx.fillText(text, -width/2.0, width/2.0 )
+  }
+
   function renderSprite(ctx, img, st) {
 
     if(img.complete){
@@ -4570,6 +4584,7 @@ module.exports = {
     renderSprite: renderSprite,
     renderRectangle: renderRectangle,
     renderVector: renderVector,
+    renderText: renderText,
     MAX_SPRITE_RADIUS: MAX_SPRITE_RADIUS
 };
 
@@ -4793,6 +4808,12 @@ var Filters = require('./torque_filters');
           cartocss.renderPoint(ctx, st);
         }
       }
+
+      if(st['text-name']){
+        st['text-name'] = st['text-name'].replace("{{value}}",value)
+        cartocss.renderText(ctx,st)
+      }
+
       prof.end(true);
       if (torque.flags.sprites_to_images) {
         var i = this._createImage();
