@@ -43,9 +43,9 @@ python torque.py cartodb -u andrew -t all_week  -a 'count(*)' -o time
 #####Example
 
 ```bash
-python torque.py cartodb -t {table}  -a 'count(*)' -o {time-column} 
--s {steps} -r {resolution} -z 0-4  -d {directory} --pg_host {postgres-host} 
---pg_db {postgres-db --pg_user {postgres-user}
+python torque.py postgis -u andrew -t all_week  -a 'count(*)' -o time 
+-s 2 -r 4 -z 0-1 -w "ST_Transform(the_geom, 3857)" --pg_host localhost 
+--pg_db postgresql --pg_user postgresql -d tiles
 ```
 
 | Option   | Short | type         | Description |
