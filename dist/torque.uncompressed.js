@@ -3230,10 +3230,12 @@ var Profiler = require('../profiler');
         var val_keys = Object.keys(row).filter(function(k){return (k.indexOf("vals__uint8") > -1) })
         var val_arr = []
 
+
         val_keys.forEach(function(key){
           var i = (key=='vals_uint8' ? 0 :  key.match(/vals__uint8_(\d+)/)[1])
           val_arr[i] = row[key];
         })
+
 
         if (!this.options.cumulative) {
           for (var j = 0, len = dates.length; j < len; ++j) {
@@ -4737,8 +4739,7 @@ var Filters = require('./torque_filters');
       var prof = Profiler.metric('torque.renderer.point.generateSprite').start();
 
       var values = {}
-
-      if(value.length ==0){
+      if(value.length ==1){
         values["value"] = value[0]
       }
       else{
@@ -4810,7 +4811,11 @@ var Filters = require('./torque_filters');
       }
 
       if(st['text-name']){
-        st['text-name'] = st['text-name'].replace("{{value}}",value)
+        var captures = st['text-name'].match(/\{\{(.*)\}\}/)
+        captures.slice(1,captures.length).forEach(function(rep){
+          st['text-name'] = st['text-name'].replace("{{"+rep+"}}", values[rep])
+        })
+        // st['text-name'] = st['text-name'].replace("{{value}}",value)
         cartocss.renderText(ctx,st)
       }
 
