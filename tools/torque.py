@@ -213,7 +213,7 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--is_time', dest='tt', default=True, type=bool)
     parser.add_argument('-r', '--resolution', dest='r', type=str)
     parser.add_argument('-k', '--api_key', dest='k', type=str)
-    parser.add_argument('-wm', '--webmercator', dest='wm', type=str)
+    parser.add_argument('-w', '--webmercator', dest='wm', type=str)
     parser.add_argument('--pg_host', dest='pg_host', type=str)
     parser.add_argument('--pg_db', dest='pg_db', type=str)
     parser.add_argument('--pg_user', dest='pg_user', type=str)
