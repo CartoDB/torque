@@ -604,7 +604,7 @@ TorqueLayer.optionsFromCartoCSS = function(cartocss) {
 module.exports.TorqueLayer = TorqueLayer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":36}],4:[function(require,module,exports){
+},{"carto":37}],4:[function(require,module,exports){
 (function (global){
   var Event = {};
   Event.on = function(evt, callback) {
@@ -1606,7 +1606,8 @@ GMapsTorqueLayer.prototype = torque.extend({},
   providers: {
     'sql_api': torque.providers.json,
     'url_template': torque.providers.JsonArray,
-    'windshaft': torque.providers.windshaft
+    'windshaft': torque.providers.windshaft,
+    'redshift': torgue.redshift
   },
 
   renderers: {
@@ -1765,7 +1766,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   /**
-   * helper function, does the same than ``setKey`` but only 
+   * helper function, does the same than ``setKey`` but only
    * accepts scalars.
    */
   setStep: function(time) {
@@ -1776,10 +1777,10 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   /**
-   * transform from animation step to Date object 
+   * transform from animation step to Date object
    * that contains the animation time
    *
-   * ``step`` should be between 0 and ``steps - 1`` 
+   * ``step`` should be between 0 and ``steps - 1``
    */
   stepToTime: function(step) {
     if (!this.provider) return 0;
@@ -1883,7 +1884,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
     }
     return sum;
   },
-  
+
   error: function (callback) {
     this.options.errorCallback = callback;
     return this;
@@ -1974,7 +1975,7 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"./CanvasLayer":5,"./canvas_tile_layer":6,"./gmaps_tileloader_mixin":7,"carto":36}],10:[function(require,module,exports){
+},{"../":10,"./CanvasLayer":5,"./canvas_tile_layer":6,"./gmaps_tileloader_mixin":7,"carto":37}],10:[function(require,module,exports){
 module.exports = require('./core');
 
 module.exports.Animator = require('./animator');
@@ -1993,7 +1994,7 @@ module.exports.GMapsTileLoader = gmaps.GMapsTileLoader;
 module.exports.GMapsTorqueLayer = gmaps.GMapsTorqueLayer;
 module.exports.GMapsTiledTorqueLayer = gmaps.GMapsTiledTorqueLayer;
 
-},{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":23,"./request":27}],11:[function(require,module,exports){
+},{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":24,"./request":28}],11:[function(require,module,exports){
 require('./leaflet_tileloader_mixin');
 
 /**
@@ -2418,7 +2419,8 @@ L.TorqueLayer = L.CanvasLayer.extend({
   providers: {
     'sql_api': torque.providers.json,
     'url_template': torque.providers.JsonArray,
-    'windshaft': torque.providers.windshaft
+    'windshaft': torque.providers.windshaft,
+    'redshift' : torque.providers.redshift
   },
 
   renderers: {
@@ -2494,6 +2496,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     // for each tile shown on the map request the data
     this.on('tileAdded', function(t) {
       var tileData = this.provider.getTileData(t, t.zoom, function(tileData) {
+        console.log("tile data is ", tileData)
         // don't load tiles that are not being shown
         if (t.zoom !== self._map.getZoom()) return;
         self._tileLoaded(t, tileData);
@@ -2821,7 +2824,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"./canvas_layer":11,"carto":36}],15:[function(require,module,exports){
+},{"../":10,"./canvas_layer":11,"carto":37}],15:[function(require,module,exports){
   function clamp(a, b) {
     return function(t) {
       return Math.max(Math.min(t, b), a);
@@ -3095,10 +3098,11 @@ module.exports = Profiler;
 module.exports = {
     json: require('./json'),
     JsonArray: require('./jsonarray'),
-    windshaft: require('./windshaft')
+    windshaft: require('./windshaft'),
+    redshift: require('./redshift')
 };
 
-},{"./json":19,"./jsonarray":20,"./windshaft":21}],19:[function(require,module,exports){
+},{"./json":19,"./jsonarray":20,"./redshift":21,"./windshaft":22}],19:[function(require,module,exports){
 var torque = require('../');
 var Profiler = require('../profiler');
 
@@ -3223,12 +3227,10 @@ var Profiler = require('../profiler');
         var val_keys = Object.keys(row).filter(function(k){return (k.indexOf("vals__uint8") > -1) })
         var val_arr = []
 
-
         val_keys.forEach(function(key){
           var i = (key=='vals_uint8' ? 0 :  key.match(/vals__uint8_(\d+)/)[1])
           val_arr[i] = row[key];
         })
-
 
         if (!this.options.cumulative) {
           for (var j = 0, len = dates.length; j < len; ++j) {
@@ -3960,6 +3962,582 @@ var Profiler = require('../profiler');
   module.exports = json;
 
 },{"../":10,"../profiler":17}],21:[function(require,module,exports){
+var torque = require('../');
+var Profiler = require('../profiler');
+
+  var Uint8Array = torque.types.Uint8Array;
+  var Int32Array = torque.types.Int32Array;
+  var Uint32Array = torque.types.Uint32Array;
+
+  // format('hello, {0}', 'rambo') -> "hello, rambo"
+  function format(str) {
+    for(var i = 1; i < arguments.length; ++i) {
+      var attrs = arguments[i];
+      for(var attr in attrs) {
+        str = str.replace(RegExp('\\{' + attr + '\\}', 'g'), attrs[attr]);
+      }
+    }
+    return str;
+  }
+
+  var json = function (options) {
+    this._ready = false;
+    this._tileQueue = [];
+    this.options = options;
+
+    this.options.is_time = this.options.is_time === undefined ? true: this.options.is_time;
+    this.options.tiler_protocol = options.tiler_protocol || 'http';
+    this.options.tiler_domain = options.tiler_domain || 'cartodb.com';
+    this.options.tiler_port = options.tiler_port || 80;
+
+    if (this.options.data_aggregation) {
+      this.options.cumulative = this.options.data_aggregation === 'cumulative';
+    }
+
+    // check options
+    if (options.resolution === undefined ) throw new Error("resolution should be provided");
+    if (options.steps === undefined ) throw new Error("steps should be provided");
+    if(options.start === undefined) {
+      // this._fetchKeySpan();
+    } else {
+      this._setReady(true);
+    }
+  };
+
+  json.prototype = {
+
+    /**
+     * return the torque tile encoded in an efficient javascript
+     * structure:
+     * {
+     *   x:Uint8Array x coordinates in tile reference system, normally from 0-255
+     *   y:Uint8Array y coordinates in tile reference system
+     *   Index: Array index to the properties
+     * }
+     */
+    proccessTile: function(rows, coord, zoom) {
+      var r;
+      var x = new Uint8Array(rows.length);
+      var y = new Uint8Array(rows.length);
+
+      var prof_mem = Profiler.metric('ProviderJSON:mem');
+      var prof_point_count = Profiler.metric('ProviderJSON:point_count');
+      var prof_process_time = Profiler.metric('ProviderJSON:process_time').start()
+
+      // count number of dates
+      var dates = 0;
+      var maxDateSlots = -1;
+
+
+      for (r = 0; r < rows.length; ++r) {
+        var row = rows[r];
+        dates += row.dates__uint16.length;
+        for(var d = 0; d < row.dates__uint16.length; ++d) {
+          maxDateSlots = Math.max(maxDateSlots, row.dates__uint16[d]);
+        }
+      }
+
+      if(this.options.cumulative) {
+        dates = (1 + maxDateSlots) * rows.length;
+      }
+
+      var type = this.options.cumulative ? Uint32Array: Uint8Array;
+
+      // reserve memory for all the dates
+      var timeIndex = new Int32Array(maxDateSlots + 1); //index-size
+      var timeCount = new Int32Array(maxDateSlots + 1);
+
+      var val_keys = []
+      if(rows.length>0){
+        val_keys = Object.keys(rows[0]).filter(function(k){return (k.indexOf("vals__uint8") > -1) })
+      }
+
+
+      var renderData = []
+
+      val_keys.forEach(function(key,index){
+        renderData[index] = new (this.options.valueDataType || type)(dates);
+      }.bind(this))
+
+      var renderDataPos = new Uint32Array(dates);
+
+      prof_mem.inc(
+        4 * maxDateSlots + // timeIndex
+        4 * maxDateSlots + // timeCount
+        dates + //renderData
+        dates * 4
+      ); //renderDataPos
+
+      prof_point_count.inc(rows.length);
+
+      var rowsPerSlot = {};
+
+      // precache pixel positions
+      for (var r = 0; r < rows.length; ++r) {
+        var row = rows[r];
+        x[r] = row.x__uint8 * this.options.resolution;
+        // fix value when it's in the tile EDGE
+        // TODO: this should be fixed in SQL query
+        if (row.y__uint8 === -1) {
+          y[r] = 0;
+        } else {
+          y[r] = row.y__uint8 * this.options.resolution;
+        }
+
+        var dates = row.dates__uint16;
+        var val_keys = Object.keys(row).filter(function(k){return (k.indexOf("vals__uint8") > -1) })
+        var val_arr = []
+
+        val_keys.forEach(function(key){
+          var i = (key=='vals_uint8' ? 0 :  key.match(/vals__uint8_(\d+)/)[1])
+          val_arr[i] = row[key];
+        })
+
+        if (!this.options.cumulative) {
+          for (var j = 0, len = dates.length; j < len; ++j) {
+              var rr = rowsPerSlot[dates[j]] || (rowsPerSlot[dates[j]] = []);
+              //Stuart: Not sure I understand why this is here?
+              // if(this.options.cumulative) {
+              //     vals[j] += prev_val;
+              // }
+
+              // prev_val = vals[j];
+              var all_vals = []
+              val_arr.forEach(function(vals){
+                all_vals.push(vals[j])
+              })
+              rr.push([r, all_vals]);
+
+          }
+        } else {
+          var valByDate = {}
+          for (var j = 0, len = dates.length; j < len; ++j) {
+            valByDate[dates[j]] = vals[j];
+          }
+          var accum = 0;
+
+          // extend the latest to the end
+          for (var j = dates[0]; j <= maxDateSlots; ++j) {
+              var rr = rowsPerSlot[j] || (rowsPerSlot[j] = []);
+              var v = valByDate[j];
+              if (v) {
+                accum += v;
+              }
+              rr.push([r, accum]);
+          }
+
+          /*var lastDateSlot = dates[dates.length - 1];
+          for (var j = lastDateSlot + 1; j <= maxDateSlots; ++j) {
+            var rr = rowsPerSlot[j] || (rowsPerSlot[j] = []);
+            rr.push([r, prev_val]);
+          }
+          */
+        }
+
+      }
+
+
+      // for each timeslot search active buckets
+      var renderDataIndex = 0;
+      var timeSlotIndex = 0;
+      var i = 0;
+      for(var i = 0; i <= maxDateSlots; ++i) {
+        var c = 0;
+        var slotRows = rowsPerSlot[i]
+        if(slotRows) {
+          for (var r = 0; r < slotRows.length; ++r) {
+
+            var rr = slotRows[r];
+            ++c;
+            renderDataPos[renderDataIndex] = rr[0]
+            rr[1].forEach(function(rrr,index){
+              renderData[index][renderDataIndex] = rrr;
+            })
+            ++renderDataIndex;
+          }
+        }
+        timeIndex[i] = timeSlotIndex;
+        timeCount[i] = c;
+        timeSlotIndex += c;
+      }
+
+      prof_process_time.end();
+
+      return {
+        x: x,
+        y: y,
+        z: zoom,
+        coord: {
+          x: coord.x,
+          y: coord.y,
+          z: zoom
+        },
+        timeCount: timeCount,
+        timeIndex: timeIndex,
+        renderDataPos: renderDataPos,
+        renderData: renderData,
+        maxDate: maxDateSlots
+      };
+    },
+
+    _host: function() {
+      var opts = this.options;
+      var port = opts.sql_api_port;
+      var domain = ((opts.user_name || opts.user) + '.' + (opts.sql_api_domain || 'cartodb.com')) + (port ? ':' + port: '');
+      var protocol = opts.sql_api_protocol || 'http';
+      return this.options.url || protocol + '://' + domain + '/api/v2/sql';
+    },
+
+    url: function(subhost) {
+      var opts = this.options;
+      var protocol = opts.sql_api_protocol || 'http';
+      if (!this.options.cdn_url) {
+        return this._host();
+      }
+      var h = protocol+ "://";
+      if (subhost) {
+        h += subhost + ".";
+      }
+      var cdn_host = opts.cdn_url;
+      if(!cdn_host.http && !cdn_host.https) {
+        throw new Error("cdn_host should contain http and/or https entries");
+      }
+      h += cdn_host[protocol] + "/" + (opts.user_name || opts.user) + '/api/v2/sql';
+      return h;
+    },
+
+    _hash: function(str) {
+      var hash = 0;
+      if (!str || str.length == 0) return hash;
+      for (var i = 0, l = str.length; i < l; ++i) {
+          hash = (( (hash << 5 ) - hash ) + str.charCodeAt(i)) | 0;
+      }
+      return hash;
+    },
+
+    _extraParams: function() {
+      if (this.options.extra_params) {
+        var p = [];
+        for(var k in this.options.extra_params) {
+          var v = this.options.extra_params[k];
+          if (v) {
+            p.push(k + "=" + encodeURIComponent(v));
+          }
+        }
+        return p.join('&');
+      }
+      return null;
+    },
+
+    isHttps: function() {
+      return this.options.sql_api_protocol && this.options.sql_api_protocol === 'https';
+    },
+
+    // execute actual query
+    sql: function(sql, callback, options) {
+      options = options || {};
+      var subdomains = this.options.subdomains || '0123';
+      if(this.isHttps()) {
+        subdomains = [null]; // no subdomain
+      }
+
+      var url;
+      if (options.no_cdn) {
+        url = this._host();
+      } else {
+        url = this.url(subdomains[Math.abs(this._hash(sql))%subdomains.length]);
+      }
+      var extra = this._extraParams();
+      torque.net.get( url + "?q=" + encodeURIComponent(sql) + (extra ? "&" + extra: ''), function (data) {
+          if(options.parseJSON) {
+            data = JSON.parse(data && data.responseText);
+          }
+          callback && callback(data);
+      });
+    },
+
+    getTileData: function(coord, zoom, callback) {
+
+      if(!this._ready) {
+        this._tileQueue.push([coord, zoom, callback]);
+      } else {
+        this._getTileData(coord, zoom, callback);
+      }
+    },
+
+    _setReady: function(ready) {
+      this._ready = true;
+      this._processQueue();
+      this.options.ready && this.options.ready();
+    },
+
+    _processQueue: function() {
+      var item;
+      while (item = this._tileQueue.pop()) {
+        this._getTileData.apply(this, item);
+      }
+    },
+
+    /**
+     * `coord` object like {x : tilex, y: tiley }
+     * `zoom` quadtree zoom level
+     */
+    _getTileData: function(coord, zoom, callback) {
+
+      console.log("GETTING TILE!!!!!!!!")
+
+      var prof_fetch_time = Profiler.metric('ProviderJSON:tile_fetch_time').start()
+      this.table = this.options.table;
+      var numTiles = 1 << zoom;
+
+      var column_conv = this.options.column;
+      var aggcol  = this.options.countby
+      var host =  "http://rs-torque.cartodb.io/" // "http://localhost:3322/"
+      var request_url = host+this.table+"/"+zoom+"/"+coord.x+"/"+coord.y+"?datecol="+column_conv+"&aggcol="+aggcol+"&callback=?"
+      console.log("request url ", request_url)
+      var self = this;
+
+      $.getJSON(request_url, function (data) {
+          callback && callback(self.proccessTile(data.rows, coord, zoom));
+      }.bind(this));
+      prof_fetch_time.end()
+    },
+
+    getKeySpan: function() {
+      return {
+        start: this.options.start * 1000,
+        end: this.options.end * 1000,
+        step: this.options.step,
+        steps: this.options.steps,
+        columnType: this.options.is_time ? 'date': 'number'
+      };
+    },
+
+    setColumn: function(column, isTime) {
+      this.options.column = column;
+      this.options.is_time = isTime === undefined ? true: false;
+      this.reload();
+    },
+
+    setResolution: function(res) {
+      this.options.resolution = res;
+    },
+
+    // return true if tiles has been changed
+    setOptions: function(opt) {
+      var refresh = false;
+
+      if(opt.resolution !== undefined && opt.resolution !== this.options.resolution) {
+        this.options.resolution = opt.resolution;
+        refresh = true;
+      }
+
+      if(opt.steps !== undefined && opt.steps !== this.options.steps) {
+        this.setSteps(opt.steps, { silent: true });
+        refresh = true;
+      }
+
+      if(opt.column !== undefined && opt.column !== this.options.column) {
+        this.options.column = opt.column;
+        refresh = true;
+      }
+
+      if(opt.countby !== undefined && opt.countby !== this.options.countby) {
+        this.options.countby = opt.countby;
+        refresh = true;
+      }
+
+      if(opt.data_aggregation !== undefined) {
+        var c = opt.data_aggregation === 'cumulative';
+        if (this.options.cumulative !== c) {
+          this.options.cumulative = c;
+          refresh = true;
+        }
+      }
+
+      if (refresh) this.reload();
+      return refresh;
+
+    },
+
+    reload: function() {
+      this._ready = false;
+      this._fetchKeySpan();
+    },
+
+    setSQL: function(sql) {
+      if (this.options.sql != sql) {
+        this.options.sql = sql;
+        this.reload();
+      }
+    },
+
+    getSteps: function() {
+      return Math.min(this.options.steps, this.options.data_steps);
+    },
+
+    setSteps: function(steps, opt) {
+      opt = opt || {};
+      if (this.options.steps !== steps) {
+        this.options.steps = steps;
+        this.options.step = (this.options.end - this.options.start)/this.getSteps();
+        this.options.step = this.options.step || 1;
+        if (!opt.silent) this.reload();
+      }
+    },
+
+    getBounds: function() {
+      return this.options.bounds;
+    },
+
+    getSQL: function() {
+      return this.options.sql || "select * from " + this.options.table;
+    },
+
+    _tilerHost: function() {
+      var opts = this.options;
+      var user = (opts.user_name || opts.user);
+      return opts.tiler_protocol +
+           "://" + (user ? user + "." : "")  +
+           opts.tiler_domain +
+           ((opts.tiler_port != "") ? (":" + opts.tiler_port) : "");
+    },
+
+    _fetchUpdateAt: function(callback) {
+      var self = this;
+      var layergroup = {
+        "version": "1.0.1",
+        "stat_tag": this.options.stat_tag || 'torque',
+        "layers": [{
+          "type": "cartodb",
+          "options": {
+            "cartocss_version": "2.1.1",
+            "cartocss": "#layer {}",
+            "sql": this.getSQL()
+          }
+        }]
+      };
+      var url = this._tilerHost() + "/tiles/layergroup";
+      var extra = this._extraParams();
+
+      // tiler needs map_key instead of api_key
+      // so replace it
+      if (extra) {
+        extra = extra.replace('api_key=', 'map_key=');
+      }
+
+      url = url +
+        "?config=" + encodeURIComponent(JSON.stringify(layergroup)) +
+        "&callback=?" + (extra ? "&" + extra: '');
+
+      torque.net.jsonp(url, function (data) {
+        var query = format("select * from ({sql}) __torque_wrap_sql limit 0", { sql: self.getSQL() });
+        self.sql(query, function (queryData) {
+          if (data && queryData) {
+            callback({
+              updated_at: data.last_updated,
+              fields: queryData.fields
+            });
+          }
+        }, { parseJSON: true });
+      });
+    },
+
+    //
+    // the data range could be set by the user though ``start``
+    // option. It can be fecthed from the table when the start
+    // is not specified.
+    //
+    _fetchKeySpan: function() {
+      var self = this;
+      var max_col, min_col, max_tmpl, min_tmpl;
+
+      this._fetchUpdateAt(function(data) {
+        if (!data) return;
+        self.options.extra_params = self.options.extra_params || {};
+        self.options.extra_params.last_updated = data.updated_at || 0;
+        self.options.extra_params.cache_policy = 'persist';
+        self.options.is_time = data.fields[self.options.column].type === 'date';
+
+        var column_conv = self.options.column;
+        if (self.options.is_time){
+          max_tmpl = "date_part('epoch', max({column}))";
+          min_tmpl = "date_part('epoch', min({column}))";
+          column_conv = format("date_part('epoch', {column})", self.options);
+        } else {
+          max_tmpl = "max({column})";
+          min_tmpl = "min({column})";
+        }
+
+        max_col = format(max_tmpl, { column: self.options.column });
+        min_col = format(min_tmpl, { column: self.options.column });
+
+        /*var sql_stats = "" +
+        "WITH summary_groups as ( " +
+          "WITH summary as ( " +
+           "select   (row_number() over (order by __time_col asc nulls last)+1)/2 as rownum, __time_col " +
+            "from (select *, {column} as __time_col from ({sql}) __s) __torque_wrap_sql " +
+            "order by __time_col asc " +
+          ") " +
+          "SELECT " +
+          "max(__time_col) OVER(PARTITION BY rownum) -  " +
+          "min(__time_col) OVER(PARTITION BY rownum) diff " +
+          "FROM summary " +
+        "), subq as ( " +
+        " SELECT " +
+            "st_xmax(st_envelope(st_collect(the_geom))) xmax, " +
+            "st_ymax(st_envelope(st_collect(the_geom))) ymax, " +
+            "st_xmin(st_envelope(st_collect(the_geom))) xmin, " +
+            "st_ymin(st_envelope(st_collect(the_geom))) ymin, " +
+            "{max_col} max, " +
+            "{min_col} min FROM  ({sql}) __torque_wrap_sql " +
+        ")" +
+        "SELECT " +
+        "xmax, xmin, ymax, ymin, a.max as max_date, a.min as min_date, " +
+        "avg(diff) as diffavg," +
+        "(a.max - a.min)/avg(diff) as num_steps " +
+        "FROM summary_groups, subq a  " +
+        "WHERE diff > 0 group by xmax, xmin, ymax, ymin, max_date, min_date";
+        */
+        var sql_stats = " SELECT " +
+            "st_xmax(st_envelope(st_collect(the_geom))) xmax, " +
+            "st_ymax(st_envelope(st_collect(the_geom))) ymax, " +
+            "st_xmin(st_envelope(st_collect(the_geom))) xmin, " +
+            "st_ymin(st_envelope(st_collect(the_geom))) ymin, " +
+            "count(*) as num_steps, " +
+            "{max_col} max_date, " +
+            "{min_col} min_date FROM  ({sql}) __torque_wrap_sql ";
+
+        var sql = format(sql_stats, {
+          max_col: max_col,
+          min_col: min_col,
+          column: column_conv,
+          sql: self.getSQL()
+        });
+
+        self.sql(sql, function(data) {
+          //TODO: manage bounds
+          data = data.rows[0];
+          self.options.start = data.min_date;
+          self.options.end = data.max_date;
+          self.options.step = (data.max_date - data.min_date)/Math.min(self.options.steps, data.num_steps>>0);
+          self.options.data_steps = data.num_steps >> 0;
+          // step can't be 0
+          self.options.step = self.options.step || 1;
+          self.options.bounds = [
+            [data.ymin, data.xmin],
+            [data.ymax, data.xmax]
+          ];
+          self._setReady(true);
+        }, { parseJSON: true, no_cdn: true });
+      }, { parseJSON: true, no_cdn: true})
+    }
+
+  };
+
+module.exports = json;
+
+},{"../":10,"../profiler":17}],22:[function(require,module,exports){
   var torque = require('../');
   var Profiler = require('../profiler');
 
@@ -4449,7 +5027,7 @@ var Profiler = require('../profiler');
 
   module.exports = windshaft;
 
-},{"../":10,"../profiler":17}],22:[function(require,module,exports){
+},{"../":10,"../profiler":17}],23:[function(require,module,exports){
   var TAU = Math.PI*2;
   // min value to render a line.
   // it does not make sense to render a line of a width is not even visible
@@ -4583,13 +5161,13 @@ module.exports = {
     MAX_SPRITE_RADIUS: MAX_SPRITE_RADIUS
 };
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 module.exports = {
     cartocss: require('./cartocss_render'),
     Point: require('./point'),
     Rectangle: require('./rectangle')
 };
-},{"./cartocss_render":22,"./point":24,"./rectangle":25}],24:[function(require,module,exports){
+},{"./cartocss_render":23,"./point":25,"./rectangle":26}],25:[function(require,module,exports){
 (function (global){
 var torque = require('../');
 var cartocss = require('./cartocss_render');
@@ -5102,7 +5680,7 @@ var Filters = require('./torque_filters');
 module.exports = PointRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"../profiler":17,"./cartocss_render":22,"./torque_filters":26,"carto":36}],25:[function(require,module,exports){
+},{"../":10,"../profiler":17,"./cartocss_render":23,"./torque_filters":27,"carto":37}],26:[function(require,module,exports){
 (function (global){
 var carto = global.carto || require('carto');
 
@@ -5266,7 +5844,7 @@ var carto = global.carto || require('carto');
 module.exports = RectanbleRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":36}],26:[function(require,module,exports){
+},{"carto":37}],27:[function(require,module,exports){
 /*
  Based on simpleheat, a tiny JavaScript library for drawing heatmaps with Canvas, 
  by Vladimir Agafonkin
@@ -5358,7 +5936,7 @@ torque_filters.prototype = {
 
 module.exports = torque_filters;
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (global){
 var torque = require('./core');
 
@@ -5462,9 +6040,9 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./core":4}],28:[function(require,module,exports){
+},{"./core":4}],29:[function(require,module,exports){
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -5826,7 +6404,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":34}],30:[function(require,module,exports){
+},{"util/":35}],31:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -5851,7 +6429,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6079,7 +6657,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":32}],32:[function(require,module,exports){
+},{"_process":33}],33:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -6167,14 +6745,14 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6764,7 +7342,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":33,"_process":32,"inherits":30}],35:[function(require,module,exports){
+},{"./support/isBuffer":34,"_process":33,"inherits":31}],36:[function(require,module,exports){
 (function (tree) {
 
 tree.functions = {
@@ -6977,7 +7555,7 @@ function clamp(val) {
 
 })(require('./tree'));
 
-},{"./tree":41}],36:[function(require,module,exports){
+},{"./tree":42}],37:[function(require,module,exports){
 (function (process,__dirname){
 var util = require('util'),
     fs = require('fs'),
@@ -7097,7 +7675,7 @@ function stylize(str, style) {
 }
 
 }).call(this,require('_process'),"/node_modules/carto/lib/carto")
-},{"../../package.json":72,"./functions":35,"./parser":37,"./renderer":38,"./renderer_js":39,"./torque-reference":40,"./tree":41,"./tree/call":42,"./tree/color":43,"./tree/comment":44,"./tree/definition":45,"./tree/dimension":46,"./tree/element":47,"./tree/expression":48,"./tree/field":49,"./tree/filter":50,"./tree/filterset":51,"./tree/fontset":52,"./tree/frame_offset":53,"./tree/imagefilter":54,"./tree/invalid":55,"./tree/keyword":56,"./tree/layer":57,"./tree/literal":58,"./tree/operation":59,"./tree/quoted":60,"./tree/reference":61,"./tree/rule":62,"./tree/ruleset":63,"./tree/selector":64,"./tree/style":65,"./tree/url":66,"./tree/value":67,"./tree/variable":68,"./tree/zoom":69,"_process":32,"fs":28,"path":31,"util":34}],37:[function(require,module,exports){
+},{"../../package.json":73,"./functions":36,"./parser":38,"./renderer":39,"./renderer_js":40,"./torque-reference":41,"./tree":42,"./tree/call":43,"./tree/color":44,"./tree/comment":45,"./tree/definition":46,"./tree/dimension":47,"./tree/element":48,"./tree/expression":49,"./tree/field":50,"./tree/filter":51,"./tree/filterset":52,"./tree/fontset":53,"./tree/frame_offset":54,"./tree/imagefilter":55,"./tree/invalid":56,"./tree/keyword":57,"./tree/layer":58,"./tree/literal":59,"./tree/operation":60,"./tree/quoted":61,"./tree/reference":62,"./tree/rule":63,"./tree/ruleset":64,"./tree/selector":65,"./tree/style":66,"./tree/url":67,"./tree/value":68,"./tree/variable":69,"./tree/zoom":70,"_process":33,"fs":29,"path":32,"util":35}],38:[function(require,module,exports){
 (function (global){
 var carto = exports,
     tree = require('./tree'),
@@ -7882,7 +8460,7 @@ carto.Parser = function Parser(env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./tree":41,"underscore":71}],38:[function(require,module,exports){
+},{"./tree":42,"underscore":72}],39:[function(require,module,exports){
 (function (global){
 var _ = global._ || require('underscore');
 var carto = require('./index');
@@ -8288,7 +8866,7 @@ module.exports.inheritDefinitions = inheritDefinitions;
 module.exports.sortStyles = sortStyles;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./index":36,"underscore":71}],39:[function(require,module,exports){
+},{"./index":37,"underscore":72}],40:[function(require,module,exports){
 (function (global){
 (function(carto) {
 var tree = require('./tree');
@@ -8580,7 +9158,7 @@ if(typeof(module) !== 'undefined') {
 })(require('../carto'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../carto":36,"./torque-reference":40,"./tree":41,"underscore":71}],40:[function(require,module,exports){
+},{"../carto":37,"./torque-reference":41,"./tree":42,"underscore":72}],41:[function(require,module,exports){
 var _mapnik_reference_latest = {
     "version": "2.1.1",
     "style": {
@@ -10494,7 +11072,7 @@ module.exports = {
   }
 };
 
-},{}],41:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 /**
  * TODO: document this. What does this do?
  */
@@ -10507,7 +11085,7 @@ if(typeof(module) !== "undefined") {
   };
 }
 
-},{}],42:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -10623,7 +11201,7 @@ tree.Call.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],43:[function(require,module,exports){
+},{"../tree":42,"underscore":72}],44:[function(require,module,exports){
 (function(tree) {
 // RGB Colors - #ff0014, #eee
 // can be initialized with a 3 or 6 char string or a 3 or 4 element
@@ -10720,7 +11298,7 @@ tree.Color.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],44:[function(require,module,exports){
+},{"../tree":42}],45:[function(require,module,exports){
 (function(tree) {
 
 tree.Comment = function Comment(value, silent) {
@@ -10737,7 +11315,7 @@ tree.Comment.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],45:[function(require,module,exports){
+},{"../tree":42}],46:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var assert = require('assert'),
@@ -11000,7 +11578,7 @@ tree.Definition.prototype.toJS = function(env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"assert":29,"underscore":71}],46:[function(require,module,exports){
+},{"../tree":42,"assert":30,"underscore":72}],47:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -11103,7 +11681,7 @@ tree.Dimension.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],47:[function(require,module,exports){
+},{"../tree":42,"underscore":72}],48:[function(require,module,exports){
 (function(tree) {
 
 // An element is an id or class selector
@@ -11135,7 +11713,7 @@ tree.Element.prototype.toString = function() { return this.value; };
 
 })(require('../tree'));
 
-},{"../tree":41}],48:[function(require,module,exports){
+},{"../tree":42}],49:[function(require,module,exports){
 (function(tree) {
 
 tree.Expression = function Expression(value) {
@@ -11163,7 +11741,7 @@ tree.Expression.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],49:[function(require,module,exports){
+},{"../tree":42}],50:[function(require,module,exports){
 (function(tree) {
 
 tree.Field = function Field(content) {
@@ -11182,7 +11760,7 @@ tree.Field.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],50:[function(require,module,exports){
+},{"../tree":42}],51:[function(require,module,exports){
 (function(tree) {
 
 tree.Filter = function Filter(key, op, val, index, filename) {
@@ -11252,7 +11830,7 @@ tree.Filter.prototype.toString = function() {
 
 })(require('../tree'));
 
-},{"../tree":41}],51:[function(require,module,exports){
+},{"../tree":42}],52:[function(require,module,exports){
 (function (global){
 var tree = require('../tree');
 var _ = global._ || require('underscore');
@@ -11523,7 +12101,7 @@ tree.Filterset.prototype.add = function(filter, env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],52:[function(require,module,exports){
+},{"../tree":42,"underscore":72}],53:[function(require,module,exports){
 (function(tree) {
 
 tree._getFontSet = function(env, fonts) {
@@ -11556,7 +12134,7 @@ tree.FontSet.prototype.toXML = function(env) {
 
 })(require('../tree'));
 
-},{"../tree":41}],53:[function(require,module,exports){
+},{"../tree":42}],54:[function(require,module,exports){
 var tree = require('../tree');
 
 // Storage for Frame offset value
@@ -11585,7 +12163,7 @@ tree.FrameOffset.max = 32;
 tree.FrameOffset.none = 0;
 
 
-},{"../tree":41}],54:[function(require,module,exports){
+},{"../tree":42}],55:[function(require,module,exports){
 (function(tree) {
 
 tree.ImageFilter = function ImageFilter(filter, args) {
@@ -11609,7 +12187,7 @@ tree.ImageFilter.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],55:[function(require,module,exports){
+},{"../tree":42}],56:[function(require,module,exports){
 (function (tree) {
 tree.Invalid = function Invalid(chunk, index, message) {
     this.chunk = chunk;
@@ -11633,7 +12211,7 @@ tree.Invalid.prototype.ev = function(env) {
 };
 })(require('../tree'));
 
-},{"../tree":41}],56:[function(require,module,exports){
+},{"../tree":42}],57:[function(require,module,exports){
 (function(tree) {
 
 tree.Keyword = function Keyword(value) {
@@ -11652,7 +12230,7 @@ tree.Keyword.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],57:[function(require,module,exports){
+},{"../tree":42}],58:[function(require,module,exports){
 (function(tree) {
 
 tree.LayerXML = function(obj, styles) {
@@ -11691,7 +12269,7 @@ tree.LayerXML = function(obj, styles) {
 
 })(require('../tree'));
 
-},{"../tree":41}],58:[function(require,module,exports){
+},{"../tree":42}],59:[function(require,module,exports){
 // A literal is a literal string for Mapnik - the
 // result of the combination of a `tree.Field` with any
 // other type.
@@ -11713,7 +12291,7 @@ tree.Literal.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],59:[function(require,module,exports){
+},{"../tree":42}],60:[function(require,module,exports){
 // An operation is an expression with an op in between two operands,
 // like 2 + 1.
 (function(tree) {
@@ -11812,7 +12390,7 @@ tree.operate = function(op, a, b) {
 
 })(require('../tree'));
 
-},{"../tree":41}],60:[function(require,module,exports){
+},{"../tree":42}],61:[function(require,module,exports){
 (function(tree) {
 
 tree.Quoted = function Quoted(content) {
@@ -11844,7 +12422,7 @@ tree.Quoted.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],61:[function(require,module,exports){
+},{"../tree":42}],62:[function(require,module,exports){
 (function (global){
 // Carto pulls in a reference from the `mapnik-reference`
 // module. This file builds indexes from that file for its various
@@ -12067,7 +12645,7 @@ tree.Reference = ref;
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"mapnik-reference":70,"underscore":71}],62:[function(require,module,exports){
+},{"../tree":42,"mapnik-reference":71,"underscore":72}],63:[function(require,module,exports){
 (function(tree) {
 // a rule is a single property and value combination, or variable
 // name and value combination, like
@@ -12189,7 +12767,7 @@ tree.Rule.prototype.ev = function(context) {
 
 })(require('../tree'));
 
-},{"../tree":41}],63:[function(require,module,exports){
+},{"../tree":42}],64:[function(require,module,exports){
 (function(tree) {
 
 tree.Ruleset = function Ruleset(selectors, rules) {
@@ -12368,7 +12946,7 @@ tree.Ruleset.prototype = {
 };
 })(require('../tree'));
 
-},{"../tree":41}],64:[function(require,module,exports){
+},{"../tree":42}],65:[function(require,module,exports){
 (function(tree) {
 
 tree.Selector = function Selector(filters, zoom, frame_offset, elements, attachment, conditions, index) {
@@ -12397,7 +12975,7 @@ tree.Selector.prototype.specificity = function() {
 
 })(require('../tree'));
 
-},{"../tree":41}],65:[function(require,module,exports){
+},{"../tree":42}],66:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -12469,7 +13047,7 @@ tree.StyleXML = function(name, attachment, definitions, env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],66:[function(require,module,exports){
+},{"../tree":42,"underscore":72}],67:[function(require,module,exports){
 (function(tree) {
 
 tree.URL = function URL(val, paths) {
@@ -12489,7 +13067,7 @@ tree.URL.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],67:[function(require,module,exports){
+},{"../tree":42}],68:[function(require,module,exports){
 (function(tree) {
 
 tree.Value = function Value(value) {
@@ -12542,7 +13120,7 @@ tree.Value.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],68:[function(require,module,exports){
+},{"../tree":42}],69:[function(require,module,exports){
 (function(tree) {
 
 tree.Variable = function Variable(name, index, filename) {
@@ -12585,7 +13163,7 @@ tree.Variable.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],69:[function(require,module,exports){
+},{"../tree":42}],70:[function(require,module,exports){
 var tree = require('../tree');
 
 // Storage for zoom ranges. Only supports continuous ranges,
@@ -12705,7 +13283,7 @@ tree.Zoom.prototype.toString = function() {
     return str;
 };
 
-},{"../tree":41}],70:[function(require,module,exports){
+},{"../tree":42}],71:[function(require,module,exports){
 (function (__dirname){
 var fs = require('fs'),
     path = require('path'),
@@ -12734,7 +13312,7 @@ refs.map(function(version) {
 });
 
 }).call(this,"/node_modules/carto/node_modules/mapnik-reference")
-},{"fs":28,"path":31}],71:[function(require,module,exports){
+},{"fs":29,"path":32}],72:[function(require,module,exports){
 //     Underscore.js 1.6.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -14079,7 +14657,7 @@ refs.map(function(version) {
   }
 }).call(this);
 
-},{}],72:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 module.exports={
   "name": "carto",
   "version": "0.15.1-cdb1",
