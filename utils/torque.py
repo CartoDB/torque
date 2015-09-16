@@ -32,11 +32,7 @@ class TorqueTile:
             json.dump(self.data, outfile)
         return True
 
-
-def getMin(table, tcol, o):
-    return 'SELECT min(%s) min_o FROM %s WHERE %s IS NOT NULL' % (tcol, table, o)
-
-def getSql(table, agg, tcol, steps, min_o, res, x, y, zoom, webmercator = 'the_geom_webmercator'):
+def getSql(table, agg, tcol, steps, res, x, y, zoom, webmercator = 'the_geom_webmercator'):
     sql = ' '.join(["WITH par AS (",
         "    WITH innerpar AS (",
         "        SELECT 1.0/(CDB_XYZ_Resolution(%s)*%s) as resinv" % (zoom, res),
@@ -83,12 +79,6 @@ class PostGIS:
         self.cursor.execute(sql)
         return self.cursor.fetchall()
 
-    def _getMin(self, table, tcol, o):
-        sql = getMin(table, tcol, o)
-        data = self.psql(sql)
-        print data
-        return data[0][0]
-
     def run(self):
         table = self.options['t']
         zooms = self.options['z'].split('-')
@@ -97,8 +87,6 @@ class PostGIS:
         res = self.options['r']
 
         tcol = "date_part('epoch', %s)" % self.options['o'] if self.options['tt'] else self.options['o']
-
-        min_o = self._getMin(table, tcol, self.options['o'])
 
         zoom_c = int(zooms[0])
         zoom_e = int(zooms[-1])
@@ -111,9 +99,9 @@ class PostGIS:
                     tile = TorqueTile({"directory": self.options['d']})
                     tile.setXYZ(x, y, z)
                     if self.options['wm']:
-                        sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z, self.options['wm'])
+                        sql = getSql(table, agg, tcol, steps, res, 0, 0, z, self.options['wm'])
                     else:
-                        sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z)
+                        sql = getSql(table, agg, tcol, steps, res, 0, 0, z)
                     self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
                     tile.setData(self.psql(sql))
                     tile.save()
@@ -152,10 +140,7 @@ class CartoDB:
         }
         r = self.requests.get(self.api_url, params=params)
         return r.json()
-    def _getMin(self, table, tcol, o):
-        sql = getMin(table, tcol, o)
-        data = self.sql_api(sql)
-        return data['rows'][0]['min_o']
+
     def run(self):
         table = self.options['t']
         zooms = self.options['z'].split('-')
@@ -164,8 +149,6 @@ class CartoDB:
         res = self.options['r']
 
         tcol = "date_part('epoch', %s)" % self.options['o'] if self.options['tt'] else self.options['o']
-
-        min_o = self._getMin(table, tcol, self.options['o'])
 
         zoom_c = int(zooms[0])
         zoom_e = int(zooms[-1])
@@ -177,7 +160,7 @@ class CartoDB:
                     z = str(zoom_c)
                     tile = TorqueTile({"directory": self.options['d']})
                     tile.setXYZ(x, y, z)
-                    sql = getSql(table, agg, tcol, steps, min_o, res, 0, 0, z)
+                    sql = getSql(table, agg, tcol, steps, res, 0, 0, z)
                     self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
                     tile.setData(self.sql_api(sql))
                     tile.save()
