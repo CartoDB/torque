@@ -4254,7 +4254,7 @@ var Profiler = require('../profiler');
           + tileBounds.minLng.toFixed(3) 
           + " latitude > " + tileBounds.minLat.toFixed(3)
           + " longitude < " + tileBounds.maxLng.toFixed(3) 
-          + " latitude < " + tileBounds.maxLat.toFixed(3) + "| bucket _time span=" + self.span + " | eval lat = floor(('latitude' + 90.000000) / " + self.latspan + " ) | eval lon = floor(('longitude' + 180.000000) / " + self.lonspan + ") | eval latlon = lat.\"-\".lon | chart count by latlon,_time limit=256"
+          + " latitude < " + tileBounds.maxLat.toFixed(3) + "| bucket _time span=" + self.span + " | eval lat = floor(('latitude' + 90.000000) / " + self.latspan + " ) | eval lon = floor(('longitude' + 180.000000) / " + self.lonspan + ") | eval latlon = lat.\"-\".lon | chart count by latlon,_time limit=128"
         });
 
         self.managers[coord.zoom + "_" + coord.x + "_" + coord.y].data("results", {count: 0, output_mode: 'json_rows'}).on("data", function (results) {
@@ -4262,9 +4262,11 @@ var Profiler = require('../profiler');
         
           callback(results.data());
         });
+
+    
       }
 
- 
+      console.log('Starting Search for ' + coord.zoom + "_" + coord.x + "_" + coord.y);
       self.managers[coord.zoom + "_" + coord.x + "_" + coord.y].startSearch();
 
  
