@@ -12,6 +12,29 @@ class TorqueTile:
                 os.makedirs(options['directory'])
     def setData(self, data):
         self.data = data
+
+    def setSql(table, agg, tcol, steps, res, x, y, zoom, webmercator):
+        webmercator = webmercator if webmercator == None else 'the_geom_webmercator'
+        self.sql = ' '.join(["WITH par AS (",
+            "    WITH innerpar AS (",
+            "        SELECT 1.0/(CDB_XYZ_Resolution(%s)*%s) as resinv" % (zoom, res),
+            "    ),",
+            "    bounds AS (",
+            "        SELECT min(%s) as start, " % tcol,
+            "              (max(%s) - min(%s) )/%s step " % (tcol, tcol, steps),
+            "        FROM %s _i" % table,
+            "    )",
+            "    SELECT CDB_XYZ_Resolution(%s)*%s as res, " % (zoom, res),
+            "           innerpar.resinv as resinv, start, step FROM innerpar, bounds",
+            ")",
+            "select",
+            "   floor(st_x(%s)*resinv)::int as x," % webmercator,
+            "   floor(st_y(%s)*resinv)::int as y" % webmercator,
+            "   , %s c" % agg,
+            "   , floor((%s - start)/step)::int d" %tcol,
+            "    FROM %s i, par p" % table,
+            "    GROUP BY x, y, d"]);
+
     def setXYZ(self, x, y, z):
         self.z = str(z)
         self.zdir = z 
@@ -25,34 +48,15 @@ class TorqueTile:
         if not os.path.exists(self.xdir):
             os.makedirs(self.xdir)
         self.y = str(y)
+
     def getFilename(self):
         return self.xdir + '/' + self.y + '.json.torque'
+
     def save(self):
         with open(self.getFilename(), 'w') as outfile:
             json.dump(self.data, outfile)
         return True
 
-def getSql(table, agg, tcol, steps, res, x, y, zoom, webmercator = 'the_geom_webmercator'):
-    sql = ' '.join(["WITH par AS (",
-        "    WITH innerpar AS (",
-        "        SELECT 1.0/(CDB_XYZ_Resolution(%s)*%s) as resinv" % (zoom, res),
-        "    ),",
-        "    bounds AS (",
-        "        SELECT min(%s) as start, " % tcol,
-        "              (max(%s) - min(%s) )/%s step " % (tcol, tcol, steps),
-        "        FROM %s _i" % table,
-        "    )",
-        "    SELECT CDB_XYZ_Resolution(%s)*%s as res, " % (zoom, res),
-        "           innerpar.resinv as resinv, start, step FROM innerpar, bounds",
-        ")",
-        "select",
-        "   floor(st_x(%s)*resinv)::int as x," % webmercator,
-        "   floor(st_y(%s)*resinv)::int as y" % webmercator,
-        "   , %s c" % agg,
-        "   , floor((%s - start)/step)::int d" %tcol,
-        "    FROM %s i, par p" % table,
-        "    GROUP BY x, y, d"]);
-    return sql
 
 
 class PostGIS:
@@ -98,10 +102,7 @@ class PostGIS:
                     z = str(zoom_c)
                     tile = TorqueTile({"directory": self.options['d']})
                     tile.setXYZ(x, y, z)
-                    if self.options['wm']:
-                        sql = getSql(table, agg, tcol, steps, res, 0, 0, z, self.options['wm'])
-                    else:
-                        sql = getSql(table, agg, tcol, steps, res, 0, 0, z)
+                    tile.setSql(table, agg, tcol, steps, res, 0, 0, z)
                     self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
                     tile.setData(self.psql(sql))
                     tile.save()
@@ -160,11 +161,11 @@ class CartoDB:
                     z = str(zoom_c)
                     tile = TorqueTile({"directory": self.options['d']})
                     tile.setXYZ(x, y, z)
-                    sql = getSql(table, agg, tcol, steps, res, 0, 0, z)
-                    self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
-                    tile.setData(self.sql_api(sql))
-                    tile.save()
-                    self._log("Tile saved")
+                    tile.setSql(table, agg, tcol, steps, res, 0, 0, z)
+                    # self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
+                    # tile.setData(self.sql_api(sql))
+                    # tile.save()
+                    # self._log("Tile saved")
                     y += 1
                 x += 1
             zoom_c += 1
