@@ -37,27 +37,27 @@ def getMin(table, tcol, o):
     return 'SELECT min(%s) min_o FROM %s WHERE %s IS NOT NULL' % (tcol, table, o)
 
 def getSql(table, agg, tcol, steps, min_o, res, x, y, zoom, webmercator = 'the_geom_webmercator'):
-    sql =  ' '.join(["WITH ", 
-            "par AS (", 
-            "  SELECT CDB_XYZ_Resolution(%s)*%s as res" % (zoom, res), 
-            ",  256/%s as tile_size" % (res), 
-            ", CDB_XYZ_Extent(%s, %s, %s) as ext " % (x, y, zoom),
-            "),", 
-            "cte AS ( ",
-            "  SELECT ST_SnapToGrid(%s, p.res) g" % (webmercator), 
-            ", %s c" % (agg), 
-            ", floor((%s - %s)/%s) d" % (tcol, min_o, steps), 
-            "  FROM %s i, par p " % (table), 
-            "  WHERE %s && p.ext " % (webmercator), 
-            "  GROUP BY g, d", 
-            ") ", 
-            "", 
-            "SELECT (st_x(g)-st_xmin(p.ext))/p.res x__uint8, ", 
-            "       (st_y(g)-st_ymin(p.ext))/p.res y__uint8,", 
-            " array_agg(c) vals__uint8,", 
-            " array_agg(d) dates__uint16", 
-            " FROM cte, par p where (st_y(g)-st_ymin(p.ext))/p.res < tile_size and (st_x(g)-st_xmin(p.ext))/p.res < tile_size GROUP BY x__uint8, y__uint8"])
+    sql = ' '.join(["WITH par AS (",
+        "    WITH innerpar AS (",
+        "        SELECT 1.0/(CDB_XYZ_Resolution(%s)*%s) as resinv" % (zoom, res),
+        "    ),",
+        "    bounds AS (",
+        "        SELECT min(%s) as start, " % tcol,
+        "              (max(%s) - min(%s) )/%s step " % (tcol, tcol, steps),
+        "        FROM %s _i" % table,
+        "    )",
+        "    SELECT CDB_XYZ_Resolution(%s)*%s as res, " % (zoom, res),
+        "           innerpar.resinv as resinv, start, step FROM innerpar, bounds",
+        ")",
+        "select",
+        "   floor(st_x(%s)*resinv)::int as x," % webmercator,
+        "   floor(st_y(%s)*resinv)::int as y" % webmercator,
+        "   , %s c" % agg,
+        "   , floor((%s - start)/step)::int d" %tcol,
+        "    FROM %s i, par p" % table,
+        "    GROUP BY x, y, d"]);
     return sql
+
 
 class PostGIS:
     def __init__(self, options):
@@ -210,7 +210,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--steps', dest='s', type=str)
     parser.add_argument('-d', '--dir', dest='d', default='', type=str)
     parser.add_argument('-z', '--zoom', dest='z', type=str)
-    parser.add_argument('-t', '--is_time', dest='tt', default=True, type=bool)
+    parser.add_argument('-q', '--is_time', dest='tt', default=True, type=bool)
     parser.add_argument('-r', '--resolution', dest='r', type=str)
     parser.add_argument('-k', '--api_key', dest='k', type=str)
     parser.add_argument('-w', '--webmercator', dest='wm', type=str)

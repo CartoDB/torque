@@ -12,7 +12,7 @@ Below are a list of parameters shared for both datasources (CartoDB and Postgis)
 |-----------|:-----------|:-----------|:----------|
 | --aggregation | -a  | string     | SQL aggregation function to calculate each pixel **value**  | 
 | --ordering  | -o | string     | The name of the column (either number or date) that orders your data | 
-| --is_time  | -t | string     | Default True, set to false if your ordering column is not temporal | 
+| --is_time  | -q | string     | Default True, set to false if your ordering column is not temporal | 
 | --steps  | -s | integer     | The number of ordered steps in your tile cubes | 
 | --resolution  | -r | integer     | The width and height dimensions of each pixel | 
 | --zoom  | -z | string     | The zoom extents to generate tiles | 
