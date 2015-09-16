@@ -3,18 +3,52 @@ import base64
 import json
 import sys
 import argparse
- 
-class TorqueTile:
-    def __init__(self, options):
-        self.options = options
-        if options['directory'] != '':
-            if not os.path.exists(options['directory']):
-                os.makedirs(options['directory'])
-    def setData(self, data):
-        self.data = data
 
-    def setSql(table, agg, tcol, steps, res, x, y, zoom, webmercator):
-        webmercator = webmercator if webmercator == None else 'the_geom_webmercator'
+class CartoDBProvider:
+    def __init__(self, options):
+        import requests
+        requests.packages.urllib3.disable_warnings()
+        self.api_url = "https://%s.cartodb.com/api/v2/sql" % options['u']
+        if options['k']:
+            self.api_url += "&api_key=%s" % options['k']
+        self.api_key = options['k']
+        self.requests = requests
+    def request(self,sql):
+        # execute sql request over CartoDB API
+        params = {
+            'api_key' : self.api_key,
+            'q'       : sql
+        }
+        r = self.requests.get(self.api_url, params=params)
+        return r.json()
+
+class PostGISProvider:
+    def __init__(self, options):
+        import psycopg2
+        conn_string = "host='%s' dbname='%s' user='%s'" % (options['pg_host'], options['pg_db'], options['pg_user'])
+        if options['pg_pass']:
+            conn_string += "password='%s'" % self.options['pg_pass']
+        conn = psycopg2.connect(conn_string)
+        self.cursor = conn.cursor()
+    def request(self,sql):
+        # execute sql request over PostgreSQL connection
+        self.cursor.execute(sql)
+        return self.cursor.fetchall()
+
+
+class TorqueTile:
+    def __init__(self, provider, directory):
+        self.provider = provider
+        self.directory = directory
+        if self.directory != '':
+            if not os.path.exists(self.directory):
+                os.makedirs(self.directory)
+
+    def fetchData(self):
+        self.data = self.provider.request(self.sql)
+
+    def setSql(self, table, agg, tcol, steps, res, x, y, zoom, webmercator=None):
+        webmercator = webmercator if webmercator != None else 'the_geom_webmercator'
         self.sql = ' '.join(["WITH par AS (",
             "    WITH innerpar AS (",
             "        SELECT 1.0/(CDB_XYZ_Resolution(%s)*%s) as resinv" % (zoom, res),
@@ -33,13 +67,13 @@ class TorqueTile:
             "   , %s c" % agg,
             "   , floor((%s - start)/step)::int d" %tcol,
             "    FROM %s i, par p" % table,
-            "    GROUP BY x, y, d"]);
+            "    GROUP BY x, y, d"])
 
     def setXYZ(self, x, y, z):
         self.z = str(z)
         self.zdir = z 
-        if self.options['directory'] != '':
-            self.zdir = self.options['directory'] + '/' + self.zdir
+        if self.directory != '':
+            self.zdir = self.directory + '/' + self.zdir
         if self.zdir != '':
             if not os.path.exists(self.zdir):
                 os.makedirs(self.zdir)
@@ -57,41 +91,16 @@ class TorqueTile:
             json.dump(self.data, outfile)
         return True
 
-
-
-class PostGIS:
+class Torque:
     def __init__(self, options):
-        import psycopg2
-        self.psycopg2 = psycopg2
+        if args.method.lower() == 'cartodb':
+            self.provider = CartoDBProvider(options)
+
+        if args.method.lower() == 'postgis':
+            self.provider = PostGISProvider(options)
         self.options = options
-
-        conn_string = "host='%s' dbname='%s' user='%s'" % (self.options['pg_host'], self.options['pg_db'], self.options['pg_user'])
-        if self.options['pg_pass']:
-            conn_string += "password='%s'" % self.options['pg_pass']
-
-        self.conn = self.psycopg2.connect(conn_string)
-        self.cursor = self.conn.cursor()
-
-
-    def _log(self, message):
-        if self.options['verbose'] == True:
-            print message
-    def _error(self, error):
-        print error
-        sys.exit()
-    def psql(self, sql):
-        self.cursor.execute(sql)
-        return self.cursor.fetchall()
-
-    def run(self):
-        table = self.options['t']
+    def fetchTiles(self):
         zooms = self.options['z'].split('-')
-        agg = self.options['a']
-        steps = self.options['s']
-        res = self.options['r']
-
-        tcol = "date_part('epoch', %s)" % self.options['o'] if self.options['tt'] else self.options['o']
-
         zoom_c = int(zooms[0])
         zoom_e = int(zooms[-1])
         while zoom_c <= zoom_e:
@@ -100,76 +109,24 @@ class PostGIS:
                 y = 0
                 while y < 2**zoom_c:
                     z = str(zoom_c)
-                    tile = TorqueTile({"directory": self.options['d']})
+                    tile = TorqueTile(self.provider, self.options['d'])
                     tile.setXYZ(x, y, z)
-                    tile.setSql(table, agg, tcol, steps, res, 0, 0, z)
-                    self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
-                    tile.setData(self.psql(sql))
+                    tile.setSql(
+                        self.options['t'], #table
+                        self.options['a'], #aggregation
+                        "date_part('epoch', %s)" % self.options['o'] if self.options['tt'] else self.options['o']
+                        , # time column
+                        self.options['s'], # steps
+                        self.options['r'], # resolution
+                        x, y, z, # x, y, zoom
+                        self.options['wm'] # webmercator
+                    )
+                    tile.fetchData()
                     tile.save()
-                    self._log("Tile saved")
                     y += 1
                 x += 1
             zoom_c += 1
-        
 
-class CartoDB:
-    def __init__(self, options):
-        try:
-            import requests
-        except ImportError:
-            print 'The requests package is required: http://docs.python-requests.org/en/latest/user/install/#install'
-            sys.exit()
-        self.requests = requests
-        self.requests.packages.urllib3.disable_warnings()
-        # do stuff
-        self.options = options
-        self.api_url = "https://%s.cartodb.com/api/v2/sql" % (self.options['u'])
-        self._log("CartoDB setup: %s" % self.api_url)
-        if self.options['k']:
-            self.api_url += "&api_key=%s" % (self.options['k'])
-    def _log(self, message):
-        if self.options['verbose'] == True:
-            print message
-    def _error(self, error):
-        print error
-        sys.exit()
-    def sql_api(self, sql):
-        # execute sql request over API
-        params = {
-            'api_key' : self.options["k"],
-            'q'       : sql
-        }
-        r = self.requests.get(self.api_url, params=params)
-        return r.json()
-
-    def run(self):
-        table = self.options['t']
-        zooms = self.options['z'].split('-')
-        agg = self.options['a']
-        steps = self.options['s']
-        res = self.options['r']
-
-        tcol = "date_part('epoch', %s)" % self.options['o'] if self.options['tt'] else self.options['o']
-
-        zoom_c = int(zooms[0])
-        zoom_e = int(zooms[-1])
-        while zoom_c <= zoom_e:
-            x = 0
-            while x < 2**zoom_c:
-                y = 0
-                while y < 2**zoom_c:
-                    z = str(zoom_c)
-                    tile = TorqueTile({"directory": self.options['d']})
-                    tile.setXYZ(x, y, z)
-                    tile.setSql(table, agg, tcol, steps, res, 0, 0, z)
-                    # self._log("Fetching tile: x: %s, y: %s, z: %s" % (str(x), str(y), str(z)))
-                    # tile.setData(self.sql_api(sql))
-                    # tile.save()
-                    # self._log("Tile saved")
-                    y += 1
-                x += 1
-            zoom_c += 1
-        
 if __name__ == "__main__":
  
     SUPPORTED_METHODS = {
@@ -220,11 +177,6 @@ if __name__ == "__main__":
             if options[d] is None:
                 print "Arguement -%s is required\n\n%s\n\ndescription:\t%s\nrequired args:\t%s\nexample:\t%s" % (d,m,SUPPORTED_METHODS[m]['description'],SUPPORTED_METHODS[m]['requirements'],SUPPORTED_METHODS[m]['example'])
                 sys.exit()
-        
-        if args.method.lower() == 'cartodb':
-            cartodb = CartoDB(options)
-            cartodb.run()
+        job = Torque(options)
+        job.fetchTiles()
 
-        if args.method.lower() == 'postgis':
-            postgis = PostGIS(options)
-            postgis.run()
