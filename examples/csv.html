@@ -257,7 +257,148 @@
             .timeline-bar {
                 overflow: hidden;
             }
+
+            /* temporal spinner */
+            .Loader {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              z-index: 100;
+              width: 200px;
+              margin: -50px 0 0 -100px;
+              text-align: center;
+            }
+            .Spinner {
+              display: inline-block;
+              width: 100%;
+              border-top: 2px solid #ddd;
+              border-right: 2px solid #ddd;
+              border-bottom: 2px solid #ddd;
+              border-left: 2px solid #0090d7;
+              -webkit-animation: load8 1.1s infinite linear;
+                 -moz-animation: load8 1.1s infinite linear;
+                  -ms-animation: load8 1.1s infinite linear;
+                   -o-animation: load8 1.1s infinite linear;
+                      animation: load8 1.1s infinite linear;
+
+              -khtml-animation: load8 1.1s infinite linear;
+            }
+            .Spinner,
+            .Spinner:after {
+              width: 36px;
+              height: 36px;
+              border-radius: 50%;
+            }
+
+
+            @-webkit-keyframes load8 {
+              0% {
+                -webkit-transform: rotate(0deg);
+                   -moz-transform: rotate(0deg);
+                    -ms-transform: rotate(0deg);
+                     -o-transform: rotate(0deg);
+                        transform: rotate(0deg);
+
+                -khtml-transform: rotate(0deg);
+              }
+              100% {
+                -webkit-transform: rotate(360deg);
+                   -moz-transform: rotate(360deg);
+                    -ms-transform: rotate(360deg);
+                     -o-transform: rotate(360deg);
+                        transform: rotate(360deg);
+
+                -khtml-transform: rotate(360deg);
+              }
+            }
+            @-moz-keyframes load8 {
+              0% {
+                -webkit-transform: rotate(0deg);
+                   -moz-transform: rotate(0deg);
+                    -ms-transform: rotate(0deg);
+                     -o-transform: rotate(0deg);
+                        transform: rotate(0deg);
+
+                -khtml-transform: rotate(0deg);
+              }
+              100% {
+                -webkit-transform: rotate(360deg);
+                   -moz-transform: rotate(360deg);
+                    -ms-transform: rotate(360deg);
+                     -o-transform: rotate(360deg);
+                        transform: rotate(360deg);
+
+                -khtml-transform: rotate(360deg);
+              }
+            }
+            @-ms-keyframes load8 {
+              0% {
+                -webkit-transform: rotate(0deg);
+                   -moz-transform: rotate(0deg);
+                    -ms-transform: rotate(0deg);
+                     -o-transform: rotate(0deg);
+                        transform: rotate(0deg);
+
+                -khtml-transform: rotate(0deg);
+              }
+              100% {
+                -webkit-transform: rotate(360deg);
+                   -moz-transform: rotate(360deg);
+                    -ms-transform: rotate(360deg);
+                     -o-transform: rotate(360deg);
+                        transform: rotate(360deg);
+
+                -khtml-transform: rotate(360deg);
+              }
+            }
+            @-o-keyframes load8 {
+              0% {
+                -webkit-transform: rotate(0deg);
+                   -moz-transform: rotate(0deg);
+                    -ms-transform: rotate(0deg);
+                     -o-transform: rotate(0deg);
+                        transform: rotate(0deg);
+
+                -khtml-transform: rotate(0deg);
+              }
+              100% {
+                -webkit-transform: rotate(360deg);
+                   -moz-transform: rotate(360deg);
+                    -ms-transform: rotate(360deg);
+                     -o-transform: rotate(360deg);
+                        transform: rotate(360deg);
+
+                -khtml-transform: rotate(360deg);
+              }
+            }
+            @keyframes load8 {
+              0% {
+                -webkit-transform: rotate(0deg);
+                   -moz-transform: rotate(0deg);
+                    -ms-transform: rotate(0deg);
+                     -o-transform: rotate(0deg);
+                        transform: rotate(0deg);
+
+                -khtml-transform: rotate(0deg);
+              }
+              100% {
+                -webkit-transform: rotate(360deg);
+                   -moz-transform: rotate(360deg);
+                    -ms-transform: rotate(360deg);
+                     -o-transform: rotate(360deg);
+                        transform: rotate(360deg);
+
+                -khtml-transform: rotate(360deg);
+              }
+            }
+
+            
         </style>
+
+        <div id="spinner" class="Loader">
+            <div class="Spinner"></div>
+        </div>
+
         <input type="file" id="files" name="files" />
         <div id="map">
             <div class="mapLayer" id="filter">
