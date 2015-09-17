@@ -3,11 +3,19 @@
     <head>
         <link rel="stylesheet" href="vendor/leaflet.css"/>
         <style>
-            #map, html, body {
+            html, body {
                 width: 100%;
-                height: 95%;
+                height: 100%;
+                min-height: 100%;
                 padding: 0;
                 margin: 0;
+            }
+            #map {
+                position: absolute;
+                top: 0;
+                right: 0;
+                bottom: 60px;
+                left: 0;
             }
             #control {
                 display:inline-block;
@@ -108,7 +116,7 @@
                 display: inline-block;
                 vertical-align: middle;
                 font-size: 12px;
-                margin-right: 4px;
+                margin: 0 4px 0 0 ;
             }
             #filter input[type=checkbox] {
               cursor: pointer;
@@ -148,13 +156,17 @@
             }
 
             #container {
-                height: 50px;
+                position: absolute;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                height: 30px;
                 background: rgba(0, 0, 0, .8);
                 width: 100%;
                 overflow: hidden;
-                border-top: 1px solid #000;
                 font-family: Arial, Helvetica;
                 font-size: 12px;
+                padding: 15px 0;
             }
              #container * {
                 box-sizing: border-box;
@@ -168,7 +180,6 @@
             }
             #container li {
                 list-style-type: none;
-                float: left;
                 margin: 0;
             }
             .container-filter {
@@ -177,26 +188,23 @@
                 padding: 0;
             }
             .container-action {
-                width: 20%;
-                padding: 0;
+                padding: 0 30px;
                 float: right;
                 text-align: center;
+                opacity: .9
             }
             .container-action a {
                 color: #fff;
                 text-decoration: none;
-                line-height: 47px;
             }
             .container-action img {
                 display: inline-block;
                 vertical-align: middle;
-                margin-left: 8px;
+                margin-right: 8px;
             }
             .container-timeline {
-                width: 60%;
-                padding: 10px 20px 0 20px;
-                height: 50px;
-                border-left: 1px solid rgba(255, 255, 255, .2);
+                overflow: hidden;
+                padding: 0 30px;
                 border-right: 1px solid rgba(255, 255, 255, .2);
             }
             .ButtonAction {
@@ -225,30 +233,60 @@
                 vertical-align: middle;
                 color: #fff;
             }
+            .mapLayer {
+                position: absolute;
+                right: 20px;
+                top: 20px;
+                z-index: 10;
+                background: #FFFFFF;
+                border: 1px solid rgba(0,0,0,0.20);
+                box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.20);
+                border-radius: 4px;
+                padding: 10px 20px;
+            }
+            .timeline-date {
+                float: right;
+                margin-left: 20px;
+            }
+            .timeline-date p {
+                margin: 6px 0 0 0;
+                font-family: Arial, Helvetica;
+                font-size: 12px;
+                color: #fff;
+            }
+            .timeline-bar {
+                overflow: hidden;
+            }
         </style>
         <input type="file" id="files" name="files" />
         <div id="map">
+            <div class="mapLayer" id="filter">
+                <p>Filter zone</p>
+                <input type="checkbox" class="toogle" name="foo" value="foo">
+            </div>
         </div>
 
         <div id="container">
             <ul>
-                <li class="container-filter" id="filter">
-                    <p>Filter zone</p>
-                    <input type="checkbox" class="toogle" name="foo" value="foo">
-                </li>
-                <li class="container-timeline">
-                    <div id="control"><span class="play"></span></div>
-                    <div class="timeline-inner">
-                        <div class="timeline-progress" style="width: 50%;">
-                            <span></span>
-                        </div>
-                    </div>
-                </li>
                 <li class="container-action">
                     <a href="#">
-                        <span>Analyze your data</span>
                         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAAAXNSR0IArs4c6QAAAclJREFUSA3VlzFLA0EQhe80BC2sRNDSLp2dIApaCVb+BC1tbBQrW4vUIthKWsHCSrESLUQsRdBCsDBJYUARC0E9vwm33uVyyc1uSIIDj5mdnZmX3Z3sJl4QBHlQBGXQbREO4cp7odFtwmT9oo+n7HneBOilVIQ46CWj4RowRq/1vyU+YaemwIP1jiXbzWJ8RuygEKLXLfLqoZ00V8H3/fuQeAT9DESrxPaMf6h6DE4NqbBgv6MOxNaKDfE5RWWVy+irFII9fC8p/nSX8mwOicuZCthLYMiM4xr/BsgUaYwseSWg6ezwjQM/Tio2vhy4Bm1Fs9U34Rk2cOCrgqZbD98XgfsNwSkDDfFbSl6W6y4rQEOsb5iIbSwy0y0N8QqHtZqe3tI723LGTLTtgGjyE3PR5CQ1c3JzLYgfPQwyf1RoViz18uCIgjMyiAu+bcaTYC7076Cz33cSbaRGcCEkkNVtgTVwCUbBJlCJy139CLG8SB+gBuS+vgDzYBqoxIVYCsv39BbsgvoLhbYS7Rkni8oqq+A7OaEd/92/2oQw7gktj780nZO4brUTWTzJdavjNZzsvhJXnD5yZ0kVWXGpsxpO2SW5ffryp+0XLlaMejDd+O4AAAAASUVORK5CYII="/>
+                        <span>Analyze your data</span>
+
                     </a>
+                </li>
+                <li class="container-timeline">
+                    <div class="timeline-date">
+                        <p>29/03/2013 / 14:55</p>
+                    </div>
+                    <div class="timeline-bar">
+                        <div id="control"><span class="play"></span></div>
+                        <div class="timeline-inner">
+                            <div class="timeline-progress" style="width: 50%;">
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
                 </li>
             </ul>
         </div>
