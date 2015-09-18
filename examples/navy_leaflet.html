@@ -50,6 +50,7 @@
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
+        tileJSON: "http://localhost:4004/{z}/{x}/{y}",
         user       : 'viz2',
         table      : 'ow',
         cartocss: CARTOCSS
