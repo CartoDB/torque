@@ -596,15 +596,18 @@ TorqueLayer.optionsFromLayer = function(mapConfig) {
 };
 
 TorqueLayer.optionsFromCartoCSS = function(cartocss) {
+  var renderer = cartocss.indexOf("-isoline-") > -1? "iso":"point";
   var shader = new carto.RendererJS().render(cartocss);
   var mapConfig = shader.findLayer({ name: 'Map' });
-  return TorqueLayer.optionsFromLayer(mapConfig);
+  var options =  TorqueLayer.optionsFromLayer(mapConfig);
+  options.renderer = renderer;
+  return options;
 };
 
 module.exports.TorqueLayer = TorqueLayer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":36}],4:[function(require,module,exports){
+},{"carto":38}],4:[function(require,module,exports){
 (function (global){
   var Event = {};
   Event.on = function(evt, callback) {
@@ -1974,7 +1977,7 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"./CanvasLayer":5,"./canvas_tile_layer":6,"./gmaps_tileloader_mixin":7,"carto":36}],10:[function(require,module,exports){
+},{"../":10,"./CanvasLayer":5,"./canvas_tile_layer":6,"./gmaps_tileloader_mixin":7,"carto":38}],10:[function(require,module,exports){
 module.exports = require('./core');
 
 module.exports.Animator = require('./animator');
@@ -1993,7 +1996,7 @@ module.exports.GMapsTileLoader = gmaps.GMapsTileLoader;
 module.exports.GMapsTorqueLayer = gmaps.GMapsTorqueLayer;
 module.exports.GMapsTiledTorqueLayer = gmaps.GMapsTiledTorqueLayer;
 
-},{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":23,"./request":27}],11:[function(require,module,exports){
+},{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":23,"./request":28}],11:[function(require,module,exports){
 require('./leaflet_tileloader_mixin');
 
 /**
@@ -2423,7 +2426,8 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
   renderers: {
     'point': torque.renderer.Point,
-    'pixel': torque.renderer.Rectangle
+    'pixel': torque.renderer.Rectangle,
+    'iso': torque.renderer.Iso
   },
 
   initialize: function(options) {
@@ -2622,28 +2626,58 @@ L.TorqueLayer = L.CanvasLayer.extend({
     var canvas = this.getCanvas();
     this.renderer.clearCanvas();
     var ctx = canvas.getContext('2d');
-
-    for(t in this._tiles) {
-      tile = this._tiles[t];
-      if (tile) {
-        // clear cache
-        if (this.animator.isRunning()) {
-          tile._tileCache = null;
+    var self = this;
+    if (Object.keys(this._tiles).length > 0){
+      if (this.options.renderer === "iso"){
+        var min = {q: Infinity, w: new Set(), h: new Set()};
+        for(var key in this._tiles){
+          var coord = this._tiles[key].coord;
+          if (coord.x + coord.y < min.q){
+            min.q = coord.x + coord.y;
+            min.k = key;
+          }
+          min.w.add(coord.x);
+          min.h.add(coord.y);
         }
+        this.renderer.tileDimensions = {w: min.w.size, h: min.h.size};
+        this.renderer.firstTileCoords = {coord: this._tiles[min.k].coord, pos:this.getTilePos(this._tiles[min.k].coord)};
 
-        pos = this.getTilePos(tile.coord);
-        ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
-
-        if (tile._tileCache) {
-          // when the tile has a cached image just render it and avoid to render
-          // all the points
-          this.renderer._ctx.drawImage(tile._tileCache, 0, 0);
-        } else {
-          this.renderer.renderTile(tile, this.key);
+        var valsPerTile = 256/this.options.resolution;
+        this.renderer.globalGrid = Array.apply(null, Array(this.renderer.tileDimensions.h * valsPerTile)).map(Number.prototype.valueOf,0);
+        for (var i = 0; i < this.renderer.globalGrid.length; i++){
+          this.renderer.globalGrid[i] = Array.apply(null, Array(this.renderer.tileDimensions.w * valsPerTile)).map(Number.prototype.valueOf,0);
         }
       }
+      for(t in this._tiles) {
+        tile = this._tiles[t];
+        if (tile) {
+          // clear cache
+          if (this.animator.isRunning()) {
+            tile._tileCache = null;
+          }
+
+          pos = this.getTilePos(tile.coord);
+          if(this.options.renderer !== "iso"){
+            ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
+          }
+
+          if (tile._tileCache) {
+            // when the tile has a cached image just render it and avoid to render
+            // all the points
+            ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
+            this.renderer._ctx.drawImage(tile._tileCache, 0, 0);
+          } else {
+            if(this.options.renderer === "iso"){
+              ctx.setTransform(1, 0, 0, 1, this.renderer.firstTileCoords.pos.x, this.renderer.firstTileCoords.pos.y);
+            }
+            this.renderer.renderTile(tile, this.key, pos);
+          }
+        }
+      }
+      if (!tile._tileCache){
+        this.renderer.postProcess();
+      }
     }
-    this.renderer.applyFilters();
 
     // prepare caches if the animation is not running
     // don't cache if the key has just changed, this avoids to cache
@@ -2821,7 +2855,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"./canvas_layer":11,"carto":36}],15:[function(require,module,exports){
+},{"../":10,"./canvas_layer":11,"carto":38}],15:[function(require,module,exports){
   function clamp(a, b) {
     return function(t) {
       return Math.max(Math.min(t, b), a);
@@ -4494,9 +4528,623 @@ module.exports = {
 module.exports = {
     cartocss: require('./cartocss_render'),
     Point: require('./point'),
-    Rectangle: require('./rectangle')
+    Rectangle: require('./rectangle'),
+    Iso: require('./iso')
 };
-},{"./cartocss_render":22,"./point":24,"./rectangle":25}],24:[function(require,module,exports){
+},{"./cartocss_render":22,"./iso":24,"./point":25,"./rectangle":26}],24:[function(require,module,exports){
+(function (global){
+var torque = require('../');
+var carto = global.carto || require('carto');
+var Renderer = require('../renderer');
+var cSpline = require('cardinal-spline')
+
+// A renderer that generates isolines and isobands out of Torque aggregated point values
+
+function IsoRenderer (canvas, options) {
+	if (!canvas) {
+		throw new Error("canvas can't be undefined");
+	}
+	this.options = options;
+	this._canvas = canvas;
+	this._ctx = canvas.getContext('2d');
+	this.setCartoCSS(this.options.cartocss || DEFAULT_CARTOCSS);
+	this.TILE_SIZE = 256;
+	this.contourValues = [1,2,4,8,10,16,32];
+	this.lines = [];
+}
+
+torque.extend(IsoRenderer.prototype, torque.Event, {
+
+	clearSpriteCache: function() {
+      this._sprites = [];
+    },
+
+	setCartoCSS: function(cartocss) {
+    // clean sprites
+    this.setShader(new carto.RendererJS().render(cartocss));
+  },
+
+  setShader: function(shader) {
+    // clean sprites
+    this._sprites = [];
+    this._shader = shader;
+    this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
+  },
+
+	clearCanvas: function() {
+    var canvas = this._canvas;
+    var color = this._Map['-torque-clear-color']
+    // shortcut for the default value
+    if (color  === "rgba(255, 255, 255, 0)" || !color) {
+      this._canvas.width = this._canvas.width;
+    } else {
+      var ctx = this._ctx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      var compop = this._Map['comp-op']
+      ctx.globalCompositeOperation = compop2canvas(compop);
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  },
+
+  _createCanvas: function() {
+    return this.options.canvasClass
+      ? new this.options.canvasClass()
+      : document.createElement('canvas');
+  },
+
+	renderTile: function(tile, key, pos) {
+		var layers = this._shader.getLayers();
+		for (var i = 0, n = layers.length; i < n; ++i) {
+			var layer = layers[i];
+			if (layer.name() !== "Map") {
+			var sprites = this._sprites[i] || (this._sprites[i] = {});
+        // frames for each layer
+        for(var fr = 0; fr < layer.frames().length; ++fr) {
+        	var frame = layer.frames()[fr];
+        	var fr_sprites = sprites[frame] || (sprites[frame] = []);
+        	this._renderTile(tile, key - frame, frame, fr_sprites, layer, pos);
+        }
+      }
+    }
+  },
+
+  _renderTile: function(tile, key, frame_offset, sprites, shader, pos) {
+  	if (!this._canvas) return;
+  	var ctx = this._ctx;
+  	this._gridData(tile);
+  },
+
+  _gridData: function(tile){
+  	var valsPerTile = this.TILE_SIZE/this.options.resolution;
+  	var difX = tile.coord.x - this.firstTileCoords.coord.x;
+  	var difY = tile.coord.y - this.firstTileCoords.coord.y;
+  	if (difX < 0 || difY < 0) return;
+    // baseIndex is the distance to the upper left corner of the grid, in cells
+    var baseIndex = {
+    	x: (difX) * valsPerTile,
+    	y: (difY) * valsPerTile
+    }
+
+    for(var i = 0; i < tile.renderData.length; i++){
+    	var x = tile.x[i], y = tile.y[i];
+    	this.globalGrid[baseIndex.y + (256 - y) / this.options.resolution -1][baseIndex.x + x/this.options.resolution] = tile.renderData[i];
+    }
+  },
+
+  _getPipe: function(cell, contour){
+    var parsedCell = cell.map(function(cornerValue){
+    	if (cornerValue >= contour){
+    		return "1";
+    	}
+    	return "0";
+    }).join("");
+    var type = parseInt(parsedCell, 2);
+    var interpolated = true;
+    var N = interpolated? [this._lerp(cell[1], cell[0], contour), 0]: [0.5,0], 
+    S = interpolated? [this._lerp(cell[2], cell[3], contour), 1]: [0.5,1], 
+    E = interpolated? [1, this._lerp(cell[2], cell[1], contour)]: [1,0.5], 
+    W = interpolated? [0, this._lerp(cell[3], cell[0], contour)]: [0,0.5]
+    if (type === 0 || type === 15) return null;
+    if (type === 1 || type === 14) return [W, S]  
+    if (type === 2 || type === 13) return [S, E]
+    if (type === 3 || type === 12) return [W, E]  
+    if (type === 4 || type === 11) return [N, E]  
+    if (type === 6 || type === 9) return [N, S]
+    if (type === 7 || type === 8) return [W, N] 
+    if (type === 5) return [W, N, S, E]
+    if (type === 10) return [W, S, N, E]
+  },
+	postProcess: function(){
+		this.generateIsolines();
+	},
+
+	_generateGradient: function(ramp){
+		contourValues = this.contourValues;
+		var max = contourValues[contourValues.length-1];
+		var gradientCanvas = this._createCanvas(),
+		gctx = gradientCanvas.getContext('2d'),
+		gradient = gctx.createLinearGradient(0, 0, 0, max);
+		gradientCanvas.width = 1;
+		gradientCanvas.height = max;	
+		for (var i = 0; i < ramp.length; i++) {
+			var color = "rgb("+ramp[i].rgb[0]+","+ramp[i].rgb[1]+","+ramp[i].rgb[2]+")";
+			gradient.addColorStop(i/(ramp.length-1), color);
+		}
+		gctx.fillStyle = gradient;
+		gctx.fillRect(0, 0, 1, max);
+
+		return gctx.getImageData(0, 0, 1, max).data;
+	},
+
+	_cardinalSpline: function(line){
+		var plainArray = [];
+		var res = this.options.resolution;
+		for (var p = 0; p < line.length; p++){
+			var relativePosition = line[p].coord.relativePosition || {x: 0.5, y: 0.5};
+			if (relativePosition.length){
+				plainArray.push(res + res*line[p].coord.x + res * relativePosition[1].x);
+				plainArray.push(res + res*line[p].coord.y + res * relativePosition[1].y);
+			}
+			else { 
+				plainArray.push(res + res*line[p].coord.x + res * relativePosition.x);
+				plainArray.push(res + res*line[p].coord.y + res * relativePosition.y);
+			}
+		}
+		return cSpline(plainArray, 0.5, 25, true);
+	},
+
+	_getNext: function(currentPos, previousPos, cornerValues, contourValue){
+		var binaryCell = cornerValues.map(function(cornerValue){
+				if (cornerValue >= contourValue){
+					return "1";
+				}
+				return "0";
+			}).join("");
+		var type = parseInt(binaryCell, 2);
+		var N = [0, -1], 
+		    S = [0, 1], 
+		    E = [1, 0], 
+		    W = [-1, 0];
+
+		var next, relativePosition;
+
+		var diff;
+		if (previousPos){
+			diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
+		}
+
+		if (type === 0 || type === 15) return null;
+		else if (type === 1 || type === 14){
+			next = [S,W];
+			if (type === 1){
+				relativePosition = [{
+					x: 1 - this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+					y: 1
+				},{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				}];		
+			}
+			else{
+				relativePosition = [{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				},{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				}];	
+				if (diff && diff[0] === -1){
+					relativePosition = [{
+						x: 0, 
+						y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+					},{
+						x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: 1
+					}];	
+				}
+			}
+		} 
+		else if (type === 2 || type === 13){
+			next = [E,S];
+			if (type === 13){
+				relativePosition = [{
+					x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+					y: 1
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+				if (diff && diff[1] === 1){
+					relativePosition = [{
+						x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: 1, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					}];	
+				}
+			} else {
+				relativePosition = [{
+					x: 1, 
+					y: 1 - this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+			}	
+		} 
+		else if (type === 12 || type === 3) {
+			next = [E,W];
+			if (type === 3){
+				relativePosition = [{
+					x: 1, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				}];	
+			} else {
+				relativePosition = [{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				},{
+					x: 1, 
+					y: 1 - this._lerp(cornerValues[2], cornerValues[1], contourValue)
+				}];	
+			}
+		} 
+		else if (type === 4 || type === 11){
+			next = [N,E];
+
+			if (type === 11){
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: 1, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				}];	
+				if (diff && diff[0] === 1){
+					relativePosition = [{
+						x: 0, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+						y: 0
+					}];	
+				}
+			} else {
+				relativePosition = [{
+					x: this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+					y: 0
+				},{
+					x: 1,
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				}];	
+			}
+		} 
+		else if (type === 6 || type === 9) {
+			next = [N,S];
+			if (type === 6){
+				relativePosition = [{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+			} else {
+				relativePosition = [{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				},{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				}];	
+			}	
+		} 
+		else if (type === 7 || type === 8) {
+			next = [N,W];
+			if (type === 7){
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				},{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				}];	
+				if (diff && diff[1] === -1){
+					relativePosition = [{
+						x: 0, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}];	
+				}
+			} else {
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[3], cornerValues[0], contourValue),
+				},{
+					x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+					y: 0
+				}];	
+			}	
+		}
+
+		if (type === 5 || type === 10) {
+			var avg = cornerValues.reduce(function(a, b) { return a + b; }) / cornerValues.length;
+			if (avg < contourValue){
+				type = type%10 + 5;
+			}
+		}
+
+		if (type === 5) {
+			if (!previousPos) return null;
+			// 8
+			if (diff[0] === -1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y - 1,
+					relativePosition: [{
+						x: 0, 
+						y: this._lerp(cornerValues[3], cornerValues[0], contourValue),
+					},{
+						x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+				}]
+				};
+			// 13
+			} else if (diff[0] === 1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y + 1,
+					relativePosition: [{
+						x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: 1
+					}]
+				};
+			// 2
+			} else if (diff[1] === -1){
+				return {
+					x: currentPos.x - 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 1, 
+						y: 1 - this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}]
+				};
+			// 7
+			} else if (diff[1] === 1){
+				return {
+					x: currentPos.x + 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					},{
+						x: 1, 
+						y: 1 - this._lerp(cornerValues[2], cornerValues[1], contourValue)
+					}]
+				};
+			}
+		}	
+		else if (type === 10) {
+			if (!previousPos) return null;
+			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
+			// 11
+			if (diff[0] === -1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y - 1,
+					relativePosition: [{
+						x: 1, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+					}]
+				};
+			// 14
+			} else if (diff[0] === 1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y + 1,
+					relativePosition: [{
+						x: 0, 
+						y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+					},{
+						x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: 1
+					}]
+				};
+			// 4
+			} else if (diff[1] === -1){
+				return {
+					x: currentPos.x + 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+					},{
+						x: 1,
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					}]	
+				};
+			// 1
+			} else if (diff[1] === 1){
+				return {
+					x: currentPos.x - 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 1 - this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}]
+				};
+			}
+		}	
+
+		if (!previousPos || (currentPos.x + next[0][0] === previousPos.x && currentPos.y + next[0][1] === previousPos.y)){
+			return {x: currentPos.x + next[1][0], y: currentPos.y + next[1][1], relativePosition};
+		}
+		else return {x: currentPos.x + next[0][0], y: currentPos.y + next[0][1], relativePosition};
+	},
+
+
+	_lerp: function(low1, high1, value) {
+		var low2 = 0.3, high2 = 0.7;
+	  return low2 + (high2 - low2) * (value - low1) / (high1 - low1);
+	},
+
+	draw: function(){
+		var style = this._shader.getLayers()[1].getStyle({}, {zoom: 2});
+		var cellsY = this.globalGrid.length-1;
+		var ctx = this._ctx;
+		ctx.strokeStyle = style["-isoline-line-color"] || "black";
+		ctx.lineWidth = style["-isoline-line-width"] || 2;
+		ctx.globalAlpha = style["-isoline-line-opacity"] || 0.8;			
+		var grad = style["-isoline-line-ramp"] && this._generateGradient(style["-isoline-line-ramp"].args, contourValues);
+		var contourValues = this.contourValues;
+		for (var c = 0; c < this.lines.length; c++){
+			var thisContour = this.lines[c];
+			if(style["-isoline-line-decay"]){
+				var max = contourValues[contourValues.length - 1];
+				ctx.globalAlpha = (contourValues[c]/max)*(style["-isoline-line-opacity"] || 0.8);
+			}
+			if(grad){
+				ctx.strokeStyle = "rgb("+grad[4*contourValues[c]]+","+grad[4*contourValues[c]+1]+","+grad[4*contourValues[c]+2]+")";
+				ctx.fillStyle = "rgb("+grad[4*contourValues[c]]+","+grad[4*contourValues[c]+1]+","+grad[4*contourValues[c]+2]+")";
+			}
+			for (var l = 0; l < thisContour.length; l++){
+				if(style["-isoline-line-decay"]){
+					ctx.globalAlpha = (contourValues[c]/max)*(style["-isoline-line-opacity"] || 0.8);
+				}
+				var line = this._cardinalSpline(thisContour[l]);
+				ctx.beginPath();
+				ctx.moveTo(line[0][0], line[0][1]);
+				for (var p = 2; p < line.length; p+=2){
+					ctx.lineTo(line[p], line[p+1]);
+				}
+				ctx.closePath();
+				ctx.stroke();
+				if (style["-isoline-mode"] === "isoband"){
+					// var savedOpacity = ctx.globalAlpha;
+					// ctx.globalAlpha = 1;
+					// ctx.globalCompositeOperation = 'destination-out';
+					// ctx.fill();
+					// ctx.globalAlpha = savedOpacity;
+					// ctx.globalCompositeOperation = 'source-over';
+					ctx.fill();
+				}
+			}
+		}
+	},
+
+	generateIsolines: function(){		
+		var grid = this.globalGrid;
+		var style = this._shader.getLayers()[1].getStyle({}, {zoom: 2});
+		var res = this.options.resolution;
+		if (style["-isoline-mode"] === "joy-division") {
+			var ctx = this._ctx;
+			var lines = [];
+			for (var y = 0; y < grid.length; y++){
+				var thisLine = [];
+				for (var x = 0; x < grid.length; x++){
+					thisLine.push(res + res * x);
+					thisLine.push(res + res * y - grid[y][x]);
+				}
+				lines.push(thisLine);
+			}
+			for (var i = 0; i < lines.length; i++){
+				var line = lines[i];
+				ctx.moveTo(line[0], line[1]);
+				for (var p = 2; p < line.length; p+=2){
+					ctx.lineTo(line[p], line[p + 1]);
+				}
+				ctx.strokeStyle = "white";
+				ctx.globalAlpha = 0.1;
+				ctx.strokeWidth = 8;
+				ctx.stroke();
+			}
+		}
+
+		else{
+			var self = this;
+			var contourValues = this.contourValues;
+			if (grid.length > 0) {
+				var startPos = this.firstTileCoords.pos;
+				for (var c = 0; c < contourValues.length; c++) {
+					this.lines[c] = [];
+					var pointsTraveled = new Set();
+					var pointerX = 0, pointerY = 0, x = 0, y = 0;
+					var line = [];
+					var xy = march(0,0);
+
+					while(xy){
+						xy = march(xy.x, xy.y);
+					}
+
+					function march(x,y){
+						if(x >= grid[0].length){
+							pointerX = 0;
+							pointerY++;
+							return {x: pointerX, y: pointerY };
+						}
+						if (pointerX === 0 && y > grid.length-2) return;
+						if (pointsTraveled.has(x+":"+y) && line.length === 0) {
+							pointerX ++;
+							return {x: pointerX, y: pointerY };
+						}
+						else{
+							pointsTraveled.add(x+":"+y);
+							var NW = grid[y]? grid[y][x]: 0,
+							    NE = grid[y]? grid[y][x+1]: 0,
+							    SE = grid[y+1]? grid[y+1][x+1]: 0,
+							    SW = grid[y+1]? grid[y+1][x]: 0;
+							var cornerValues = [NW, NE, SE, SW];
+							var currentPos = {x: x, y: y};
+							var previousPos = line.length > 0? {x: line[line.length-1].coord.x, y: line[line.length-1].coord.y}: null;
+							var next = self._getNext(currentPos, previousPos, cornerValues, contourValues[c]);
+							if (next){
+								if (line.length > 0 && (line[0].coord.x === x && line[0].coord.y === y)){
+									self.lines[c].push(line);
+									line = [];
+									pointerX ++;
+									return {x: pointerX, y: pointerY };
+								}
+								else{
+									line.push({coord: {x: x, y: y, relativePosition: next.relativePosition}, values: cornerValues});
+									return next;
+								} 
+							}
+							else {
+								pointerX ++;
+								return {x: pointerX, y: pointerY };
+							}
+						}
+					}
+				}
+				this.draw();
+			}
+			
+		}
+	}
+});
+
+module.exports = IsoRenderer;
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../":10,"../renderer":23,"cardinal-spline":36,"carto":38}],25:[function(require,module,exports){
 (function (global){
 var torque = require('../');
 var cartocss = require('./cartocss_render');
@@ -4672,7 +5320,7 @@ var Filters = require('./torque_filters');
     //
     // renders all the layers (and frames for each layer) from cartocss
     //
-    renderTile: function(tile, key, callback) {
+    renderTile: function(tile, key, pos) {
       if (this._iconsToLoad > 0) {
           this.on('allIconsLoaded', function() {
               this.renderTile.apply(this, [tile, key, callback]);
@@ -4695,8 +5343,6 @@ var Filters = require('./torque_filters');
       }
       
       prof.end(true);
-
-      return callback && callback(null);
     },
 
     _createCanvas: function() {
@@ -4901,6 +5547,9 @@ var Filters = require('./torque_filters');
           this.fire("allIconsLoaded");
       }
   },
+  postProcess: function(){
+    this.applyFilters();
+  },
 
   applyFilters: function(){
     if(this._style){
@@ -4947,7 +5596,7 @@ var Filters = require('./torque_filters');
 module.exports = PointRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"../profiler":17,"./cartocss_render":22,"./torque_filters":26,"carto":36}],25:[function(require,module,exports){
+},{"../":10,"../profiler":17,"./cartocss_render":22,"./torque_filters":27,"carto":38}],26:[function(require,module,exports){
 (function (global){
 var carto = global.carto || require('carto');
 
@@ -5111,7 +5760,7 @@ var carto = global.carto || require('carto');
 module.exports = RectanbleRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":36}],26:[function(require,module,exports){
+},{"carto":38}],27:[function(require,module,exports){
 /*
  Based on simpleheat, a tiny JavaScript library for drawing heatmaps with Canvas, 
  by Vladimir Agafonkin
@@ -5203,7 +5852,7 @@ torque_filters.prototype = {
 
 module.exports = torque_filters;
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (global){
 var torque = require('./core');
 
@@ -5307,9 +5956,9 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./core":4}],28:[function(require,module,exports){
+},{"./core":4}],29:[function(require,module,exports){
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -5671,7 +6320,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":34}],30:[function(require,module,exports){
+},{"util/":35}],31:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -5696,7 +6345,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5924,7 +6573,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":32}],32:[function(require,module,exports){
+},{"_process":33}],33:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -6012,14 +6661,14 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6609,7 +7258,105 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":33,"_process":32,"inherits":30}],35:[function(require,module,exports){
+},{"./support/isBuffer":34,"_process":33,"inherits":31}],36:[function(require,module,exports){
+/**
+ * see https://github.com/epistemex/cardinal-spline-js/blob/master/src/curve_calc.js
+ *
+ * Calculates an array containing points representing a cardinal spline through given point array.
+ *
+ * @param {Array} points - (flat) point array: [x1, y1, x2, y2, ..., xn, yn]
+ * @param {Number} [tension=0.5] - tension. Typically between [0.0, 1.0] but can be exceeded
+ * @param {Number} [numOfSeg=25] - number of segments between two points (line resolution)
+ * @param {Boolean} [close=false] - Close the ends making the line continuous
+ * @returns {Float32Array} - the spline points.
+ */
+module.exports = function cSpline(points, tension, numOfSeg, close) {
+
+    tension = (typeof tension === 'number') ? tension : 0.5;
+    numOfSeg = numOfSeg ? numOfSeg : 25;
+
+    var pts; // for cloning point array
+    var i = 1;
+    var l = points.length;
+    var rPos = 0;
+    var rLen = (l - 2) * numOfSeg + 2 + (close ? 2 * numOfSeg : 0);
+    var res = new Float32Array(rLen);
+    var cache = new Float32Array((numOfSeg + 2) * 4);
+    var cachePtr = 4;
+    var st, st2, st3, st23, st32, parse;
+
+    pts = points.slice(0);
+    if (close) {
+        pts.unshift(points[l - 1]); // insert end point as first point
+        pts.unshift(points[l - 2]);
+        pts.push(points[0], points[1]); // first point as last point
+    } else {
+        pts.unshift(points[1]); // copy 1. point and insert at beginning
+        pts.unshift(points[0]);
+        pts.push(points[l - 2], points[l - 1]); // duplicate end-points
+    }
+    // cache inner-loop calculations as they are based on t alone
+    cache[0] = 1; // 1,0,0,0
+    for (; i < numOfSeg; i++) {
+        st = i / numOfSeg;
+        st2 = st * st;
+        st3 = st2 * st;
+        st23 = st3 * 2;
+        st32 = st2 * 3;
+        cache[cachePtr++] = st23 - st32 + 1; // c1
+        cache[cachePtr++] = st32 - st23; // c2
+        cache[cachePtr++] = st3 - 2 * st2 + st; // c3
+        cache[cachePtr++] = st3 - st2; // c4
+    }
+    cache[++cachePtr] = 1; // 0,1,0,0
+
+    parse = function (pts, cache, l) {
+
+        var i = 2;
+        var t, pt1, pt2, pt3, pt4, t1x, t1y, t2x, t2y, c, c1, c2, c3, c4;
+
+        for (i; i < l; i += 2) {
+            pt1 = pts[i];
+            pt2 = pts[i + 1];
+            pt3 = pts[i + 2];
+            pt4 = pts[i + 3];
+            t1x = (pt3 - pts[i - 2]) * tension;
+            t1y = (pt4 - pts[i - 1]) * tension;
+            t2x = (pts[i + 4] - pt1) * tension;
+            t2y = (pts[i + 5] - pt2) * tension;
+            for (t = 0; t < numOfSeg; t++) {
+                //t * 4;
+                c = t << 2; //jshint ignore: line
+                c1 = cache[c];
+                c2 = cache[c + 1];
+                c3 = cache[c + 2];
+                c4 = cache[c + 3];
+
+                res[rPos++] = c1 * pt1 + c2 * pt3 + c3 * t1x + c4 * t2x;
+                res[rPos++] = c1 * pt2 + c2 * pt4 + c3 * t1y + c4 * t2y;
+            }
+        }
+    };
+
+    // calc. points
+    parse(pts, cache, l);
+
+    if (close) {
+        //l = points.length;
+        pts = [];
+        pts.push(points[l - 4], points[l - 3], points[l - 2], points[l - 1]); // second last and last
+        pts.push(points[0], points[1], points[2], points[3]); // first and second
+        parse(pts, cache, 4);
+    }
+    // add last point
+    l = close ? 0 : points.length - 2;
+    res[rPos++] = points[l];
+    res[rPos] = points[l + 1];
+
+    return res;
+};
+
+},{}],37:[function(require,module,exports){
 (function (tree) {
 
 tree.functions = {
@@ -6822,7 +7569,7 @@ function clamp(val) {
 
 })(require('./tree'));
 
-},{"./tree":41}],36:[function(require,module,exports){
+},{"./tree":43}],38:[function(require,module,exports){
 (function (process,__dirname){
 var util = require('util'),
     fs = require('fs'),
@@ -6942,7 +7689,7 @@ function stylize(str, style) {
 }
 
 }).call(this,require('_process'),"/node_modules/carto/lib/carto")
-},{"../../package.json":72,"./functions":35,"./parser":37,"./renderer":38,"./renderer_js":39,"./torque-reference":40,"./tree":41,"./tree/call":42,"./tree/color":43,"./tree/comment":44,"./tree/definition":45,"./tree/dimension":46,"./tree/element":47,"./tree/expression":48,"./tree/field":49,"./tree/filter":50,"./tree/filterset":51,"./tree/fontset":52,"./tree/frame_offset":53,"./tree/imagefilter":54,"./tree/invalid":55,"./tree/keyword":56,"./tree/layer":57,"./tree/literal":58,"./tree/operation":59,"./tree/quoted":60,"./tree/reference":61,"./tree/rule":62,"./tree/ruleset":63,"./tree/selector":64,"./tree/style":65,"./tree/url":66,"./tree/value":67,"./tree/variable":68,"./tree/zoom":69,"_process":32,"fs":28,"path":31,"util":34}],37:[function(require,module,exports){
+},{"../../package.json":74,"./functions":37,"./parser":39,"./renderer":40,"./renderer_js":41,"./torque-reference":42,"./tree":43,"./tree/call":44,"./tree/color":45,"./tree/comment":46,"./tree/definition":47,"./tree/dimension":48,"./tree/element":49,"./tree/expression":50,"./tree/field":51,"./tree/filter":52,"./tree/filterset":53,"./tree/fontset":54,"./tree/frame_offset":55,"./tree/imagefilter":56,"./tree/invalid":57,"./tree/keyword":58,"./tree/layer":59,"./tree/literal":60,"./tree/operation":61,"./tree/quoted":62,"./tree/reference":63,"./tree/rule":64,"./tree/ruleset":65,"./tree/selector":66,"./tree/style":67,"./tree/url":68,"./tree/value":69,"./tree/variable":70,"./tree/zoom":71,"_process":33,"fs":29,"path":32,"util":35}],39:[function(require,module,exports){
 (function (global){
 var carto = exports,
     tree = require('./tree'),
@@ -7727,7 +8474,7 @@ carto.Parser = function Parser(env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./tree":41,"underscore":71}],38:[function(require,module,exports){
+},{"./tree":43,"underscore":73}],40:[function(require,module,exports){
 (function (global){
 var _ = global._ || require('underscore');
 var carto = require('./index');
@@ -8133,7 +8880,7 @@ module.exports.inheritDefinitions = inheritDefinitions;
 module.exports.sortStyles = sortStyles;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./index":36,"underscore":71}],39:[function(require,module,exports){
+},{"./index":38,"underscore":73}],41:[function(require,module,exports){
 (function (global){
 (function(carto) {
 var tree = require('./tree');
@@ -8425,7 +9172,7 @@ if(typeof(module) !== 'undefined') {
 })(require('../carto'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../carto":36,"./torque-reference":40,"./tree":41,"underscore":71}],40:[function(require,module,exports){
+},{"../carto":38,"./torque-reference":42,"./tree":43,"underscore":73}],42:[function(require,module,exports){
 var _mapnik_reference_latest = {
     "version": "2.1.1",
     "style": {
@@ -10339,7 +11086,7 @@ module.exports = {
   }
 };
 
-},{}],41:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 /**
  * TODO: document this. What does this do?
  */
@@ -10352,7 +11099,7 @@ if(typeof(module) !== "undefined") {
   };
 }
 
-},{}],42:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -10468,7 +11215,7 @@ tree.Call.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],43:[function(require,module,exports){
+},{"../tree":43,"underscore":73}],45:[function(require,module,exports){
 (function(tree) {
 // RGB Colors - #ff0014, #eee
 // can be initialized with a 3 or 6 char string or a 3 or 4 element
@@ -10565,7 +11312,7 @@ tree.Color.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],44:[function(require,module,exports){
+},{"../tree":43}],46:[function(require,module,exports){
 (function(tree) {
 
 tree.Comment = function Comment(value, silent) {
@@ -10582,7 +11329,7 @@ tree.Comment.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],45:[function(require,module,exports){
+},{"../tree":43}],47:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var assert = require('assert'),
@@ -10845,7 +11592,7 @@ tree.Definition.prototype.toJS = function(env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"assert":29,"underscore":71}],46:[function(require,module,exports){
+},{"../tree":43,"assert":30,"underscore":73}],48:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -10948,7 +11695,7 @@ tree.Dimension.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],47:[function(require,module,exports){
+},{"../tree":43,"underscore":73}],49:[function(require,module,exports){
 (function(tree) {
 
 // An element is an id or class selector
@@ -10980,7 +11727,7 @@ tree.Element.prototype.toString = function() { return this.value; };
 
 })(require('../tree'));
 
-},{"../tree":41}],48:[function(require,module,exports){
+},{"../tree":43}],50:[function(require,module,exports){
 (function(tree) {
 
 tree.Expression = function Expression(value) {
@@ -11008,7 +11755,7 @@ tree.Expression.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],49:[function(require,module,exports){
+},{"../tree":43}],51:[function(require,module,exports){
 (function(tree) {
 
 tree.Field = function Field(content) {
@@ -11027,7 +11774,7 @@ tree.Field.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],50:[function(require,module,exports){
+},{"../tree":43}],52:[function(require,module,exports){
 (function(tree) {
 
 tree.Filter = function Filter(key, op, val, index, filename) {
@@ -11097,7 +11844,7 @@ tree.Filter.prototype.toString = function() {
 
 })(require('../tree'));
 
-},{"../tree":41}],51:[function(require,module,exports){
+},{"../tree":43}],53:[function(require,module,exports){
 (function (global){
 var tree = require('../tree');
 var _ = global._ || require('underscore');
@@ -11368,7 +12115,7 @@ tree.Filterset.prototype.add = function(filter, env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],52:[function(require,module,exports){
+},{"../tree":43,"underscore":73}],54:[function(require,module,exports){
 (function(tree) {
 
 tree._getFontSet = function(env, fonts) {
@@ -11401,7 +12148,7 @@ tree.FontSet.prototype.toXML = function(env) {
 
 })(require('../tree'));
 
-},{"../tree":41}],53:[function(require,module,exports){
+},{"../tree":43}],55:[function(require,module,exports){
 var tree = require('../tree');
 
 // Storage for Frame offset value
@@ -11430,7 +12177,7 @@ tree.FrameOffset.max = 32;
 tree.FrameOffset.none = 0;
 
 
-},{"../tree":41}],54:[function(require,module,exports){
+},{"../tree":43}],56:[function(require,module,exports){
 (function(tree) {
 
 tree.ImageFilter = function ImageFilter(filter, args) {
@@ -11454,7 +12201,7 @@ tree.ImageFilter.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],55:[function(require,module,exports){
+},{"../tree":43}],57:[function(require,module,exports){
 (function (tree) {
 tree.Invalid = function Invalid(chunk, index, message) {
     this.chunk = chunk;
@@ -11478,7 +12225,7 @@ tree.Invalid.prototype.ev = function(env) {
 };
 })(require('../tree'));
 
-},{"../tree":41}],56:[function(require,module,exports){
+},{"../tree":43}],58:[function(require,module,exports){
 (function(tree) {
 
 tree.Keyword = function Keyword(value) {
@@ -11497,7 +12244,7 @@ tree.Keyword.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],57:[function(require,module,exports){
+},{"../tree":43}],59:[function(require,module,exports){
 (function(tree) {
 
 tree.LayerXML = function(obj, styles) {
@@ -11536,7 +12283,7 @@ tree.LayerXML = function(obj, styles) {
 
 })(require('../tree'));
 
-},{"../tree":41}],58:[function(require,module,exports){
+},{"../tree":43}],60:[function(require,module,exports){
 // A literal is a literal string for Mapnik - the
 // result of the combination of a `tree.Field` with any
 // other type.
@@ -11558,7 +12305,7 @@ tree.Literal.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],59:[function(require,module,exports){
+},{"../tree":43}],61:[function(require,module,exports){
 // An operation is an expression with an op in between two operands,
 // like 2 + 1.
 (function(tree) {
@@ -11657,7 +12404,7 @@ tree.operate = function(op, a, b) {
 
 })(require('../tree'));
 
-},{"../tree":41}],60:[function(require,module,exports){
+},{"../tree":43}],62:[function(require,module,exports){
 (function(tree) {
 
 tree.Quoted = function Quoted(content) {
@@ -11689,7 +12436,7 @@ tree.Quoted.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],61:[function(require,module,exports){
+},{"../tree":43}],63:[function(require,module,exports){
 (function (global){
 // Carto pulls in a reference from the `mapnik-reference`
 // module. This file builds indexes from that file for its various
@@ -11912,7 +12659,7 @@ tree.Reference = ref;
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"mapnik-reference":70,"underscore":71}],62:[function(require,module,exports){
+},{"../tree":43,"mapnik-reference":72,"underscore":73}],64:[function(require,module,exports){
 (function(tree) {
 // a rule is a single property and value combination, or variable
 // name and value combination, like
@@ -12034,7 +12781,7 @@ tree.Rule.prototype.ev = function(context) {
 
 })(require('../tree'));
 
-},{"../tree":41}],63:[function(require,module,exports){
+},{"../tree":43}],65:[function(require,module,exports){
 (function(tree) {
 
 tree.Ruleset = function Ruleset(selectors, rules) {
@@ -12213,7 +12960,7 @@ tree.Ruleset.prototype = {
 };
 })(require('../tree'));
 
-},{"../tree":41}],64:[function(require,module,exports){
+},{"../tree":43}],66:[function(require,module,exports){
 (function(tree) {
 
 tree.Selector = function Selector(filters, zoom, frame_offset, elements, attachment, conditions, index) {
@@ -12242,7 +12989,7 @@ tree.Selector.prototype.specificity = function() {
 
 })(require('../tree'));
 
-},{"../tree":41}],65:[function(require,module,exports){
+},{"../tree":43}],67:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -12314,7 +13061,7 @@ tree.StyleXML = function(name, attachment, definitions, env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],66:[function(require,module,exports){
+},{"../tree":43,"underscore":73}],68:[function(require,module,exports){
 (function(tree) {
 
 tree.URL = function URL(val, paths) {
@@ -12334,7 +13081,7 @@ tree.URL.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],67:[function(require,module,exports){
+},{"../tree":43}],69:[function(require,module,exports){
 (function(tree) {
 
 tree.Value = function Value(value) {
@@ -12387,7 +13134,7 @@ tree.Value.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],68:[function(require,module,exports){
+},{"../tree":43}],70:[function(require,module,exports){
 (function(tree) {
 
 tree.Variable = function Variable(name, index, filename) {
@@ -12430,7 +13177,7 @@ tree.Variable.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":41}],69:[function(require,module,exports){
+},{"../tree":43}],71:[function(require,module,exports){
 var tree = require('../tree');
 
 // Storage for zoom ranges. Only supports continuous ranges,
@@ -12550,7 +13297,7 @@ tree.Zoom.prototype.toString = function() {
     return str;
 };
 
-},{"../tree":41}],70:[function(require,module,exports){
+},{"../tree":43}],72:[function(require,module,exports){
 (function (__dirname){
 var fs = require('fs'),
     path = require('path'),
@@ -12579,7 +13326,7 @@ refs.map(function(version) {
 });
 
 }).call(this,"/node_modules/carto/node_modules/mapnik-reference")
-},{"fs":28,"path":31}],71:[function(require,module,exports){
+},{"fs":29,"path":32}],73:[function(require,module,exports){
 //     Underscore.js 1.6.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -13924,7 +14671,7 @@ refs.map(function(version) {
   }
 }).call(this);
 
-},{}],72:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 module.exports={
   "name": "carto",
   "version": "0.15.1-cdb1",
