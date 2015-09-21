@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="vendor/leaflet.css"/>
+        <style>
+            html, body, #map {
+                width: 100%;
+                height: 100%;
+                padding: 0;
+                margin: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="file_selector"><input type="file" id="files" name="files" /> <i>Row: lat, lon, time, value</i></div>
+        <div id="map">
+            <div class="mapLayer" id="filter">
+                <p>Filter zone</p>
+                <input type="checkbox" class="toogle" name="foo" value="foo">
+            </div>
+        </div>
+
+        <script src="vendor/leaflet.js"></script>
+        <script src="vendor/papaparse.min.js"></script>
+        <script src="../dist/torque.full.uncompressed.js"></script>
+
+
+        <script>
+            var map = new L.Map('map', {
+                zoomControl: true,
+                center: [40, 0],
+                zoom: 6
+            });
+
+            L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+            }).addTo(map);
+
+            var CARTOCSS_NORMAL = [
+                'Map {',
+                '}',
+                '#layer{',
+                '  comp-op: lighter;',
+                '  marker-line-color: #FFF;',
+                '  marker-line-width: 0;',
+                '  marker-line-opacity: 1;',
+                '  marker-type: ellipse;',
+                '  marker-width: 2;',
+                '  marker-fill: #FF6600;',
+                '  marker-opacity: 0.1',
+                '}',
+                '#layer::point2 {',
+                '  marker-width: 1;',
+                '  marker-fill: #FF6600;',
+                '  marker-fill-opacity: 1;',
+                '  marker-line-color: #fff;',
+                '  marker-line-width: 1;',
+                '  marker-line-opacity: 0;',
+                '}',
+                '#layer::point3 {',
+                '  marker-width: 4;',
+                '  marker-fill: #ff6600;',
+                '  marker-fill-opacity: .2;',
+                '  marker-line-color: #fff;',
+                '  marker-line-width: 1;',
+                '  marker-line-opacity: 0;',
+                '}',
+                '#layer::point {',
+                '  marker-width: 6;',
+                '  marker-fill: #ff6600;',
+                '  marker-fill-opacity: 0;',
+                '  marker-line-color: #ff6600;',
+                '  marker-line-width: 1;',
+                '  marker-line-opacity: .1;',
+                '}',
+                '#layer[frame-offset=1] {',
+                '  marker-width:2;',
+                '  marker-opacity:0.45;',
+                '}',
+                '#layer[frame-offset=2]{',
+                '  marker-width:4;',
+                '  marker-opacity:0.225;',
+                '}',
+                '#layer[frame-offset=3]{',
+                '  marker-width:6;',
+                '  marker-opacity:0.1;',
+                '}',
+                '#layer[frame-offset=4]{',
+                '  marker-width:8;',
+                '  marker-opacity:0.05;',
+                '}',
+                '#layer[frame-offset=5]{',
+                '  marker-width:10;',
+                '  marker-opacity:0.02;',
+                '}'
+            ].join('\n');
+
+            var CARTOCSS_INTENSITY = [
+                    'Map {',
+                    '}',
+                    '#layer {',
+                    '  image-filters: colorize-alpha(blue, cyan, lightgreen, yellow , orange, red);',
+                    '  marker-file: url(http://s3.amazonaws.com/com.cartodb.assets.static/alphamarker.png);',
+                    '  marker-fill-opacity: 0.4*[value];',
+                    '  marker-width: 35;',
+                    '}'
+            ].join('\n');
+
+            var pointsToLoad = 50000;
+
+            var animationDuration = 60;
+            var steps = 2048;
+            var cumulative = false;
+            var loop = true;
+            var cartocss = CARTOCSS_NORMAL;
+
+            var torqueLayer = new L.TorqueLayer({
+                provider: 'internal',
+                loop: loop,
+                steps: steps,
+                animationDuration: animationDuration,
+                data_aggregation: cumulative ? "cumulative" : undefined,
+                cartocss: cartocss
+            });
+
+            torqueLayer.addTo(map);
+
+            function handleFileSelect(evt) {
+                document.getElementById("file_selector").style.display = "none";
+                var file = evt.target.files[0];
+
+                Papa.parse(file, {
+                    complete: function (results) {
+                        for (var i = 1; i <= pointsToLoad && i < results.data.length; i++) {
+                            var point = results.data[i];
+                            // lat, lon, time, value
+                            torqueLayer.provider.addPoint(point[0], point[1], point[2], point[3]);
+                        }
+                        torqueLayer.provider.setReady();
+                        torqueLayer.play();
+                    }
+                });
+            }
+            document.getElementById('files').addEventListener('change', handleFileSelect, false);
+        </script>
+    </body>
+</html>
+
