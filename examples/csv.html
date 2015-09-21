@@ -3,433 +3,21 @@
     <head>
         <link rel="stylesheet" href="vendor/leaflet.css"/>
         <style>
-            html, body {
+            html, body, #map {
                 width: 100%;
                 height: 100%;
-                min-height: 100%;
                 padding: 0;
                 margin: 0;
-            }
-            #map {
-                position: absolute;
-                top: 0;
-                right: 0;
-                bottom: 60px;
-                left: 0;
-            }
-            #control {
-                display:inline-block;
-                z-index: 10000;
-                background: #fff;
-                border-radius: 50%;
-                box-shadow: 0 0 4px rgba(0, 0, 0, .2);
-                padding: 8px;
-                cursor: pointer;
-                float: left;
-                display: inline;
-            }
-            #control:hover {
-                background: #f5f5f5;
-            }
-            #control span {
-                display: block;
-                width: 12px;
-                height: 12px;
-                vertical-align: middle;
-                position:relative
-            }
-            #control span.play:before {
-                content:"";
-                position: absolute;
-                display: block;
-                height: 10px;
-                width: 3px;
-                background: #666;
-                left: 2px;
-                top: 1px;
-                -webkit-border-radius: 4px;
-                -moz-border-radius: 4px;
-                border-radius: 4px;
-            }
-            #control span.play:after {
-                content:"";
-                position: absolute;
-                display: block;
-                height: 10px;
-                width: 3px;
-                background: #666;
-                right: 1px;
-                top: 1px;
-                -webkit-border-radius: 4px;
-                -moz-border-radius: 4px;
-                border-radius: 4px;
-            }
-
-            #control span.pause:before {
-                content:"";
-                position: absolute;
-                display: block;
-                height: 0px;
-                width: 0px;
-                border: 6px solid transparent;
-                border-left: 8px solid #666;
-                left: 3px;
-
             }
         </style>
     </head>
     <body>
-        <style type="text/css">
-            .timeline-inner {
-                border-radius: 50px;
-                height: 6px;
-                background: #fff;
-                display: block;
-                margin-left: 46px;
-                margin-top: 10px;
-            }
-            .timeline-progress{
-                display: inline-block;
-                border-radius: 50px;
-                height: 6px;
-                background: #0090D7;
-                vertical-align: top;
-                position: relative;
-            }
-            .timeline-progress > span {
-                width: 18px;
-                height: 18px;
-                position: absolute;
-                top: -6px;
-                right: 0;
-                background: #FFFFFF;
-                display: inline-block;
-                border-radius: 50%;
-                border: 1px solid rgba(0, 0, 0, .2);
-                box-shadow: 0px 1px 2px 0px rgba(0,0,0,0.30);
-            }
-
-            #filter *:focus {
-              outline: none;
-            }
-            #filter  p {
-                display: inline-block;
-                vertical-align: middle;
-                font-size: 12px;
-                margin: 0 4px 0 0 ;
-            }
-            #filter input[type=checkbox] {
-              cursor: pointer;
-              -webkit-appearance: none;
-                 -moz-appearance: none;
-                      appearance: none;
-            }
-            #filter input[type=checkbox].toogle {
-              border: 0;
-              box-shadow: inset 0 1px 0 rgba(0, 0, 0, .1);
-              background: #ddd;
-              border-radius: 50px;
-              width: 36px;
-              height: 20px;
-              position: relative;
-              display: inline-block;
-              vertical-align: middle;
-            }
-            #filter input[type=checkbox].toogle:before {
-              content: "";
-              top: 4px;
-              left: 4px;
-              position: absolute;
-              width: 12px;
-              height: 12px;
-              background: #fff;
-              border-radius: 50%;
-              position: absolute;
-              box-shadow: 0 1px 0 rgba(0, 0, 0, .1);
-            }
-            #filter input[type=checkbox]:checked.toogle {
-              background: #8FB83F
-            }
-            #filter input[type=checkbox]:checked.toogle:before {
-              left: auto;
-              right: 4px;
-            }
-
-            #container {
-                position: absolute;
-                right: 0;
-                bottom: 0;
-                left: 0;
-                height: 30px;
-                background: rgba(0, 0, 0, .8);
-                width: 100%;
-                overflow: hidden;
-                font-family: Arial, Helvetica;
-                font-size: 12px;
-                padding: 15px 0;
-            }
-             #container * {
-                box-sizing: border-box;
-             }
-            #container > ul {
-                padding: 0;
-                margin: 0;
-            }
-            #container li:first-child {
-                margin-left: 0;
-            }
-            #container li {
-                list-style-type: none;
-                margin: 0;
-            }
-            .container-filter {
-                width: 20%;
-                height: 50px;
-                padding: 0;
-            }
-            .container-action {
-                padding: 0 30px;
-                float: right;
-                text-align: center;
-                opacity: .9
-            }
-            .container-action a {
-                color: #fff;
-                text-decoration: none;
-            }
-            .container-action img {
-                display: inline-block;
-                vertical-align: middle;
-                margin-right: 8px;
-            }
-            .container-timeline {
-                overflow: hidden;
-                padding: 0 30px;
-                border-right: 1px solid rgba(255, 255, 255, .2);
-            }
-            .ButtonAction {
-                text-align: center;
-                margin: 0;
-            }
-            .ButtonAction > a{
-                background: #3aa9e3;
-                display: inline-block;
-                padding: 8px 20px;
-                color: #fff;
-                border-radius: 50px;
-                text-align: center;
-                text-decoration: none;
-            }
-            .ButtonAction > a:hover {
-                text-decoration: none;
-                background: #249fe0
-            }
-            .container-filter {
-                text-align: center;
-                padding-top: 4px;
-            }
-            .container-filter p {
-                display: inline-block;
-                vertical-align: middle;
-                color: #fff;
-            }
-            .mapLayer {
-                position: absolute;
-                right: 20px;
-                top: 20px;
-                z-index: 10;
-                background: #FFFFFF;
-                border: 1px solid rgba(0,0,0,0.20);
-                box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.20);
-                border-radius: 4px;
-                padding: 10px 20px;
-            }
-            .timeline-date {
-                float: right;
-                margin-left: 20px;
-            }
-            .timeline-date p {
-                margin: 6px 0 0 0;
-                font-family: Arial, Helvetica;
-                font-size: 12px;
-                color: #fff;
-            }
-            .timeline-bar {
-                overflow: hidden;
-            }
-
-            /* temporal spinner */
-            .Loader {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              z-index: 100;
-              width: 200px;
-              margin: -50px 0 0 -100px;
-              text-align: center;
-            }
-            .Spinner {
-              display: inline-block;
-              width: 100%;
-              border-top: 2px solid #ddd;
-              border-right: 2px solid #ddd;
-              border-bottom: 2px solid #ddd;
-              border-left: 2px solid #0090d7;
-              -webkit-animation: load8 1.1s infinite linear;
-                 -moz-animation: load8 1.1s infinite linear;
-                  -ms-animation: load8 1.1s infinite linear;
-                   -o-animation: load8 1.1s infinite linear;
-                      animation: load8 1.1s infinite linear;
-
-              -khtml-animation: load8 1.1s infinite linear;
-            }
-            .Spinner,
-            .Spinner:after {
-              width: 36px;
-              height: 36px;
-              border-radius: 50%;
-            }
-
-
-            @-webkit-keyframes load8 {
-              0% {
-                -webkit-transform: rotate(0deg);
-                   -moz-transform: rotate(0deg);
-                    -ms-transform: rotate(0deg);
-                     -o-transform: rotate(0deg);
-                        transform: rotate(0deg);
-
-                -khtml-transform: rotate(0deg);
-              }
-              100% {
-                -webkit-transform: rotate(360deg);
-                   -moz-transform: rotate(360deg);
-                    -ms-transform: rotate(360deg);
-                     -o-transform: rotate(360deg);
-                        transform: rotate(360deg);
-
-                -khtml-transform: rotate(360deg);
-              }
-            }
-            @-moz-keyframes load8 {
-              0% {
-                -webkit-transform: rotate(0deg);
-                   -moz-transform: rotate(0deg);
-                    -ms-transform: rotate(0deg);
-                     -o-transform: rotate(0deg);
-                        transform: rotate(0deg);
-
-                -khtml-transform: rotate(0deg);
-              }
-              100% {
-                -webkit-transform: rotate(360deg);
-                   -moz-transform: rotate(360deg);
-                    -ms-transform: rotate(360deg);
-                     -o-transform: rotate(360deg);
-                        transform: rotate(360deg);
-
-                -khtml-transform: rotate(360deg);
-              }
-            }
-            @-ms-keyframes load8 {
-              0% {
-                -webkit-transform: rotate(0deg);
-                   -moz-transform: rotate(0deg);
-                    -ms-transform: rotate(0deg);
-                     -o-transform: rotate(0deg);
-                        transform: rotate(0deg);
-
-                -khtml-transform: rotate(0deg);
-              }
-              100% {
-                -webkit-transform: rotate(360deg);
-                   -moz-transform: rotate(360deg);
-                    -ms-transform: rotate(360deg);
-                     -o-transform: rotate(360deg);
-                        transform: rotate(360deg);
-
-                -khtml-transform: rotate(360deg);
-              }
-            }
-            @-o-keyframes load8 {
-              0% {
-                -webkit-transform: rotate(0deg);
-                   -moz-transform: rotate(0deg);
-                    -ms-transform: rotate(0deg);
-                     -o-transform: rotate(0deg);
-                        transform: rotate(0deg);
-
-                -khtml-transform: rotate(0deg);
-              }
-              100% {
-                -webkit-transform: rotate(360deg);
-                   -moz-transform: rotate(360deg);
-                    -ms-transform: rotate(360deg);
-                     -o-transform: rotate(360deg);
-                        transform: rotate(360deg);
-
-                -khtml-transform: rotate(360deg);
-              }
-            }
-            @keyframes load8 {
-              0% {
-                -webkit-transform: rotate(0deg);
-                   -moz-transform: rotate(0deg);
-                    -ms-transform: rotate(0deg);
-                     -o-transform: rotate(0deg);
-                        transform: rotate(0deg);
-
-                -khtml-transform: rotate(0deg);
-              }
-              100% {
-                -webkit-transform: rotate(360deg);
-                   -moz-transform: rotate(360deg);
-                    -ms-transform: rotate(360deg);
-                     -o-transform: rotate(360deg);
-                        transform: rotate(360deg);
-
-                -khtml-transform: rotate(360deg);
-              }
-            }
-
-            
-        </style>
-
-        <div id="spinner" class="Loader">
-            <div class="Spinner"></div>
-        </div>
-
-        <input type="file" id="files" name="files" />
+        <div id="file_selector"><input type="file" id="files" name="files" /> <i>Row: lat, lon, time, value</i></div>
         <div id="map">
             <div class="mapLayer" id="filter">
                 <p>Filter zone</p>
                 <input type="checkbox" class="toogle" name="foo" value="foo">
             </div>
-        </div>
-
-        <div id="container">
-            <ul>
-                <li class="container-action">
-                    <a href="#">
-                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAAAXNSR0IArs4c6QAAAclJREFUSA3VlzFLA0EQhe80BC2sRNDSLp2dIApaCVb+BC1tbBQrW4vUIthKWsHCSrESLUQsRdBCsDBJYUARC0E9vwm33uVyyc1uSIIDj5mdnZmX3Z3sJl4QBHlQBGXQbREO4cp7odFtwmT9oo+n7HneBOilVIQ46CWj4RowRq/1vyU+YaemwIP1jiXbzWJ8RuygEKLXLfLqoZ00V8H3/fuQeAT9DESrxPaMf6h6DE4NqbBgv6MOxNaKDfE5RWWVy+irFII9fC8p/nSX8mwOicuZCthLYMiM4xr/BsgUaYwseSWg6ezwjQM/Tio2vhy4Bm1Fs9U34Rk2cOCrgqZbD98XgfsNwSkDDfFbSl6W6y4rQEOsb5iIbSwy0y0N8QqHtZqe3tI723LGTLTtgGjyE3PR5CQ1c3JzLYgfPQwyf1RoViz18uCIgjMyiAu+bcaTYC7076Cz33cSbaRGcCEkkNVtgTVwCUbBJlCJy139CLG8SB+gBuS+vgDzYBqoxIVYCsv39BbsgvoLhbYS7Rkni8oqq+A7OaEd/92/2oQw7gktj780nZO4brUTWTzJdavjNZzsvhJXnD5yZ0kVWXGpsxpO2SW5ffryp+0XLlaMejDd+O4AAAAASUVORK5CYII="/>
-                        <span>Analyze your data</span>
-
-                    </a>
-                </li>
-                <li class="container-timeline">
-                    <div class="timeline-date">
-                        <p>29/03/2013 / 14:55</p>
-                    </div>
-                    <div class="timeline-bar">
-                        <div id="control"><span class="play"></span></div>
-                        <div class="timeline-inner">
-                            <div class="timeline-progress" style="width: 50%;">
-                                <span></span>
-                            </div>
-                        </div>
-                    </div>
-                </li>
-            </ul>
         </div>
 
         <script src="vendor/leaflet.js"></script>
@@ -443,7 +31,6 @@
                 center: [40, 0],
                 zoom: 6
             });
-
 
             L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
@@ -539,32 +126,22 @@
             torqueLayer.addTo(map);
 
             function handleFileSelect(evt) {
+                document.getElementById("file_selector").style.display = "none";
                 var file = evt.target.files[0];
 
                 Papa.parse(file, {
                     complete: function (results) {
                         for (var i = 1; i <= pointsToLoad && i < results.data.length; i++) {
                             var point = results.data[i];
-                            torqueLayer.provider.addPoint(point[2], point[1], point[0], point[3]);
-                            //torqueLayer.provider.addPoint(point[1], point[0], point[3], point[2]);
+                            // lat, lon, time, value
+                            torqueLayer.provider.addPoint(point[0], point[1], point[2], point[3]);
                         }
                         torqueLayer.provider.setReady();
-                        document.getElementById('control').style.visibility = "visible";
                         torqueLayer.play();
-
                     }
                 });
             }
             document.getElementById('files').addEventListener('change', handleFileSelect, false);
-
-            function handlePlayPause(evt) {
-                if (torqueLayer.isRunning()) {
-                    torqueLayer.pause();
-                } else {
-                    torqueLayer.play();
-                }
-            }
-            document.getElementById('control').addEventListener('click', handlePlayPause, false);
         </script>
     </body>
 </html>
