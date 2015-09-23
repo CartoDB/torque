@@ -22,7 +22,8 @@ class CartoDBProvider:
             'q': sql
         }
         r = self.requests.get(self.api_url, params=params)
-        return r.json()
+        # print r.text
+        return r.json()['rows']
 
 
 class PostGISProvider:
@@ -39,6 +40,39 @@ class PostGISProvider:
         self.cursor.execute(sql)
         return self.cursor.fetchall()
 
+tile_size = 256
+buffer_size = 0
+def cdb_XYZ_Resolution(z):
+    full_resolution = 40075017 / tile_size
+    return full_resolution / 2**z
+
+def cdb_XYZ_Extent(x, y, z, res):
+    initial_resolution = cdb_XYZ_Resolution(0);
+    origin_shift = (initial_resolution * tile_size) / 2.0;
+
+    pixres = initial_resolution / 2**z;
+    tile_geo_size = tile_size * pixres;
+
+    buffer = buffer_size / 2;
+
+    xmin = -origin_shift + x*tile_geo_size;
+    xmax = -origin_shift + (x+1)*tile_geo_size;
+
+    # // tile coordinate system is y-reversed so ymin is the top of the tile
+    ymin = origin_shift - y*tile_geo_size;
+    ymax = origin_shift - (y+1)*tile_geo_size;
+    return {
+        'xmin': xmin,
+        'ymin': ymin,
+        'xmax': xmax,
+        'ymax': ymax,
+        'b_xmin': xmin - (pixres * buffer),
+        'b_ymin': ymin + (pixres * buffer),
+        'b_xmax': xmax + (pixres * buffer),
+        'b_ymax': ymax - (pixres * buffer),
+        'b_size': buffer / res
+    }
+
 
 class TorqueTile:
     def __init__(self, provider, directory):
@@ -53,6 +87,7 @@ class TorqueTile:
 
     def setSql(self, table, agg, tcol, steps, res, x, y, zoom, webmercator=None):
         webmercator = webmercator if webmercator is not None else 'the_geom_webmercator'
+
         self.sql = ' '.join(["WITH par AS (",
              "    WITH innerpar AS (",
              "        SELECT 1.0/(CDB_XYZ_Resolution(%s)*%s) as resinv" % (zoom, res),
@@ -66,12 +101,76 @@ class TorqueTile:
              "           innerpar.resinv as resinv, start, step FROM innerpar, bounds",
              ")",
              "select",
-             "   floor(st_x(%s)*resinv)::int as x," % webmercator,
-             "   floor(st_y(%s)*resinv)::int as y" % webmercator,
-             "   , %s c" % agg,
-             "   , floor((%s - start)/step)::int d" % tcol,
+             "   floor(st_x(%s)*resinv)::int as x__uint8," % webmercator,
+             "   floor(st_y(%s)*resinv)::int as y__uint8" % webmercator,
+             "   , %s vals__uint8" % agg,
+             "   , floor((%s - start)/step)::int dates__uint16" % tcol,
              "    FROM %s i, par p" % table,
-             "    GROUP BY x, y, d"])
+             "    GROUP BY x__uint8, y__uint8, dates__uint16"])
+
+
+        extend = cdb_XYZ_Extent(x, y, zoom, res)
+        self.sql = """
+            WITH par AS (
+                WITH innerpar AS (
+                    SELECT
+                        1.0/(({xyz_resolution})*{resolution}) AS resinv,
+                        ST_MakeEnvelope({b_xmin}, {b_ymin}, {b_xmax}, {b_ymax}, {srid}) AS b_ext,
+                        ST_MakeEnvelope({xmin}, {ymin}, {xmax}, {ymax}, {srid}) AS ext
+                    ),
+                _start AS (
+                    select min({column_conv}) as min from {table}
+                )
+                    SELECT
+                        ({xyz_resolution})*{resolution} AS res,
+                        innerpar.resinv AS resinv,
+                        innerpar.b_ext AS b_ext,
+                        st_xmin(innerpar.ext) AS xmin,
+                        st_ymin(innerpar.ext) AS ymin,
+                        round((st_xmax(innerpar.ext) - st_xmin(innerpar.ext))*innerpar.resinv) - 1 AS maxx,
+                        round((st_ymax(innerpar.ext) - st_ymin(innerpar.ext))*innerpar.resinv) - 1 AS maxy,
+                        _start.min as start
+                    FROM innerpar, _start
+                )
+                SELECT xx x__uint8,
+                       yy y__uint8,
+                       array_agg(c) vals__uint8,
+                       array_agg(d) dates__uint16
+                FROM (
+                    SELECT
+                        GREATEST(0 - {b_size}, LEAST(p.maxx + {b_size}, round((st_x(i.{gcol}) - p.xmin)*resinv))) AS xx,
+                        GREATEST(0 - {b_size}, LEAST(p.maxy + {b_size}, round((st_y(i.{gcol}) - p.ymin)*resinv))) AS yy,
+                        {countby} c,
+                        floor(({column_conv} - start)/{step}) d
+                    FROM ({_SQL}) i, par p
+                    WHERE i.{gcol} && p.b_ext
+                    GROUP BY xx, yy, d
+                ) cte, par
+                GROUP BY x__uint8, y__uint8;
+        """.format(
+            xyz_resolution=cdb_XYZ_Resolution(zoom),
+            resolution=res,
+            b_xmin=extend['b_xmin'],
+            b_ymin=extend['b_ymin'],
+            b_xmax=extend['b_xmax'],
+            b_ymax=extend['b_ymax'],
+            srid=3857,
+            xmin=extend['xmin'],
+            ymin=extend['ymin'],
+            xmax=extend['xmax'],
+            ymax=extend['ymax'],
+            b_size=extend['b_size'],
+            countby=agg,
+            column_conv=tcol,
+            step=steps,
+            _SQL='select * from %s' % table,
+            table=table,
+            gcol=webmercator
+        )
+
+        print self.sql
+
+
 
     def setXYZ(self, x, y, z):
         self.z = str(z)
@@ -110,6 +209,7 @@ class Torque:
         zoom_c = int(zooms[0])
         zoom_e = int(zooms[-1])
         time_value = "date_part('epoch', %s)" % self.options['o'] if self.options['tt'] else self.options['o']
+        time_value = self.options['o']
         while zoom_c <= zoom_e:
             x = 0
             while x < 2**zoom_c:
@@ -122,9 +222,9 @@ class Torque:
                         self.options['t'],  # table
                         self.options['a'],  # aggregation
                         time_value,
-                        self.options['s'],  # steps
-                        self.options['r'],  # resolution
-                        x, y, z,  # x, y, zoom
+                        int(self.options['s']),  # steps
+                        int(self.options['r']),  # resolution
+                        int(x), int(y), int(z),  # x, y, zoom
                         self.options['wm']  # webmercator
                     )
                     tile.fetchData()
