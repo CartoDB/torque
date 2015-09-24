@@ -3,6 +3,8 @@ import base64
 import json
 import sys
 import argparse
+import psycopg2
+import psycopg2.extras
 
 
 class CartoDBProvider:
@@ -28,23 +30,22 @@ class CartoDBProvider:
 
 class PostGISProvider:
     def __init__(self, options):
-        import psycopg2
         conn_string = "host='%s' dbname='%s' user='%s'" % (options['pg_host'], options['pg_db'], options['pg_user'])
         if options['pg_pass']:
             conn_string += "password='%s'" % self.options['pg_pass']
         conn = psycopg2.connect(conn_string)
-        self.cursor = conn.cursor()
+        self.cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     def request(self, sql):
         # execute sql request over PostgreSQL connection
         self.cursor.execute(sql)
-        return self.cursor.fetchall()
+        return [dict(x) for x in self.cursor.fetchall()]
 
 tile_size = 256
 buffer_size = 0
 def cdb_XYZ_Resolution(z):
-    full_resolution = 40075017 / tile_size
-    return full_resolution / 2**z
+    full_resolution = 40075017.0 / tile_size
+    return full_resolution / 2.0**z
 
 def cdb_XYZ_Extent(x, y, z, res):
     initial_resolution = cdb_XYZ_Resolution(0);
@@ -215,8 +216,7 @@ class Torque:
             sql = 'select * from %s' % self.options['t']
         )
         data = self.provider.request(metadataQuery)[0]
-        print data
-        self.step = (data["max_date"] - data["min_date"] + 1) / data["num_steps"]
+        self.step = (data['max_date'] - data['min_date'] + 1) / min(int(self.options['s']), data['num_steps']>>0)
 
     def fetchTiles(self):
         zooms = self.options['z'].split('-')
