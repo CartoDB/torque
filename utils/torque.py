@@ -85,7 +85,7 @@ class TorqueTile:
     def fetchData(self):
         self.data = self.provider.request(self.sql)
 
-    def setSql(self, table, agg, tcol, steps, res, x, y, zoom, webmercator=None):
+    def setSql(self, table, agg, tcol, steps, res, x, y, zoom, webmercator, step):
         webmercator = webmercator if webmercator is not None else 'the_geom_webmercator'
 
         self.sql = ' '.join(["WITH par AS (",
@@ -148,24 +148,24 @@ class TorqueTile:
                 ) cte, par
                 GROUP BY x__uint8, y__uint8;
         """.format(
-            xyz_resolution=cdb_XYZ_Resolution(zoom),
-            resolution=res,
-            b_xmin=extend['b_xmin'],
-            b_ymin=extend['b_ymin'],
-            b_xmax=extend['b_xmax'],
-            b_ymax=extend['b_ymax'],
-            srid=3857,
-            xmin=extend['xmin'],
-            ymin=extend['ymin'],
-            xmax=extend['xmax'],
-            ymax=extend['ymax'],
-            b_size=extend['b_size'],
-            countby=agg,
-            column_conv=tcol,
-            step=steps,
-            _SQL='select * from %s' % table,
-            table=table,
-            gcol=webmercator
+            xyz_resolution = cdb_XYZ_Resolution(zoom),
+            resolution = res,
+            b_xmin = extend['b_xmin'],
+            b_ymin = extend['b_ymin'],
+            b_xmax = extend['b_xmax'],
+            b_ymax = extend['b_ymax'],
+            srid = 3857,
+            xmin = extend['xmin'],
+            ymin = extend['ymin'],
+            xmax = extend['xmax'],
+            ymax = extend['ymax'],
+            b_size = extend['b_size'],
+            countby = agg,
+            column_conv = tcol,
+            step = step,
+            _SQL = 'select * from %s' % table,
+            table = table,
+            gcol = webmercator
         )
 
         print self.sql
@@ -203,6 +203,20 @@ class Torque:
         if args.method.lower() == 'postgis':
             self.provider = PostGISProvider(options)
         self.options = options
+        self.getMetadata()
+
+    def getMetadata(self):
+        metadataQuery = """ 
+            SELECT count(*) as num_steps, 
+                max({column}) max_date, 
+                min({column}) min_date FROM  ({sql}) __torque_wrap_sql 
+        """.format(
+            column = self.options['o'],
+            sql = 'select * from %s' % self.options['t']
+        )
+        data = self.provider.request(metadataQuery)[0]
+        print data
+        self.step = (data["max_date"] - data["min_date"] + 1) / data["num_steps"]
 
     def fetchTiles(self):
         zooms = self.options['z'].split('-')
@@ -225,7 +239,8 @@ class Torque:
                         int(self.options['s']),  # steps
                         int(self.options['r']),  # resolution
                         int(x), int(y), int(z),  # x, y, zoom
-                        self.options['wm']  # webmercator
+                        self.options['wm'],  # webmercator
+                        self.step
                     )
                     tile.fetchData()
                     tile.save()
