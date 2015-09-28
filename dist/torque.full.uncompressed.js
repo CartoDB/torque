@@ -4987,7 +4987,7 @@ var carto = global.carto || require('carto');
 
   //
   // this renderer just render points depending of the value
-  //
+  // 
   function RectanbleRenderer(canvas, options) {
     this.options = options;
     carto.tree.Reference.set(torque['torque-reference']);
@@ -5064,7 +5064,7 @@ var carto = global.carto || require('carto');
           // by-pass the style generation for improving performance
           color = this._shader['polygon-fill']({ value: value }, { zoom: 0 });
           ctx.fillStyle = color;
-          //TODO: each function should have a default value for each
+          //TODO: each function should have a default value for each 
           //property defined in the cartocss
           alpha = polygon_alpha({ value: value }, { zoom: 0 });
           if(alpha === null) {
@@ -5078,7 +5078,7 @@ var carto = global.carto || require('carto');
     },
 
     //
-    // renders a tile in the canvas for key defined in
+    // renders a tile in the canvas for key defined in 
     // the torque tile
     //
     renderTile: function(tile, key, callback) {
