@@ -1,0 +1,8 @@
+{
+    "start": -1796072400000,
+    "end": -1414843200000,
+    "resolution": 2,
+    "data_steps": 861786,
+    "column_type": "date",
+    "tiles": ["http://{s}.ashbu.cartocdn.com/viz2/api/v1/map/cf28c540d3cf15a29a759f84ff440679:0/0/{z}/{x}/{y}.json.torque"]
+}
