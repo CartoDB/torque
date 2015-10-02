@@ -117,7 +117,6 @@ test('get value for position', function() {
 });
 
 test('get values for tile', function() {
-  var mercator = new torque.Mercator();
   tile = {
     timeCount: [2],
     timeIndex: [0],
