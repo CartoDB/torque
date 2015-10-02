@@ -1,0 +1,78 @@
+
+<html>
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <style>
+    #map, html, body {
+      width: 100%; height: 100%; padding: 0; margin: 0;
+    }
+    #title {
+      position: absolute;
+      top: 100px;
+      left: 50px;
+      color: white;
+      font-size: 27px;
+      font-family: Helvetica, sans-serif;
+    }
+  </style>
+  <body>
+    <div id="map"></div>
+    <div id="title">Example wind map using torque vector</div>
+
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+
+    <script src="../dist/torque.full.uncompressed.js"></script>
+
+
+    <script>
+      // define the torque layer style using cartocss
+      // this creates a kind of density map
+      //color scale from http://colorbrewer2.org/
+      var CARTOCSS = [
+        'Map {',
+        '  -torque-frame-count:1;',
+        '  -torque-animation-duration:1;',
+        '  -torque-time-attribute:"date";',
+        '  -torque-aggregation-function: "avg(angle*40);avg(mag)";',
+        '  -torque-resolution:4;',
+        '  -torque-data-aggregation:linear;',
+        '}',
+          '#wind {',
+          '  marker-width: 5;',
+          '  marker-fill-opacity: 1.0;',
+          '  marker-max-mag: 7; ',
+          '  marker-type: vector;',
+          '  marker-mag: "scale_log(value1, 0,61.76,0,7)";',
+          '  marker-stroke : "scale_log(value1,0.1,61.76,#FFFFB2,#B10026)";',
+          '  marker-angle : "scale_lin(value0,0,255,0,6.283185)";',
+          '}'
+
+      ]
+
+      CARTOCSS = CARTOCSS.join("\n")
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
+
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        user       : 'stuartlynn',
+        table      : 'wind',
+        provider   : 'sql_api',
+        cartocss: CARTOCSS
+      });
+
+      torqueLayer.addTo(map);
+      torqueLayer.play();
+
+
+
+    </script>
+  </body>
+</html>

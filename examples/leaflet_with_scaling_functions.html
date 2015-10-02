@@ -1,0 +1,80 @@
+
+<html>
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <style>
+    #map, html, body {
+      width: 100%; height: 100%; padding: 0; margin: 0;
+    }
+    #title {
+      position: absolute;
+      top: 100px;
+      left: 50px;
+      color: white;
+      font-size: 27px;
+      font-family: Helvetica, sans-serif;
+    }
+  </style>
+  <body>
+    <div id="map"></div>
+
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    <script src="../../dist/torque.full.uncompressed.js"></script>
+
+
+    <script>
+      // define the torque layer style using cartocss
+      // this creates a kind of density map
+      //color scale from http://colorbrewer2.org/
+      var CARTOCSS = [
+          'Map {',
+          '-torque-time-attribute: "time";',
+          '-torque-aggregation-function: "avg(abs(depth));avg(mag)";',
+          '-torque-frame-count: 200;',
+          '-torque-animation-duration: 20;',
+          '-torque-resolution: 1',
+          '}',
+          '#all_month_3 {',
+          '  marker-width: "scale_lin(value0,0.0,10,0,5)";',
+          '  marker-fill-opacity: "scale_sqrt(frame-offset,0,9,1,0)";',
+          '  marker-type: ellipse;',
+          '  marker-fill: "scale_lin(value1,0.1,5,blue,red)";',
+          '}',
+          '#all_month_3[frame-offset=1]{}',
+          '#all_month_3[frame-offset=2]{}',
+          '#all_month_3[frame-offset=3]{}',
+          '#all_month_3[frame-offset=4]{}',
+          '#all_month_3[frame-offset=5]{}',
+          '#all_month_3[frame-offset=6]{}',
+          '#all_month_3[frame-offset=7]{}',
+          '#all_month_3[frame-offset=8]{}',
+          '#all_month_3[frame-offset=9]{}',
+      ].join('\n');
+
+
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
+
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        user       : 'eschbacher',
+        table      : 'all_month_3',
+        provider   : 'sql_api',
+        cartocss: CARTOCSS
+      });
+      torqueLayer.addTo(map);
+      torqueLayer.play();
+
+
+
+    </script>
+  </body>
+</html>

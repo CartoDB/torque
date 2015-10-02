@@ -3181,7 +3181,19 @@ var Profiler = require('../profiler');
       // reserve memory for all the dates
       var timeIndex = new Int32Array(maxDateSlots + 1); //index-size
       var timeCount = new Int32Array(maxDateSlots + 1);
-      var renderData = new (this.options.valueDataType || type)(dates);
+
+      var val_keys = []
+      if(rows.length>0){
+        val_keys = Object.keys(rows[0]).filter(function(k){return (k.indexOf("vals__uint8") > -1) })
+      }
+
+
+      var renderData = []
+
+      val_keys.forEach(function(key,index){
+        renderData[index] = new (this.options.valueDataType || type)(dates);
+      }.bind(this))
+
       var renderDataPos = new Uint32Array(dates);
 
       prof_mem.inc(
@@ -3208,15 +3220,29 @@ var Profiler = require('../profiler');
         }
 
         var dates = row.dates__uint16;
-        var vals = row.vals__uint8;
+        var val_keys = Object.keys(row).filter(function(k){return (k.indexOf("vals__uint8") > -1) })
+        var val_arr = []
+
+        val_keys.forEach(function(key){
+          var i = (key=='vals_uint8' ? 0 :  key.match(/vals__uint8_(\d+)/)[1])
+          val_arr[i] = row[key];
+        })
+
         if (!this.options.cumulative) {
           for (var j = 0, len = dates.length; j < len; ++j) {
               var rr = rowsPerSlot[dates[j]] || (rowsPerSlot[dates[j]] = []);
-              if(this.options.cumulative) {
-                  vals[j] += prev_val;
-              }
-              prev_val = vals[j];
-              rr.push([r, vals[j]]);
+              //Stuart: Not sure I understand why this is here?
+              // if(this.options.cumulative) {
+              //     vals[j] += prev_val;
+              // }
+
+              // prev_val = vals[j];
+              var all_vals = []
+              val_arr.forEach(function(vals){
+                all_vals.push(vals[j])
+              })
+              rr.push([r, all_vals]);
+
           }
         } else {
           var valByDate = {}
@@ -3245,6 +3271,7 @@ var Profiler = require('../profiler');
 
       }
 
+
       // for each timeslot search active buckets
       var renderDataIndex = 0;
       var timeSlotIndex = 0;
@@ -3254,10 +3281,13 @@ var Profiler = require('../profiler');
         var slotRows = rowsPerSlot[i]
         if(slotRows) {
           for (var r = 0; r < slotRows.length; ++r) {
+
             var rr = slotRows[r];
             ++c;
             renderDataPos[renderDataIndex] = rr[0]
-            renderData[renderDataIndex] = rr[1];
+            rr[1].forEach(function(rrr,index){
+              renderData[index][renderDataIndex] = rrr;
+            })
             ++renderDataIndex;
           }
         }
@@ -3346,7 +3376,6 @@ var Profiler = require('../profiler');
         subdomains = [null]; // no subdomain
       }
 
-
       var url;
       if (options.no_cdn) {
         url = this._host();
@@ -3363,6 +3392,7 @@ var Profiler = require('../profiler');
     },
 
     getTileData: function(coord, zoom, callback) {
+
       if(!this._ready) {
         this._tileQueue.push([coord, zoom, callback]);
       } else {
@@ -3394,6 +3424,14 @@ var Profiler = require('../profiler');
 
       var column_conv = this.options.column;
 
+      var agg_columns;
+      if(this.options.countby.indexOf(";") > 0){
+        agg_columns = this.options.countby.split(";")
+      }
+      else{
+        agg_columns = [this.options.countby]
+      }
+
       if(this.options.is_time) {
         column_conv = format("date_part('epoch', {column})", this.options);
       }
@@ -3406,8 +3444,13 @@ var Profiler = require('../profiler');
         ", CDB_XYZ_Extent({x}, {y}, {zoom}) as ext "  +
         ")," +
         "cte AS ( "+
-        "  SELECT ST_SnapToGrid(i.the_geom_webmercator, p.res) g" +
-        ", {countby} c" +
+        "  SELECT ST_SnapToGrid(i.the_geom_webmercator, p.res) g"
+
+        agg_columns.forEach(function(col,index){
+          sql = sql + ", "+col+" c"+index
+        }.bind(this))
+
+        sql = sql +
         ", floor(({column_conv} - {start})/{step}) d" +
         "  FROM ({_sql}) i, par p " +
         "  WHERE i.the_geom_webmercator && p.ext " +
@@ -3415,12 +3458,18 @@ var Profiler = require('../profiler');
         ") " +
         "" +
         "SELECT (st_x(g)-st_xmin(p.ext))/p.res x__uint8, " +
-        "       (st_y(g)-st_ymin(p.ext))/p.res y__uint8," +
-        " array_agg(c) vals__uint8," +
-        " array_agg(d) dates__uint16" +
+        "       (st_y(g)-st_ymin(p.ext))/p.res y__uint8"
+
+        agg_columns.forEach(function(col,index){
+          sql = sql + ", array_agg(c"+index+") vals__uint8_"+index
+        }.bind(this))
+
+        sql = sql +
+        ", array_agg(d) dates__uint16" +
         // the tile_size where are needed because the overlaps query in cte subquery includes the points
         // in the left and bottom borders of the tile
         " FROM cte, par p where (st_y(g)-st_ymin(p.ext))/p.res < tile_size and (st_x(g)-st_xmin(p.ext))/p.res < tile_size GROUP BY x__uint8, y__uint8";
+
 
 
       var query = format(sql, this.options, {
@@ -3430,6 +3479,7 @@ var Profiler = require('../profiler');
         column_conv: column_conv,
         _sql: this.getSQL()
       });
+
 
       var self = this;
       this.sql(query, function (data) {
@@ -3551,7 +3601,7 @@ var Profiler = require('../profiler');
         "layers": [{
           "type": "cartodb",
           "options": {
-            "cartocss_version": "2.1.1", 
+            "cartocss_version": "2.1.1",
             "cartocss": "#layer {}",
             "sql": this.getSQL()
           }
@@ -4399,9 +4449,9 @@ var Profiler = require('../profiler');
 
 },{"../":10,"../profiler":17}],22:[function(require,module,exports){
   var TAU = Math.PI*2;
-  // min value to render a line. 
+  // min value to render a line.
   // it does not make sense to render a line of a width is not even visible
-  var LINEWIDTH_MIN_VALUE = 0.05; 
+  var LINEWIDTH_MIN_VALUE = 0.05;
   var MAX_SPRITE_RADIUS = 255;
 
   function renderPoint(ctx, st) {
@@ -4442,6 +4492,31 @@ var Profiler = require('../profiler');
     }
   }
 
+  function renderVector(ctx, st){
+      var angle = st['marker-angle']
+      var color = st['marker-stroke']
+      var mag   = st['marker-mag']
+      var max_mag   = st['marker-max-mag'] ?  st['marker-max-mag'] : 10
+      var max_line_length = st['marker-width']
+
+      var scaled_mag = (mag/max_mag)*max_line_length
+
+      ctx.lineWidth = 2
+
+      // ctx.strokeStyle='green'
+      // ctx.strokeRect(-max_line_length,-max_line_length,max_line_length*2,max_line_length*2)
+      // ctx.translate(max_line_length/2.0, 0)
+      ctx.rotate(angle)
+      ctx.strokeStyle = color
+
+      ctx.moveTo(0,-max_line_length*2)
+      ctx.lineTo(0,max_line_length*2)
+      ctx.stroke();
+
+
+    }
+
+
   function renderRectangle(ctx, st) {
     ctx.fillStyle = st['marker-fill'];
     var pixel_size = st['marker-width'];
@@ -4473,6 +4548,20 @@ var Profiler = require('../profiler');
     }
   }
 
+  function renderText(ctx,st){
+    var width = st['marker-width']
+
+    var text = st['text-name']
+    var font = st['text-face-name'] ? st['text-face-name'] : 'Droid Sans Regular'
+    var textSize = st['text-size'] ? st['text-size'] : '10px'
+    var color    = st['text-fill'] ? st['text-fill'] : 'white'
+
+    // ctx.font = textSize+"px "+font
+    ctx.fillStyle = color
+    ctx.font= textSize + " " + font
+    ctx.fillText(text, -width/2.0, width/2.0 )
+  }
+
   function renderSprite(ctx, img, st) {
 
     if(img.complete){
@@ -4487,6 +4576,8 @@ module.exports = {
     renderPoint: renderPoint,
     renderSprite: renderSprite,
     renderRectangle: renderRectangle,
+    renderVector: renderVector,
+    renderText: renderText,
     MAX_SPRITE_RADIUS: MAX_SPRITE_RADIUS
 };
 
@@ -4557,7 +4648,7 @@ var Filters = require('./torque_filters');
     this.TILE_SIZE = 256;
     this._style = null;
     this._gradients = {};
-    
+
     this._forcePoints = false;
   }
 
@@ -4594,6 +4685,7 @@ var Filters = require('./torque_filters');
 
     setShader: function(shader) {
       // clean sprites
+
       this._sprites = [];
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
@@ -4605,6 +4697,30 @@ var Filters = require('./torque_filters');
       this._sprites = [];
     },
 
+    processScaleFunction:function(input, opts){
+
+      if(typeof(input)!='string'){
+        return input;
+      }
+
+      var matches = input.match(/scale_(.*)\((.*)\)/)
+      if(matches){
+        var type = matches[1];
+        var params = matches[2].split(",");
+
+        var variable  = params[0]
+        var domain = params.slice(1,3);
+        var range  = params.slice(3,params.length);
+
+        var scale = {lin: d3.scale.linear, log: d3.scale.log, quant: d3.scale.quantize, sqrt: d3.scale.sqrt}[type]
+
+        var s = scale().domain(domain).range(range)
+        return s(opts[variable])
+      }
+      else{
+        return input;
+      }
+    },
 
     //
     // generate sprite based on cartocss style
@@ -4612,9 +4728,31 @@ var Filters = require('./torque_filters');
     generateSprite: function(shader, value, shaderVars) {
       var self = this;
       var prof = Profiler.metric('torque.renderer.point.generateSprite').start();
-      var st = shader.getStyle({
-        value: value
-      }, shaderVars);
+
+      var values = {}
+      if(value.length ==1){
+        values["value"] = value[0]
+      }
+      else{
+        value.forEach(function(val,index){
+          values["value"+index] = val;
+        })
+      }
+
+
+      var st = shader.getStyle(values, shaderVars);
+
+      var processingVars = {}
+      for(var key in shaderVars){ processingVars[key]= shaderVars[key]}
+      for(var key in values){processingVars[key] = values[key]}
+
+      var varsToProcess = ['marker-width', 'marker-fill-opacity', 'marker-fill', 'marker-stroke', 'marker-angle', 'marker-mag']
+      varsToProcess.forEach(function(key){
+        if(st[key]){
+          st[key] = this.processScaleFunction(st[key], processingVars)
+        }
+      }.bind(this))
+
       if(this._style === null || this._style !== st){
         this._style = st;
       }
@@ -4655,17 +4793,30 @@ var Filters = require('./torque_filters');
         var mt = st['marker-type'];
         if (mt && mt === 'rectangle') {
           cartocss.renderRectangle(ctx, st);
-        } else {
+        } else if(mt && mt === 'vector') {
+          cartocss.renderVector(ctx,st);
+        }
+        else{
           cartocss.renderPoint(ctx, st);
         }
       }
+
+      if(st['text-name']){
+        var captures = st['text-name'].match(/\{\{(.*)\}\}/)
+        captures.slice(1,captures.length).forEach(function(rep){
+          st['text-name'] = st['text-name'].replace("{{"+rep+"}}", values[rep])
+        })
+        // st['text-name'] = st['text-name'].replace("{{value}}",value)
+        cartocss.renderText(ctx,st)
+      }
+
       prof.end(true);
       if (torque.flags.sprites_to_images) {
         var i = this._createImage();
         i.src = canvas.toDataURL();
         return i;
       }
-      
+
       return canvas;
     },
 
@@ -4693,7 +4844,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
       prof.end(true);
 
       return callback && callback(null);
@@ -4737,7 +4888,7 @@ var Filters = require('./torque_filters');
     },
 
     //
-    // renders a tile in the canvas for key defined in 
+    // renders a tile in the canvas for key defined in
     // the torque tile
     //
     _renderTile: function(tile, key, frame_offset, sprites, shader, shaderVars) {
@@ -4760,7 +4911,7 @@ var Filters = require('./torque_filters');
         var pixelIndex = tile.timeIndex[key];
         for(var p = 0; p < activePixels; ++p) {
           var posIdx = tile.renderDataPos[pixelIndex + p];
-          var c = tile.renderData[pixelIndex + p];
+          var c = tile.renderData.map(function(a){return a[pixelIndex + p]});
           if (c) {
            var sp = sprites[c];
            if (sp === undefined) {
@@ -4774,7 +4925,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
 
       prof.end(true);
     },
@@ -4826,7 +4977,9 @@ var Filters = require('./torque_filters');
       var pixelIndex = tile.timeIndex[step];
       for(var p = 0; p < activePixels; ++p) {
         var posIdx = tile.renderDataPos[pixelIndex + p];
-        var c = tile.renderData[pixelIndex + p];
+
+        var c =tile.renderData.map(function(r){ return r[pixelIndex + p]})
+
         if (c) {
          var x = tile.x[posIdx];
          var y = tileMax - tile.y[posIdx];
@@ -4925,7 +5078,7 @@ var Filters = require('./torque_filters');
           }
           gradient = {};
           var colorize = this._style['image-filters'].args;
-          
+
           var increment = 1/colorize.length;
           for (var i = 0; i < colorize.length; i++){
             var key = increment * i + increment;
@@ -13932,7 +14085,7 @@ module.exports={
   "url": "https://github.com/cartodb/carto",
   "repository": {
     "type": "git",
-    "url": "http://github.com/cartodb/carto.git"
+    "url": "git+ssh://git@github.com/cartodb/carto.git"
   },
   "author": {
     "name": "CartoDB",
@@ -14003,7 +14156,7 @@ module.exports={
   "bugs": {
     "url": "https://github.com/cartodb/carto/issues"
   },
-  "homepage": "https://github.com/cartodb/carto",
+  "homepage": "https://github.com/cartodb/carto#readme",
   "_id": "carto@0.15.1-cdb1",
   "_shasum": "62534c2975cbee073f10c6c14a0c7e889c9469e7",
   "_resolved": "https://github.com/CartoDB/carto/archive/master.tar.gz",
