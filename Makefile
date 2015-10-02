@@ -35,7 +35,7 @@ add-header:
 	node lib/header.js
 
 prepare-test-suite:
-	browserify test/suite.js > test/suite-bundle.js
+	$(BROWSERIFY) test/suite.js > test/suite-bundle.js
 
 test: prepare-test-suite
 	@echo "***tests***"
@@ -43,7 +43,7 @@ test: prepare-test-suite
 
 test-acceptance: clean-results
 	@echo "***acceptance***"
-	./node_modules/.bin/qunit -c lib/torque/ -t `find test/acceptance/ -name *.js`
+	./node_modules/.bin/qunit -c lib/torque/ -t `find test/acceptance/ -name "*.js"`
 
 test-all: test test-acceptance
 

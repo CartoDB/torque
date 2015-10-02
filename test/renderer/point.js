@@ -115,3 +115,22 @@ test('get value for position', function() {
   v = renderer.getValueFor(tile, 0, 99, 255 - 3);
   equal(v, null);
 });
+
+test('get values for tile', function() {
+  var mercator = new torque.Mercator();
+  tile = {
+    timeCount: [2],
+    timeIndex: [0],
+    renderDataPos: [0, 0],
+    renderData: [5, 7],
+    x: [100],
+    y: [3],
+    coord: { x: 0, y: 0, z: 0 }
+  };
+  renderer.options = {
+    resolution: 1
+  };
+  v = renderer.getValues(tile, 0);
+  equal(v[0], 5);
+  equal(v[1], 7);
+});
