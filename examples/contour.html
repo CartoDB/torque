@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+<canvas id = "sample" width = "600" height = "600"></canvas>
+<script type="text/javascript">
+
+	var tile = {"x":[96,64,160,64,48,192,16,80,112,16,64,176,80,64,32,176,16,144,176,176,112,128,224,16,16,176,16,0,64,160,128,160,208,80,192,0,80,16,192,128,208,160,128,192,32,112,144,112,80,32,80,112,32,80,112,80,32,144,112,144,32,80,32,176,112,208,32,96,192,144,160,144,208,144,0,112,224,160,16,0,208,128,48,0,176,96,96,48,48,64,96,48,96,48,96],"y":[176,192,208,160,176,208,224,32,48,64,144,224,208,128,96,240,112,208,160,192,208,208,240,192,240,144,80,160,208,160,176,192,240,128,240,240,144,48,192,224,192,240,16,160,176,16,224,224,240,224,192,176,16,160,240,224,160,240,160,192,80,176,240,208,192,224,112,208,224,128,176,144,176,112,224,144,208,224,176,208,208,96,64,32,176,112,144,144,112,176,192,160,160,240,240],"z":6,"coord":{"x":18,"y":24,"z":6},"timeCount":[95],"timeIndex":[0],"renderDataPos":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94],"renderData":[3,4,3,3,3,4,2,1,1,1,1,5,2,3,1,11,2,5,2,6,2,4,4,5,1,1,1,1,1,1,2,1,8,7,15,1,8,1,1,4,3,6,1,1,1,2,2,1,5,2,4,1,1,2,2,1,1,5,2,4,1,1,2,2,2,5,2,6,8,1,2,1,1,2,1,1,1,2,3,1,4,1,2,1,3,1,4,1,1,2,1,2,2,4,2],"maxDate":0};
+
+var tile = {"x":[176,48,80,96,128,112,160,16,144,192,224,128,64,80,224,224,176,208,160,96,112,144,48,224,176,240,240,16,80,112,160,144,96,128,96,192,80,112,176,176,128,192,64,144,160,240,208,160,208,192,192,208,32,144,48,160,0,128,16,112,96,80,192,128,16,48,144,96,192,0,128,176,144,160,80,112,64,64,16,64,128,48,0,112,176,144,96,32,80,176,96,192,128,32,0,160,64,16,192,64,32,48],"y":[64,16,32,16,48,48,32,64,48,32,128,32,64,48,112,144,128,96,48,80,32,32,80,192,112,112,144,48,112,64,80,64,48,16,96,160,80,16,96,48,64,128,32,16,112,192,128,128,112,144,112,144,16,80,32,64,64,112,32,80,32,16,64,128,0,0,128,0,16,16,80,32,112,16,64,112,48,96,16,80,96,64,32,96,16,96,64,48,96,80,128,96,0,32,48,96,16,80,80,0,64,48],"z":5,"coord":{"x":9,"y":11,"z":5},"timeCount":[102],"timeIndex":[0],"renderDataPos":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101],"renderData":[9,2,6,1,2,11,6,3,6,1,3,5,10,6,3,1,3,5,8,2,2,4,2,1,4,2,1,6,3,4,9,6,4,2,1,1,6,7,9,6,4,2,7,1,6,4,3,2,2,1,6,2,4,7,8,10,5,8,6,1,3,4,2,2,1,2,2,6,1,7,3,9,9,4,8,1,7,2,3,3,5,7,5,1,3,6,2,2,3,5,1,11,2,5,6,3,3,1,8,1,4,10],"maxDate":0};
+
+	var grid = gridData(tile);
+	var canvas = document.getElementById("sample");
+	var ctx = canvas.getContext("2d");
+	for (var y = 0;  y < grid.length; y++){
+		if (y < 15){
+			ctx.fillStyle = "black";
+			ctx.fillText(y,42 + y*30, 10);
+			ctx.fill();
+			ctx.fillText(y,10, 46 + y*30);
+			ctx.fill();
+		}
+		for (var x = 0;  x < grid[0].length; x++){
+			ctx.beginPath();
+			//ctx.arc(30 + x*30, 30 + y*30, 3, 0, 2 * Math.PI, false);
+			var value = grid[y][x];
+			ctx.fillStyle = "rgb("+0+", "+value * 50+", "+value * 50+")";
+			if(value === 0) ctx.fillStyle = "red";
+			ctx.textAlign = "center"
+			ctx.fillText(value,30 + x*30, 34 + y*30);
+			ctx.fill();
+		}
+	}
+
+	var cellsX = grid[0].length-1;
+	var cellsY = grid.length-1;
+	var contourValues = [1,2,3,4,5,6,7,8,9,10,11,12,13];
+	// var contourValues = [6];
+	var lines = [];
+	for(var c = 0; c < contourValues.length; c++){
+		lines[c] = [];
+		var pointsTraveled = new Set();
+		var pointerX = 0, pointerY = 0, x = 0, y = 0;
+		var line = [];
+		var xy = march(0,0);
+
+		while(xy){
+			xy = march(xy.x, xy.y);
+		}
+
+		function march(x,y) {
+			if(x >= grid[0].length) {
+				pointerX = 0;
+				pointerY++;
+				return {x: pointerX, y: pointerY };
+			}
+			if (pointerX === 0 && y > grid.length-2) return;
+			if (pointsTraveled.has(x+":"+y) && line.length === 0){
+				pointerX ++;
+				return {x: pointerX, y: pointerY };
+			}
+			else{
+				pointsTraveled.add(x+":"+y);
+				var NW = grid[y]? grid[y][x]: 0,
+						    NE = grid[y]? grid[y][x+1]: 0,
+						    SE = grid[y+1]? grid[y+1][x+1]: 0,
+						    SW = grid[y+1]? grid[y+1][x]: 0
+				var cornerValues = [NW, NE, SE, SW];
+				var currentPos = {x: x, y: y};
+				var previousPos = line.length > 0? {x: line[line.length-1].coord.x, y: line[line.length-1].coord.y}: null;
+				var next = getNext(currentPos, previousPos, cornerValues, contourValues[c]);
+				if (next){
+					if (line.length > 0 && (line[0].coord.x === x && line[0].coord.y === y)){
+						lines[c].push(line);
+						line = [];
+						pointerX ++;
+						return {x: pointerX, y: pointerY };
+					}
+					else{
+						line.push({coord: {x: x, y: y, relativePosition: next.relativePosition}, values: cornerValues});
+						return next;
+					} 
+				}
+				else {
+					pointerX ++;
+					return {x: pointerX, y: pointerY };
+				}
+			}
+		}
+	}
+
+	for (var c = 0; c < lines.length; c++){
+		var thisContour = lines[c];
+		ctx.strokeStyle = 'hsl(' + 360 * Math.random() + ', 50%, 50%)';
+		for (var l = 0; l < thisContour.length; l++){
+			var line = cardinalSpline(thisContour[l]);
+			ctx.beginPath();
+			ctx.moveTo(line[0], line[1]);
+			for (var p = 2; p < line.length; p+=2){
+				ctx.lineTo(line[p], line[p+1]);
+			}
+			ctx.closePath();
+			ctx.stroke();
+		}
+	}
+
+	function cardinalSpline(line){
+		var plainArray = [];
+		for (var p = 0; p < line.length; p++){
+			var relativePosition = line[p].coord.relativePosition || {x: 0.5, y: 0.5};
+			if (relativePosition.length){
+				// plainArray.push(30 + 30*line[p].coord.x + 30 * relativePosition[0].x);
+				// plainArray.push(30 + 30*line[p].coord.y + 30 * relativePosition[0].y);
+				plainArray.push(30 + 30*line[p].coord.x + 30 * relativePosition[1].x);
+				plainArray.push(30 + 30*line[p].coord.y + 30 * relativePosition[1].y);
+			}
+			else {
+				plainArray.push(30 + 30*line[p].coord.x + 30 * relativePosition.x);
+				plainArray.push(30 + 30*line[p].coord.y + 30 * relativePosition.y);
+			}
+		}
+		return plainArray;
+		// return cSpline(plainArray, 0.5, 10, true);
+	}
+
+	function gridData(tile){
+	    var res = 16;
+	    var grid = new Array(256/res);
+	    for(var i =0; i<grid.length; i ++){
+	      grid[i] = new Array(256/res);
+	      for(var j =0; j < grid[i].length; j++){
+	        grid[i][j] = 0;
+	      }
+	    }
+
+	    for(var i =0; i < tile.renderData.length; i++){
+	      var x = tile.x[i], y = tile.y[i];
+	      grid[y/res][x/res] = tile.renderData[i];
+	    }
+
+	    return grid;
+	}
+
+	function getNext(currentPos, previousPos, cornerValues, contourValue){
+		var binaryCell = cornerValues.map(function(cornerValue){
+				if (cornerValue >= contourValue){
+					return "1";
+				}
+				return "0";
+			}).join("");
+		var type = parseInt(binaryCell, 2);
+		var N = [0, -1], 
+		    S = [0, 1], 
+		    E = [1, 0], 
+		    W = [-1, 0];
+
+		var next, relativePosition;
+
+		var diff;
+		if (previousPos){
+			diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
+		}
+
+		if (type === 0 || type === 15) return null;
+		else if (type === 1 || type === 14){
+			next = [S,W];
+			if (type === 1){
+				relativePosition = [{
+					x: 1 - this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+					y: 1
+				},{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				}];		
+			}
+			else{
+				relativePosition = [{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				},{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				}];	
+				if (diff && diff[0] === -1){
+					relativePosition = [{
+						x: 0, 
+						y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+					},{
+						x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: 1
+					}];	
+				}
+			}
+		} 
+		else if (type === 2 || type === 13){
+			next = [E,S];
+			if (type === 13){
+				relativePosition = [{
+					x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+					y: 1
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+				if (diff && diff[1] === 1){
+					relativePosition = [{
+						x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: 1, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					}];	
+				}
+			} else {
+				relativePosition = [{
+					x: 1, 
+					y: 1 - this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+			}	
+		} 
+		else if (type === 12 || type === 3) {
+			next = [E,W];
+			if (type === 3){
+				relativePosition = [{
+					x: 1, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				}];	
+			} else {
+				relativePosition = [{
+					x: 0, 
+					y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+				},{
+					x: 1, 
+					y: 1 - this._lerp(cornerValues[2], cornerValues[1], contourValue)
+				}];	
+			}
+		} 
+		else if (type === 4 || type === 11){
+			next = [N,E];
+
+			if (type === 11){
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				},{
+					x: 1, 
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				}];	
+				if (diff && diff[0] === 1){
+					relativePosition = [{
+						x: 0, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+						y: 0
+					}];	
+				}
+			} else {
+				relativePosition = [{
+					x: this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+					y: 0
+				},{
+					x: 1,
+					y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+				}];	
+			}
+		} 
+		else if (type === 6 || type === 9) {
+			next = [N,S];
+			if (type === 6){
+				relativePosition = [{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				},{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				}];	
+			} else {
+				relativePosition = [{
+					x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+					y: 1
+				},{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				}];	
+			}	
+		} 
+		else if (type === 7 || type === 8) {
+			next = [N,W];
+			if (type === 7){
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+				},{
+					x: this._lerp(cornerValues[0], cornerValues[1], contourValue), 
+					y: 0
+				}];	
+				if (diff && diff[1] === -1){
+					relativePosition = [{
+						x: 0, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}];	
+				}
+			} else {
+				relativePosition = [{
+					x: 0, 
+					y: this._lerp(cornerValues[3], cornerValues[0], contourValue),
+				},{
+					x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+					y: 0
+				}];	
+			}	
+		}
+
+		if (type === 5 || type === 10) {
+			var avg = cornerValues.reduce(function(a, b) { return a + b; }) / cornerValues.length;
+			if (avg < contourValue){
+				type = type%10 + 5;
+			}
+		}
+
+		if (type === 5) {
+			if (!previousPos) return null;
+			// 8
+			if (diff[0] === -1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y - 1,
+					relativePosition: [{
+						x: 0, 
+						y: this._lerp(cornerValues[3], cornerValues[0], contourValue),
+					},{
+						x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+				}]
+				};
+			// 13
+			} else if (diff[0] === 1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y + 1,
+					relativePosition: [{
+						x: this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: 1
+					}]
+				};
+			// 2
+			} else if (diff[1] === -1){
+				return {
+					x: currentPos.x - 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 1, 
+						y: 1 - this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}]
+				};
+			// 7
+			} else if (diff[1] === 1){
+				return {
+					x: currentPos.x + 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					},{
+						x: 1, 
+						y: 1 - this._lerp(cornerValues[2], cornerValues[1], contourValue)
+					}]
+				};
+			}
+		}	
+		else if (type === 10) {
+			if (!previousPos) return null;
+			var diff = [previousPos.x - currentPos.x, previousPos.y - currentPos.y];
+			// 11
+			if (diff[0] === -1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y - 1,
+					relativePosition: [{
+						x: 1, 
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					},{
+						x: 1 - this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+					}]
+				};
+			// 14
+			} else if (diff[0] === 1){
+				return {
+					x: currentPos.x, 
+					y: currentPos.y + 1,
+					relativePosition: [{
+						x: 0, 
+						y: 1 - this._lerp(cornerValues[3], cornerValues[0], contourValue)
+					},{
+						x: this._lerp(cornerValues[3], cornerValues[2], contourValue), 
+						y: 1
+					}]
+				};
+			// 4
+			} else if (diff[1] === -1){
+				return {
+					x: currentPos.x + 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: this._lerp(cornerValues[1], cornerValues[0], contourValue), 
+						y: 0
+					},{
+						x: 1,
+						y: this._lerp(cornerValues[1], cornerValues[2], contourValue)
+					}]	
+				};
+			// 1
+			} else if (diff[1] === 1){
+				return {
+					x: currentPos.x - 1, 
+					y: currentPos.y,
+					relativePosition: [{
+						x: 1 - this._lerp(cornerValues[2], cornerValues[3], contourValue), 
+						y: 1
+					},{
+						x: 0, 
+						y: this._lerp(cornerValues[0], cornerValues[3], contourValue)
+					}]
+				};
+			}
+		}	
+
+		if (!previousPos || (currentPos.x + next[0][0] === previousPos.x && currentPos.y + next[0][1] === previousPos.y)){
+			return {x: currentPos.x + next[1][0], y: currentPos.y + next[1][1], relativePosition};
+		}
+		else return {x: currentPos.x + next[0][0], y: currentPos.y + next[0][1], relativePosition};
+	}
+	
+	// Linear relativePosition
+	// function _lerp(valueA, valueB, contourValue){
+	// 	return Math.max(Math.min(1 + (-0.5) * (contourValue - valueA) / (valueB - valueA), 0.8), 0.2);
+	// }
+
+	// function _lerp (low1, high1, value) {
+	//     return 0.3 + (0.7 - 0.3) * (value - low1) / (high1 - low1);
+	// }
+
+	function _lerp(low1, high1, value) {
+		var low2 = 0.3, high2 = 0.7;
+	    return low2 + (high2 - low2) * (value - low1) / (high1 - low1);
+	}
+
+	function cSpline(points, tension, numOfSeg, close) {
+	    tension = (typeof tension === 'number') ? tension : 0.5;
+	    numOfSeg = numOfSeg ? numOfSeg : 25;
+
+	    var pts; // for cloning point array
+	    var i = 1;
+	    var l = points.length;
+	    var rPos = 0;
+	    var rLen = (l - 2) * numOfSeg + 2 + (close ? 2 * numOfSeg : 0);
+	    var res = new Float32Array(rLen);
+	    var cache = new Float32Array((numOfSeg + 2) * 4);
+	    var cachePtr = 4;
+	    var st, st2, st3, st23, st32, parse;
+
+	    pts = points.slice(0);
+	    if (close) {
+	        pts.unshift(points[l - 1]); // insert end point as first point
+	        pts.unshift(points[l - 2]);
+	        pts.push(points[0], points[1]); // first point as last point
+	    } else {
+	        pts.unshift(points[1]); // copy 1. point and insert at beginning
+	        pts.unshift(points[0]);
+	        pts.push(points[l - 2], points[l - 1]); // duplicate end-points
+	    }
+	    // cache inner-loop calculations as they are based on t alone
+	    cache[0] = 1; // 1,0,0,0
+	    for (; i < numOfSeg; i++) {
+	        st = i / numOfSeg;
+	        st2 = st * st;
+	        st3 = st2 * st;
+	        st23 = st3 * 2;
+	        st32 = st2 * 3;
+	        cache[cachePtr++] = st23 - st32 + 1; // c1
+	        cache[cachePtr++] = st32 - st23; // c2
+	        cache[cachePtr++] = st3 - 2 * st2 + st; // c3
+	        cache[cachePtr++] = st3 - st2; // c4
+	    }
+	    cache[++cachePtr] = 1; // 0,1,0,0
+
+	    parse = function (pts, cache, l) {
+
+	        var i = 2;
+	        var t, pt1, pt2, pt3, pt4, t1x, t1y, t2x, t2y, c, c1, c2, c3, c4;
+
+	        for (i; i < l; i += 2) {
+	            pt1 = pts[i];
+	            pt2 = pts[i + 1];
+	            pt3 = pts[i + 2];
+	            pt4 = pts[i + 3];
+	            t1x = (pt3 - pts[i - 2]) * tension;
+	            t1y = (pt4 - pts[i - 1]) * tension;
+	            t2x = (pts[i + 4] - pt1) * tension;
+	            t2y = (pts[i + 5] - pt2) * tension;
+	            for (t = 0; t < numOfSeg; t++) {
+	                //t * 4;
+	                c = t << 2; //jshint ignore: line
+	                c1 = cache[c];
+	                c2 = cache[c + 1];
+	                c3 = cache[c + 2];
+	                c4 = cache[c + 3];
+
+	                res[rPos++] = c1 * pt1 + c2 * pt3 + c3 * t1x + c4 * t2x;
+	                res[rPos++] = c1 * pt2 + c2 * pt4 + c3 * t1y + c4 * t2y;
+	            }
+	        }
+	    };
+
+	    // calc. points
+	    parse(pts, cache, l);
+
+	    if (close) {
+	        //l = points.length;
+	        pts = [];
+	        pts.push(points[l - 4], points[l - 3], points[l - 2], points[l - 1]); // second last and last
+	        pts.push(points[0], points[1], points[2], points[3]); // first and second
+	        parse(pts, cache, 4);
+	    }
+	    // add last point
+	    l = close ? 0 : points.length - 2;
+	    res[rPos++] = points[l];
+	    res[rPos] = points[l + 1];
+
+	    return res;
+	};
+
+</script>
