@@ -1,0 +1,379 @@
+
+<html>
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <style>
+    #map, html, body {
+      width: 100%; height: 100%; padding: 0; margin: 0;
+    }
+    #title {
+      position: absolute;
+      top: 100px;
+      left: 50px;
+      color: white;
+      font-size: 27px;
+      font-family: Helvetica, sans-serif;
+    }
+
+    #histogram_magtype{
+      top: 250px;
+    }
+
+    #histogram_depth{
+      top: 500px;
+    }
+    .histogram{
+      height: 200px;
+      width: 300px;
+      position:absolute;
+      left: 20px;
+      top: 20px;
+      z-index: 20;
+
+    }
+
+  </style>
+  <body>
+    <div id="map"></div>
+
+    <div id='histogram_mag' class='histogram'></div>
+    <div id='histogram_magtype' class='histogram'></div>
+    <div id='histogram_depth' class='histogram'></div>
+
+    <script src='https://code.jquery.com/jquery-2.1.4.js'></script>
+
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    <script src="../dist/torque.full.uncompressed.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.js" charset="utf-8"></script>
+
+    <script src="./vendor/torque.histogram.js"></script>
+    <link rel="stylesheet" href="./vendor/torque.histogram.css" type="text/css" media="screen" title="no title" charset="utf-8">
+    <script src='./vendor/underscore.js'></script>
+    <script src='./vendor/backbone.js'></script>
+    <script src="./vendor/histogram-widget.js "></script>
+    <script>
+      // define the torque layer style using cartocss
+      // this creates a kind of density map
+      //color scale from http://colorbrewer2.org/
+      var CARTOCSS = [
+
+'Map {',
+'-torque-frame-count:1;',
+'-torque-animation-duration:30;',
+'-torque-time-attribute:"day";',
+'-torque-aggregation-function:"count(cartodb_id)";',
+'-torque-resolution:0.25;',
+'-torque-data-aggregation:linear;',
+'}',
+'#mapsense_insights_6months_000_1m{',
+'  comp-op: color-dodge;',
+'  marker-fill-opacity: 0.4;',
+'  marker-fill: #FFA300;',
+'  marker-line-width: 0;',
+'  marker-line-opacity: 1;',
+'  marker-type: ellipse;',
+'  marker-width: 0.35;',
+'[zoom=1]{',
+'[ value > 1 ]{marker-width:0.1401958184807689;}',
+'[ value > 11 ]{marker-width:0.4649769270774838;}',
+'[ value > 21 ]{marker-width:0.6424579503044123;}',
+'[ value > 31 ]{marker-width:0.7805772819550115;}',
+'[ value > 41 ]{marker-width:0.8976912433009473;}',
+'[ value > 51 ]{marker-width:1.001198403661396;}',
+'[ value > 61 ]{marker-width:1.0949643458528933;}',
+'[ value > 71 ]{marker-width:1.1813109640920048;}',
+'[ value > 81 ]{marker-width:1.26176236632692;}',
+'[ value > 91 ]{marker-width:1.3373828712353972;}',
+'}',
+'[zoom=2]{',
+'[ value > 1 ]{marker-width:0.16823498217692268;}',
+'[ value > 11 ]{marker-width:0.5579723124929806;}',
+'[ value > 21 ]{marker-width:0.7709495403652948;}',
+'[ value > 31 ]{marker-width:0.9366927383460139;}',
+'[ value > 41 ]{marker-width:1.077229491961137;}',
+'[ value > 51 ]{marker-width:1.2014380843936752;}',
+'[ value > 61 ]{marker-width:1.313957215023472;}',
+'[ value > 71 ]{marker-width:1.4175731569104058;}',
+'[ value > 81 ]{marker-width:1.514114839592304;}',
+'[ value > 91 ]{marker-width:1.604859445482477;}',
+'}',
+'[zoom=3]{',
+'[ value > 1 ]{marker-width:0.2018819786123072;}',
+'[ value > 11 ]{marker-width:0.6695667749915767;}',
+'[ value > 21 ]{marker-width:0.9251394484383537;}',
+'[ value > 31 ]{marker-width:1.1240312860152166;}',
+'[ value > 41 ]{marker-width:1.292675390353364;}',
+'[ value > 51 ]{marker-width:1.4417257012724103;}',
+'[ value > 61 ]{marker-width:1.5767486580281662;}',
+'[ value > 71 ]{marker-width:1.7010877882924869;}',
+'[ value > 81 ]{marker-width:1.8169378075107647;}',
+'[ value > 91 ]{marker-width:1.9258313345789722;}',
+'}',
+'[zoom=4]{',
+'[ value > 1 ]{marker-width:0.2422583743347686;}',
+'[ value > 11 ]{marker-width:0.8034801299898919;}',
+'[ value > 21 ]{marker-width:1.1101673381260242;}',
+'[ value > 31 ]{marker-width:1.3488375432182598;}',
+'[ value > 41 ]{marker-width:1.5512104684240366;}',
+'[ value > 51 ]{marker-width:1.730070841526892;}',
+'[ value > 61 ]{marker-width:1.8920983896337993;}',
+'[ value > 71 ]{marker-width:2.041305345950984;}',
+'[ value > 81 ]{marker-width:2.1803253690129174;}',
+'[ value > 91 ]{marker-width:2.310997601494766;}',
+'}',
+'[zoom=5]{',
+'[ value > 1 ]{marker-width:0.29071004920172233;}',
+'[ value > 11 ]{marker-width:0.9641761559878703;}',
+'[ value > 21 ]{marker-width:1.3322008057512293;}',
+'[ value > 31 ]{marker-width:1.6186050518619117;}',
+'[ value > 41 ]{marker-width:1.8614525621088442;}',
+'[ value > 51 ]{marker-width:2.0760850098322705;}',
+'[ value > 61 ]{marker-width:2.2705180675605594;}',
+'[ value > 71 ]{marker-width:2.449566415141181;}',
+'[ value > 81 ]{marker-width:2.616390442815501;}',
+'[ value > 91 ]{marker-width:2.7731971217937197;}',
+'}',
+'[zoom=6]{',
+'[ value > 1 ]{marker-width:0.34885205904206684;}',
+'[ value > 11 ]{marker-width:1.1570113871854444;}',
+'[ value > 21 ]{marker-width:1.5986409669014752;}',
+'[ value > 31 ]{marker-width:1.9423260622342942;}',
+'[ value > 41 ]{marker-width:2.2337430745306133;}',
+'[ value > 51 ]{marker-width:2.491302011798725;}',
+'[ value > 61 ]{marker-width:2.724621681072671;}',
+'[ value > 71 ]{marker-width:2.939479698169417;}',
+'[ value > 81 ]{marker-width:3.1396685313786015;}',
+'[ value > 91 ]{marker-width:3.3278365461524637;}',
+'}',
+'[zoom=7]{',
+'[ value > 1 ]{marker-width:0.4186224708504801;}',
+'[ value > 11 ]{marker-width:1.3884136646225331;}',
+'[ value > 21 ]{marker-width:1.9183691602817698;}',
+'[ value > 31 ]{marker-width:2.3307912746811525;}',
+'[ value > 41 ]{marker-width:2.680491689436735;}',
+'[ value > 51 ]{marker-width:2.989562414158469;}',
+'[ value > 61 ]{marker-width:3.269546017287205;}',
+'[ value > 71 ]{marker-width:3.5273756378033;}',
+'[ value > 81 ]{marker-width:3.7676022376543212;}',
+'[ value > 91 ]{marker-width:3.993403855382956;}',
+'}',
+'[zoom=8]{',
+'[ value > 1 ]{marker-width:0.5023469650205762;}',
+'[ value > 11 ]{marker-width:1.6660963975470398;}',
+'[ value > 21 ]{marker-width:2.302042992338124;}',
+'[ value > 31 ]{marker-width:2.7969495296173834;}',
+'[ value > 41 ]{marker-width:3.2165900273240826;}',
+'[ value > 51 ]{marker-width:3.5874748969901633;}',
+'[ value > 61 ]{marker-width:3.9234552207446463;}',
+'[ value > 71 ]{marker-width:4.232850765363961;}',
+'[ value > 81 ]{marker-width:4.521122685185186;}',
+'[ value > 91 ]{marker-width:4.792084626459547;}',
+'}',
+'[zoom=9]{',
+'[ value > 1 ]{marker-width:0.6028163580246914;}',
+'[ value > 11 ]{marker-width:1.9993156770564475;}',
+'[ value > 21 ]{marker-width:2.7624515908057483;}',
+'[ value > 31 ]{marker-width:3.3563394355408596;}',
+'[ value > 41 ]{marker-width:3.859908032788899;}',
+'[ value > 51 ]{marker-width:4.304969876388196;}',
+'[ value > 61 ]{marker-width:4.708146264893575;}',
+'[ value > 71 ]{marker-width:5.079420918436752;}',
+'[ value > 81 ]{marker-width:5.425347222222222;}',
+'[ value > 91 ]{marker-width:5.750501551751456;}',
+'}',
+'[zoom=10]{',
+'[ value > 1 ]{marker-width:0.7233796296296297;}',
+'[ value > 11 ]{marker-width:2.399178812467737;}',
+'[ value > 21 ]{marker-width:3.3149419089668983;}',
+'[ value > 31 ]{marker-width:4.027607322649032;}',
+'[ value > 41 ]{marker-width:4.631889639346679;}',
+'[ value > 51 ]{marker-width:5.165963851665835;}',
+'[ value > 61 ]{marker-width:5.649775517872291;}',
+'[ value > 71 ]{marker-width:6.095305102124103;}',
+'[ value > 81 ]{marker-width:6.510416666666667;}',
+'[ value > 91 ]{marker-width:6.900601862101748;}',
+'}',
+'[zoom=11]{',
+'[ value > 1 ]{marker-width:0.8680555555555556;}',
+'[ value > 11 ]{marker-width:2.8790145749612845;}',
+'[ value > 21 ]{marker-width:3.977930290760278;}',
+'[ value > 31 ]{marker-width:4.833128787178838;}',
+'[ value > 41 ]{marker-width:5.5582675672160144;}',
+'[ value > 51 ]{marker-width:6.199156621999002;}',
+'[ value > 61 ]{marker-width:6.779730621446748;}',
+'[ value > 71 ]{marker-width:7.314366122548923;}',
+'[ value > 81 ]{marker-width:7.8125;}',
+'[ value > 91 ]{marker-width:8.280722234522097;}',
+'}',
+'[zoom=12]{',
+'[ value > 1 ]{marker-width:1.0416666666666665;}',
+'[ value > 11 ]{marker-width:3.4548174899535415;}',
+'[ value > 21 ]{marker-width:4.773516348912334;}',
+'[ value > 31 ]{marker-width:5.799754544614605;}',
+'[ value > 41 ]{marker-width:6.669921080659217;}',
+'[ value > 51 ]{marker-width:7.438987946398802;}',
+'[ value > 61 ]{marker-width:8.135676745736097;}',
+'[ value > 71 ]{marker-width:8.777239347058707;}',
+'[ value > 81 ]{marker-width:9.375;}',
+'[ value > 91 ]{marker-width:9.936866681426515;}',
+'}',
+'[zoom=13]{',
+'[ value > 1 ]{marker-width:1.25;}',
+'[ value > 11 ]{marker-width:4.14578098794425;}',
+'[ value > 21 ]{marker-width:5.7282196186948005;}',
+'[ value > 31 ]{marker-width:6.959705453537527;}',
+'[ value > 41 ]{marker-width:8.00390529679106;}',
+'[ value > 51 ]{marker-width:8.926785535678563;}',
+'[ value > 61 ]{marker-width:9.762812094883317;}',
+'[ value > 71 ]{marker-width:10.53268721647045;}',
+'[ value > 81 ]{marker-width:11.25;}',
+'[ value > 91 ]{marker-width:11.92424001771182;}',
+'}',
+'[zoom=14]{',
+'[ value > 1 ]{marker-width:1.5;}',
+'[ value > 11 ]{marker-width:4.9749371855331;}',
+'[ value > 21 ]{marker-width:6.87386354243376;}',
+'[ value > 31 ]{marker-width:8.351646544245032;}',
+'[ value > 41 ]{marker-width:9.604686356149273;}',
+'[ value > 51 ]{marker-width:10.712142642814275;}',
+'[ value > 61 ]{marker-width:11.715374513859981;}',
+'[ value > 71 ]{marker-width:12.639224659764539;}',
+'[ value > 81 ]{marker-width:13.5;}',
+'[ value > 91 ]{marker-width:14.309088021254183;}',
+'}',
+'[zoom=15]{',
+'[ value > 1 ]{marker-width:1.7999999999999998;}',
+'[ value > 11 ]{marker-width:5.969924622639719;}',
+'[ value > 21 ]{marker-width:8.248636250920512;}',
+'[ value > 31 ]{marker-width:10.021975853094037;}',
+'[ value > 41 ]{marker-width:11.525623627379128;}',
+'[ value > 51 ]{marker-width:12.85457117137713;}',
+'[ value > 61 ]{marker-width:14.058449416631976;}',
+'[ value > 71 ]{marker-width:15.167069591717446;}',
+'[ value > 81 ]{marker-width:16.2;}',
+'[ value > 91 ]{marker-width:17.170905625505018;}',
+'}',
+'[zoom=16]{',
+'[ value > 1 ]{marker-width:2.16;}',
+'[ value > 11 ]{marker-width:7.1639095471676635;}',
+'[ value > 21 ]{marker-width:9.898363501104614;}',
+'[ value > 31 ]{marker-width:12.026371023712846;}',
+'[ value > 41 ]{marker-width:13.830748352854952;}',
+'[ value > 51 ]{marker-width:15.425485405652555;}',
+'[ value > 61 ]{marker-width:16.87013929995837;}',
+'[ value > 71 ]{marker-width:18.200483510060934;}',
+'[ value > 81 ]{marker-width:19.439999999999998;}',
+'[ value > 91 ]{marker-width:20.605086750606024;}',
+'}',
+'[zoom=17]{',
+'[ value > 1 ]{marker-width:2.592;}',
+'[ value > 11 ]{marker-width:8.596691456601196;}',
+'[ value > 21 ]{marker-width:11.878036201325537;}',
+'[ value > 31 ]{marker-width:14.431645228455414;}',
+'[ value > 41 ]{marker-width:16.596898023425943;}',
+'[ value > 51 ]{marker-width:18.510582486783065;}',
+'[ value > 61 ]{marker-width:20.244167159950045;}',
+'[ value > 71 ]{marker-width:21.84058021207312;}',
+'[ value > 81 ]{marker-width:23.328;}',
+'[ value > 91 ]{marker-width:24.726104100727227;}',
+'}',
+'[zoom=18]{',
+'[ value > 1 ]{marker-width:3.1104;}',
+'[ value > 11 ]{marker-width:10.316029747921435;}',
+'[ value > 21 ]{marker-width:14.253643441590645;}',
+'[ value > 31 ]{marker-width:17.317974274146497;}',
+'[ value > 41 ]{marker-width:19.916277628111132;}',
+'[ value > 51 ]{marker-width:22.212698984139678;}',
+'[ value > 61 ]{marker-width:24.293000591940054;}',
+'[ value > 71 ]{marker-width:26.208696254487744;}',
+'[ value > 81 ]{marker-width:27.993599999999997;}',
+'[ value > 91 ]{marker-width:29.671324920872674;}',
+'}',
+'[zoom=19]{',
+'[ value > 1 ]{marker-width:3.73248;}',
+'[ value > 11 ]{marker-width:12.379235697505722;}',
+'[ value > 21 ]{marker-width:17.104372129908775;}',
+'[ value > 31 ]{marker-width:20.781569128975796;}',
+'[ value > 41 ]{marker-width:23.89953315373336;}',
+'[ value > 51 ]{marker-width:26.655238780967615;}',
+'[ value > 61 ]{marker-width:29.151600710328065;}',
+'[ value > 71 ]{marker-width:31.450435505385293;}',
+'[ value > 81 ]{marker-width:33.59232;}',
+'[ value > 91 ]{marker-width:35.60558990504721;}',
+'}}'
+      ].join('\n');
+
+
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
+
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        user       : 'stuartlynn',
+        table      : 'mapsense',
+        cartocss: CARTOCSS,
+        provider: "jsonHistogram",
+        variables: [
+          {
+            name: "cat_id",
+            type: 'category'
+          },
+          {
+            name: "requests",
+            type: 'float',
+            noBins: 20
+          }
+        ]
+      });
+      torqueLayer.addTo(map);
+      torqueLayer.on("histLoaded",function(){
+
+      })
+      window.layer=torqueLayer
+
+      torque.widgets.histogram('#histogram_mag', torqueLayer, "cat_id")
+      torque.widgets.histogram('#histogram_depth', torqueLayer, "requests")
+      // torque.widgets.histogram('#histogram_magtype', torqueLayer, "group_id")
+
+      // map.on('click', function(e) {
+      //   var p = e.containerPoint
+      //   var value = torqueLayer.getValueForPos(p.x, p.y);
+      //   if (value !== null) {
+      //     map.openPopup('average temperature: ' + value.value + "C", e.latlng);
+      //   }
+      // });
+      //
+      //
+      // // show small rectable and change cursor on hover
+      // var hover = null;
+      // map.on('mousemove', function(e) {
+      //   var p = e.containerPoint
+      //   var value = torqueLayer.getValueForPos(p.x, p.y);
+      //
+      //   // remove previous hover box
+      //   if (hover) {
+      //     map.removeLayer(hover);
+      //     hover = null;
+      //   }
+      //
+      //   if (value !== null) {
+      //     hover = L.rectangle(value.bbox, {
+      //       color: '#000',
+      //       weight: 1
+      //     }).addTo(map);
+      //     map._container.style.cursor = 'pointer';
+      //   } else {
+      //     map._container.style.cursor = 'auto';
+      //   }
+      // });
+
+
+    </script>
+  </body>
+</html>

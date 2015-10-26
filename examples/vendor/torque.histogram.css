@@ -1,0 +1,14 @@
+
+.torque-histogram .axis text {
+  font: 10px sans-serif;
+  fill: white;
+}
+.torque-histogram .bars rect {
+  fill: steelblue;
+}
+.torque-histogram .axis path,
+.torque-histogram .axis line {
+  fill: none;
+  stroke: #FFF;
+  shape-rendering: crispEdges;
+}
