@@ -44,14 +44,16 @@ function getTile(jsonRelPath, cartocss, z, x, y, step, callback) {
 
     var canvas = new Canvas(256, 256);
     var pointRenderer = new torque.renderer.Point(canvas, rendererOptions);
+    provider.proccessTile(rows, {x: x, y: y}, z, function(tile){
+      pointRenderer.renderTile(tile, step, function(err) {
+          if (err) {
+              return callback(err, null);
+          }
+          pointRenderer.applyFilters();
+          return callback(null, canvas);
+      });
+    }.bind(this));
 
-    pointRenderer.renderTile(provider.proccessTile(rows, {x: x, y: y}, z), step, function(err) {
-        if (err) {
-            return callback(err, null);
-        }
-        pointRenderer.applyFilters();
-        return callback(null, canvas);
-    });
 }
 
 module.exports = {
