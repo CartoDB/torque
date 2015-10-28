@@ -18,49 +18,142 @@
           'Map {',
           '-torque-time-attribute: "date";',
           '-torque-aggregation-function: "count(cartodb_id)";',
-          '-torque-frame-count: 760;',
-          '-torque-animation-duration: 15;',
-          '-torque-resolution: 2',
+          '-torque-frame-count: 1;',
+          '-torque-animation-duration: 1;',
+          '-torque-resolution: 0.25',
+          // '@8:  #15f4ee;',
+          // '@10: white',
           '}',
           '#layer {',
-          '  marker-width: 3;',
-          '  marker-fill-opacity: 0.8;',
-          '  marker-fill: #FEE391; ',
-          '  comp-op: "lighten";',
-          '  [value > 2] { marker-fill: #FEC44F; }',
-          '  [value > 3] { marker-fill: #FE9929; }',
-          '  [value > 4] { marker-fill: #EC7014; }',
-          '  [value > 5] { marker-fill: #CC4C02; }',
-          '  [value > 6] { marker-fill: #993404; }',
-          '  [value > 7] { marker-fill: #662506; }',
-          '  [frame-offset = 1] { marker-width: 10; marker-fill-opacity: 0.05;}',
-          '  [frame-offset = 2] { marker-width: 15; marker-fill-opacity: 0.02;}',
-          '}'
-      ].join('\n');
 
-        
+            'marker-opacity: 0.2;',
+          	'image-filters: colorize-alpha(#078c88,#15f4ee,#b7fcfa,#f8fffe);',
+          	'marker-line-width: 0;',
+          	'marker-fill: #2E5387;',
+          	'marker-allow-overlap: true;',
+          	'marker-width: 1;',
+            //'[zoom=4]{marker-width:  0.25;}',
+            //'[zoom=5]{marker-width:  0.75;}',
+            //'[zoom=6]{marker-width:  1.25;}',
+            //'[zoom=7]{marker-width:  1.5;}',
+            //'[zoom=8]{marker-width:  1.75;}',
+            //'[zoom=9]{marker-width:  2.0;}',
+            //'[zoom=10]{marker-width: 2.25;}',
+            // '[zoom=11]{marker-width: 2.5;marker-opacity:0.3;}',
+            // '[zoom=12]{marker-width: 2.75;marker-opacity:0.4;}',
+            // '[zoom=13]{marker-width: 3.0;marker-opacity:0.45;}',
+            // '[zoom=14]{marker-width: 3.25;marker-opacity:0.5;}',
+            // '[zoom=15]{marker-width: 0.75;marker-opacity:0.55;}',
+            // '[zoom=16]{marker-width: 4.0;marker-opacity:0.6;}',
+            // '[zoom>=17]{marker-width: 4.25;marker-opacity:0.65;}',
+
+          /*
+
+
+          '  [value > 2] { marker-fill: #FEC44F; }',
+          '  [value > 10] { marker-fill: #FE9929; }',
+          '  [value > 20] { marker-fill: #EC7014; }',
+          '  [value > 30] { marker-fill: #CC4C02; }',
+          '  [value > 40] { marker-fill: #993404; }',
+          '  [value > 50] { marker-fill: #662506; }',
+          */
+      ]
+
+
+
+
+      // for(var i =0; i <255; i += 10){
+      //   var color = d3.scale.linear()
+      //   .range()
+      //   .range(["steelblue", "brown"])
+      //   .interpolate(d3.interpolateHcl);
+      //   CARTOCSS.push("[value >= "+i+"]{marker-fill:"+color(i)+"};")
+      // }
+
+      CARTOCSS.push("}")
+      CARTOCSS= CARTOCSS.join(" ")
+
+      console.log(CARTOCSS)
+
+          /*
+          ['Map {,',
+          '-torque-time-attribute: "date";,',
+          '-torque-aggregation-function: "count(cartodb_id)";,',
+          '-torque-frame-count: 6;,',
+          '-torque-animation-duration: 15;,',
+          '-torque-resolution: 1,',
+          '},',
+          '#layer {,',
+            'marker-width: 1;,',
+            'marker-fill-opacity: 1.0;,',
+            'marker-fill: #FF2900; ,',
+            '[ value <= 20] { marker-fill: #0C2C84; } ',
+            '[ value <= 8] { marker-fill: #225EA8; }',
+            '[ value <= 4] { marker-fill: #1D91C0; }',
+            '[ value <= 3] { marker-fill: #41B6C4; }',
+            '[ value <= 2] { marker-fill: #7FCDBB; }',
+            '[ value <= 1] { marker-fill: #C7E9B4; }',
+            '[ value <= 0.1] { marker-fill: #FFFFCC; }',
+          '}'].join('\n')
+          */
+
+
       var map = new L.Map('map', {
         zoomControl: true,
         center: [40, 0],
-        zoom: 3
+        zoom: 0
       });
+      var hash = new L.Hash(map);
 
-      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+      L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
-        tileJSON: "http://localhost:4000/examples/tilejson.json",
-        cartocss: CARTOCSS
+        tileJSON: "http://bigdata.int.cartodb.net:8888/tile.json",
+        //tileJSON: "http://10.0.180.5:1234/",
+        cartocss: CARTOCSS,
+        valueDataType: Float32Array
       });
       torqueLayer.error(function(err){
         for(error in err){
-          console.warn(err[error]);
+          console.warn([error]);
         }
       });
       torqueLayer.addTo(map);
-      torqueLayer.play()
+      torqueLayer.setStep(0);
+
+
+      //torqueLayer.play()
+      window.torqueLayer = torqueLayer;
+
+      function createHistogram(variable){
+        var div_id  = "histogram_"+variable;
+        $("#charts").append("<svg id='"+div_id+"'><g class='Canvas'></g></svg>")
+
+        var chart = new cdb.geo.ui.Widget.Histogram.Chart(
+            {el:$("#"+div_id),
+             data:{values: [1,3,4,5,22,1,3], labels:[22, 34, 45, 67,100, 200, 300]},
+             width: 300,
+             height:100,
+             y:0,
+             x:0})
+        chart.render()
+        chart.show()
+        chart.bind("fliterChanged",function(start,end){
+          console.log('setting filter', start,end )
+          torqueLayer.setQueryFilter(variable, [start,end] )
+        })
+
+        torqueLayer.addEventListener("histogramAdded",function(data){
+          var data = torqueLayer.histogramForVariable(variable)
+          chart.reset(data)
+        })
+      }
+
+      createHistogram(0)
+
+
     </script>
   </body>
 </html>
-
