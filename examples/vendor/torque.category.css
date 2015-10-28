@@ -1,0 +1,14 @@
+
+.torque-category .axis text {
+  font: 10px sans-serif;
+  fill: white;
+}
+.torque-category .bars rect {
+  fill: steelblue;
+}
+.torque-category .axis path,
+.torque-category .axis line {
+  fill: none;
+  stroke: #FFF;
+  shape-rendering: crispEdges;
+}

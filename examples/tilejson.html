@@ -1,16 +1,32 @@
+
 <html>
   <link rel="stylesheet" href="vendor/leaflet.css" />
+  <link rel="stylesheet" href="vendor/cartodb.css" />
   <style>
     #map, html, body {
       width: 100%; height: 100%; padding: 0; margin: 0;
     }
+    #charts{
+      width: 25%;
+      min-height: 200px;
+      position:absolute;
+      right:20px;
+      top:10px;
+      background-color: rgba(255, 255, 255, 0.5);
+    }
   </style>
   <body>
     <div id="map"></div>
+    <div id='charts'></div>
 
     <script src="vendor/leaflet.js"></script>
+    <script src="vendor/leaflet-hash.js"></script>
     <script src="../dist/torque.full.uncompressed.js"></script>
-
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js'></script>
+    <script src='https://code.jquery.com/jquery-1.11.3.js'></script>
+    <script src='vendor/underscore.js'></script>
+    <script src='vendor/backbone.js'></script>
+    <script src='vendor/histogram-widget.js'></script>
 
     <script>
       // define the torque layer style using cartocss
