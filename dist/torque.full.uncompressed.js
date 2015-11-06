@@ -4206,11 +4206,13 @@ var Profiler = require('../profiler');
       var limit_x = Math.pow(2, zoom);
       var corrected_x = ((coord.x % limit_x) + limit_x) % limit_x;
       var index = Math.abs(corrected_x + coord.y) % subdomains.length;
+      var extra = this._extraParams();
       var url = this.templateUrl
                 .replace('{x}', corrected_x)
                 .replace('{y}', coord.y)
                 .replace('{z}', zoom)
                 .replace('{s}', subdomains[index])
+      url += extra;
       torque.net.get( url , function (data) {
         if (data && data.responseText) {
           var rows = JSON.parse(data.responseText);
@@ -14408,8 +14410,8 @@ module.exports={
   "homepage": "https://github.com/cartodb/carto",
   "_id": "carto@0.15.1-cdb1",
   "_shasum": "62534c2975cbee073f10c6c14a0c7e889c9469e7",
-  "_resolved": "https://github.com/CartoDB/carto/archive/master.tar.gz",
-  "_from": "https://github.com/CartoDB/carto/archive/master.tar.gz"
+  "_from": "https://github.com/CartoDB/carto/archive/master.tar.gz",
+  "_resolved": "https://github.com/CartoDB/carto/archive/master.tar.gz"
 }
 
 },{}]},{},[10])(10)

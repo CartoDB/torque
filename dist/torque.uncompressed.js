@@ -4213,11 +4213,13 @@ var Profiler = require('../profiler');
       var limit_x = Math.pow(2, zoom);
       var corrected_x = ((coord.x % limit_x) + limit_x) % limit_x;
       var index = Math.abs(corrected_x + coord.y) % subdomains.length;
+      var extra = this._extraParams();
       var url = this.templateUrl
                 .replace('{x}', corrected_x)
                 .replace('{y}', coord.y)
                 .replace('{z}', zoom)
                 .replace('{s}', subdomains[index])
+      url += extra;
       torque.net.get( url , function (data) {
         if (data && data.responseText) {
           var rows = JSON.parse(data.responseText);
