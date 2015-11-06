@@ -29,8 +29,8 @@
       //color scale from http://colorbrewer2.org/
       var CARTOCSS = [
           'Map {',
-          '-torque-time-attribute: "tpep_dropoff_datetime";',
-          '-torque-aggregation-function: "avg(temp::float)";',
+          '-torque-time-attribute: "transaction_date";',
+          '-torque-aggregation-function: "count(1);avg(confidence_score);merchant_name";',
           '-torque-frame-count: 1;',
           '-torque-animation-duration: 15;',
           '-torque-resolution: 1',
@@ -63,7 +63,7 @@
 
       var torqueLayer = new L.TorqueLayer({
         user       : 'stuartlynn',
-        table      : 'sampled_taxi_data',
+        table      : 'yodlee_512',
         cartocss: CARTOCSS,
         provider: "filterable_sql_api"
       });
