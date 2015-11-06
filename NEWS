@@ -1,3 +1,6 @@
+2.13.0
+    - Pass extra_params to server (#234)
+
 2.12.0
     - Added TileJSON provider
     - Added getValues to fetch values for step
