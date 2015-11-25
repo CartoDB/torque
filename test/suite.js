@@ -9,3 +9,4 @@ require('./provider.windshaft.test');
 require('./provider.json');
 require('./request');
 require('./animator');
+require('./animator-steps-range');
