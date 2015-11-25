@@ -1,4 +1,5 @@
-2.13.1
+2.14.0
+    - Allow custom animator range (#243)
 
 2.13.0
     - Pass extra_params to server (#234)
