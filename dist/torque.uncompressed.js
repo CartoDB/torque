@@ -1,13 +1,40 @@
 /**
-Torque 2.11.4
+Torque 2.14.0
 Temporal mapping for CartoDB
 https://github.com/cartodb/torque
 **/
 
 
 !function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.torque=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/**
+ * Abstract handler for animator steps
+ */
+var AnimatorStepsRange = function(start, end) {
+  if (start < 0) throw new Error('start must be a positive number');
+  if (start >= end) throw new Error('start must be smaller than end');
+
+  this.start = start;
+  this.end = end;
+};
+
+AnimatorStepsRange.prototype = {
+
+  diff: function() {
+    return this.end - this.start;
+  },
+
+  isLast: function(step) {
+    // round step into an integer, to be able to compare number as expected (also converts bad input to 0)
+    return (step | 0) === this.end;
+  }
+};
+
+module.exports = AnimatorStepsRange;
+
+},{}],2:[function(require,module,exports){
 (function (global){
 var torque = require('./');
+var AnimatorStepsRange = require('./animator-steps-range');
 
 var requestAnimationFrame = global.requestAnimationFrame
     || global.mozRequestAnimationFrame
@@ -44,10 +71,8 @@ var cancelAnimationFrame = global.cancelAnimationFrame
         loop: options.loop === undefined ? true : options.loop
     }, this.options);
 
-    this.rescale();
-
+    this.steps(options.steps);
   }
-
 
   Animator.prototype = {
 
@@ -55,7 +80,7 @@ var cancelAnimationFrame = global.cancelAnimationFrame
         this.running = true;
         requestAnimationFrame(this._tick);
         this.options.onStart && this.options.onStart();
-        if(this.options.steps === 1){
+        if (this.stepsRange().diff() === 1) {
           this.running = false;
         }
     },
@@ -66,7 +91,7 @@ var cancelAnimationFrame = global.cancelAnimationFrame
 
     stop: function() {
       this.pause();
-      this.time(0);
+      this.time(this.stepsRange().start);
       this.options.onStop && this.options.onStop();
     },
 
@@ -89,7 +114,7 @@ var cancelAnimationFrame = global.cancelAnimationFrame
     rescale: function() {
       this.domainInv = torque.math.linear(this.options.animationDelay, this.options.animationDelay + this.options.animationDuration);
       this.domain = this.domainInv.invert();
-      this.range = torque.math.linear(0, this.options.steps);
+      this.range = torque.math.linear(0, this._defaultStepsRange.end);
       this.rangeInv = this.range.invert();
       this.time(this._time);
       this.running? this.start(): this.pause();
@@ -108,7 +133,32 @@ var cancelAnimationFrame = global.cancelAnimationFrame
 
     steps: function(_) {
       this.options.steps = _;
+      this._defaultStepsRange = new AnimatorStepsRange(0, _);
       return this.rescale();
+    },
+
+    // Returns or sets a (custom) steps range
+    // Setting a steps range must be within the full range
+    stepsRange: function(start, end) {
+      if (arguments.length === 2) {
+        if (start < this._defaultStepsRange.start) throw new Error('start must be within default steps range');
+        if (end > this._defaultStepsRange.end) throw new Error('end must be within default steps range');
+
+        this._customStepsRange = new AnimatorStepsRange(start, end);
+        this.options.onStepsRange && this.options.onStepsRange();
+
+        // Change current step if it's outside the new custom range
+        var step = this.step() | 0; // round to an integer
+        if (step < start || step > end) {
+          this.step(start);
+        }
+      }
+      return this._customStepsRange || this._defaultStepsRange;
+    },
+
+    removeCustomStepsRange: function() {
+      this._customStepsRange = undefined;
+      this.options.onStepsRange && this.options.onStepsRange();
     },
 
     step: function(s) {
@@ -130,13 +180,15 @@ var cancelAnimationFrame = global.cancelAnimationFrame
       delta = Math.min(this.options.maxDelta, delta);
       this._t0 = t1;
       this._time += delta;
-      if(this.step() >= this.options.steps) {
+
+      var stepsRange = this.stepsRange();
+      if (stepsRange.isLast(this.step())) {
         if(!this.options.loop){
           // set time to max time
           this.time(this.options.animationDuration);
           this.pause();
         } else {
-          this._time = 0;
+          this.step(stepsRange.start);
         }
       }
       if(this.running) {
@@ -150,7 +202,7 @@ var cancelAnimationFrame = global.cancelAnimationFrame
 module.exports = Animator;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./":10}],2:[function(require,module,exports){
+},{"./":11,"./animator-steps-range":1}],3:[function(require,module,exports){
 var _torque_reference_latest = {
     "version": "1.0.0",
     "style": {
@@ -568,7 +620,7 @@ module.exports = {
   }
 };
 
-},{}],3:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 (function (global){
 //
 // common functionallity for torque layers
@@ -611,7 +663,7 @@ TorqueLayer.optionsFromCartoCSS = function(cartocss) {
 module.exports.TorqueLayer = TorqueLayer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":undefined}],4:[function(require,module,exports){
+},{"carto":undefined}],5:[function(require,module,exports){
 (function (global){
   var Event = {};
   Event.on = function(evt, callback) {
@@ -706,7 +758,7 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 /**
  * @license
  * Copyright 2013 Google Inc. All Rights Reserved.
@@ -1231,7 +1283,7 @@ CanvasLayer.prototype.scheduleUpdate = function() {
 
 module.exports = CanvasLayer;
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 /*
  ====================
  canvas setup for drawing tiles
@@ -1329,7 +1381,7 @@ CanvasTileLayer.prototype.releaseTile = function (tile) {
 
 module.exports = CanvasTileLayer;
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 function GMapsTileLoader() {
 }
 
@@ -1537,7 +1589,7 @@ GMapsTileLoader.prototype = {
 
 module.exports = GMapsTileLoader;
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var gmaps = {};
 if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
     gmaps = require('./torque');
@@ -1545,7 +1597,7 @@ if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
 }
 module.exports = gmaps;
 
-},{"./gmaps_tileloader_mixin":7,"./torque":9}],9:[function(require,module,exports){
+},{"./gmaps_tileloader_mixin":8,"./torque":10}],10:[function(require,module,exports){
 (function (global){
 var carto = global.carto || require('carto');
 var torque = require('../');
@@ -1592,6 +1644,9 @@ function GMapsTorqueLayer(options) {
     },
     onStart: function() {
       self.fire('play');
+    },
+    onStepsRange: function() {
+      self.fire('change:stepsRange', self.animator.stepsRange());
     }
   }));
 
@@ -1786,7 +1841,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   /**
-   * helper function, does the same than ``setKey`` but only 
+   * helper function, does the same than ``setKey`` but only
    * accepts scalars.
    */
   setStep: function(time) {
@@ -1797,10 +1852,10 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   /**
-   * transform from animation step to Date object 
+   * transform from animation step to Date object
    * that contains the animation time
    *
-   * ``step`` should be between 0 and ``steps - 1`` 
+   * ``step`` should be between 0 and ``steps - 1``
    */
   stepToTime: function(step) {
     if (!this.provider) return 0;
@@ -1918,7 +1973,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
     }
     return sum;
   },
-  
+
   error: function (callback) {
     this.options.errorCallback = callback;
     return this;
@@ -1999,6 +2054,18 @@ GMapsTiledTorqueLayer.prototype = torque.extend({}, CanvasTileLayer.prototype, {
   setCartoCSS: function(cartocss) {
     if (!this.renderer) throw new Error('renderer is not valid');
     return this.renderer.setCartoCSS(cartocss);
+  },
+
+  setStepsRange: function(start, end) {
+    this.animator.stepsRange(start, end);
+  },
+
+  removeStepsRange: function() {
+    this.animator.removeCustomStepsRange();
+  },
+
+  getStepsRange: function() {
+    return this.animator.stepsRange();
   }
 
 });
@@ -2009,7 +2076,7 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"./CanvasLayer":5,"./canvas_tile_layer":6,"./gmaps_tileloader_mixin":7,"carto":undefined}],10:[function(require,module,exports){
+},{"../":11,"./CanvasLayer":6,"./canvas_tile_layer":7,"./gmaps_tileloader_mixin":8,"carto":undefined}],11:[function(require,module,exports){
 module.exports = require('./core');
 
 module.exports.Animator = require('./animator');
@@ -2028,7 +2095,7 @@ module.exports.GMapsTileLoader = gmaps.GMapsTileLoader;
 module.exports.GMapsTorqueLayer = gmaps.GMapsTorqueLayer;
 module.exports.GMapsTiledTorqueLayer = gmaps.GMapsTiledTorqueLayer;
 
-},{"./animator":1,"./cartocss_reference":2,"./common":3,"./core":4,"./gmaps":8,"./leaflet":12,"./math":15,"./mercator":16,"./provider":18,"./renderer":24,"./request":28}],11:[function(require,module,exports){
+},{"./animator":2,"./cartocss_reference":3,"./common":4,"./core":5,"./gmaps":9,"./leaflet":13,"./math":16,"./mercator":17,"./provider":19,"./renderer":25,"./request":29}],12:[function(require,module,exports){
 require('./leaflet_tileloader_mixin');
 
 /**
@@ -2283,12 +2350,12 @@ L.CanvasLayer = L.Class.extend({
 
 });
 
-},{"./leaflet_tileloader_mixin":13}],12:[function(require,module,exports){
+},{"./leaflet_tileloader_mixin":14}],13:[function(require,module,exports){
 if (typeof L !== 'undefined') {
     require('./torque');
 }
 
-},{"./torque":14}],13:[function(require,module,exports){
+},{"./torque":15}],14:[function(require,module,exports){
 L.Mixin.TileLoader = {
 
   _initTileLoader: function() {
@@ -2438,7 +2505,7 @@ L.Mixin.TileLoader = {
 
 }
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 (function (global){
 var carto = global.carto || require('carto');
 var torque = require('../');
@@ -2493,6 +2560,9 @@ L.TorqueLayer = L.CanvasLayer.extend({
       },
       onStart: function() {
         self.fire('play');
+      },
+      onStepsRange: function() {
+        self.fire('change:stepsRange', self.animator.stepsRange());
       }
     }));
 
@@ -2870,11 +2940,23 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
   invalidate: function() {
     this.provider.reload();
+  },
+
+  setStepsRange: function(start, end) {
+    this.animator.stepsRange(start, end);
+  },
+
+  removeStepsRange: function() {
+    this.animator.removeCustomStepsRange();
+  },
+
+  getStepsRange: function() {
+    return this.animator.stepsRange();
   }
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"./canvas_layer":11,"carto":undefined}],15:[function(require,module,exports){
+},{"../":11,"./canvas_layer":12,"carto":undefined}],16:[function(require,module,exports){
   function clamp(a, b) {
     return function(t) {
       return Math.max(Math.min(t, b), a);
@@ -2907,7 +2989,7 @@ module.exports = {
     invLinear: invLinear
 };
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 var Point = function(x, y) {
   this.x = x || 0;
   this.y = y || 0;
@@ -3000,7 +3082,7 @@ MercatorProjection.prototype.latLonToTilePoint = function(lat, lon, tileX, tileY
 
 module.exports = MercatorProjection;
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*
 # metrics profiler
 
@@ -3144,7 +3226,7 @@ Profiler.metric = function(name) {
 
 module.exports = Profiler;
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 module.exports = {
     json: require('./json'),
     JsonArray: require('./jsonarray'),
@@ -3152,7 +3234,7 @@ module.exports = {
     tileJSON: require('./tilejson')
 };
 
-},{"./json":19,"./jsonarray":20,"./tilejson":21,"./windshaft":22}],19:[function(require,module,exports){
+},{"./json":20,"./jsonarray":21,"./tilejson":22,"./windshaft":23}],20:[function(require,module,exports){
 var torque = require('../');
 var Profiler = require('../profiler');
 
@@ -3731,7 +3813,7 @@ var Profiler = require('../profiler');
 
 module.exports = json;
 
-},{"../":10,"../profiler":17}],20:[function(require,module,exports){
+},{"../":11,"../profiler":18}],21:[function(require,module,exports){
 var torque = require('../');
 var Profiler = require('../profiler');
 
@@ -3961,7 +4043,7 @@ var Profiler = require('../profiler');
 
   module.exports = json;
 
-},{"../":10,"../profiler":17}],21:[function(require,module,exports){
+},{"../":11,"../profiler":18}],22:[function(require,module,exports){
   var torque = require('../');
 
   var Uint8Array = torque.types.Uint8Array;
@@ -4213,11 +4295,13 @@ var Profiler = require('../profiler');
       var limit_x = Math.pow(2, zoom);
       var corrected_x = ((coord.x % limit_x) + limit_x) % limit_x;
       var index = Math.abs(corrected_x + coord.y) % subdomains.length;
+      var extra = this._extraParams();
       var url = this.templateUrl
                 .replace('{x}', corrected_x)
                 .replace('{y}', coord.y)
                 .replace('{z}', zoom)
                 .replace('{s}', subdomains[index])
+      url += extra;
       torque.net.get( url , function (data) {
         if (data && data.responseText) {
           var rows = JSON.parse(data.responseText);
@@ -4299,7 +4383,7 @@ var Profiler = require('../profiler');
   };
 
   module.exports = tileJSON;
-},{"../":10}],22:[function(require,module,exports){
+},{"../":11}],23:[function(require,module,exports){
   var torque = require('../');
   var Profiler = require('../profiler');
 
@@ -4789,7 +4873,7 @@ var Profiler = require('../profiler');
 
   module.exports = windshaft;
 
-},{"../":10,"../profiler":17}],23:[function(require,module,exports){
+},{"../":11,"../profiler":18}],24:[function(require,module,exports){
   var TAU = Math.PI*2;
   // min value to render a line. 
   // it does not make sense to render a line of a width is not even visible
@@ -4882,13 +4966,13 @@ module.exports = {
     MAX_SPRITE_RADIUS: MAX_SPRITE_RADIUS
 };
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 module.exports = {
     cartocss: require('./cartocss_render'),
     Point: require('./point'),
     Rectangle: require('./rectangle')
 };
-},{"./cartocss_render":23,"./point":25,"./rectangle":26}],25:[function(require,module,exports){
+},{"./cartocss_render":24,"./point":26,"./rectangle":27}],26:[function(require,module,exports){
 (function (global){
 var torque = require('../');
 var cartocss = require('./cartocss_render');
@@ -5356,7 +5440,7 @@ var Filters = require('./torque_filters');
 module.exports = PointRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":10,"../profiler":17,"./cartocss_render":23,"./torque_filters":27,"carto":undefined}],26:[function(require,module,exports){
+},{"../":11,"../profiler":18,"./cartocss_render":24,"./torque_filters":28,"carto":undefined}],27:[function(require,module,exports){
 (function (global){
 var carto = global.carto || require('carto');
 
@@ -5520,7 +5604,7 @@ var carto = global.carto || require('carto');
 module.exports = RectanbleRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":undefined}],27:[function(require,module,exports){
+},{"carto":undefined}],28:[function(require,module,exports){
 /*
  Based on simpleheat, a tiny JavaScript library for drawing heatmaps with Canvas, 
  by Vladimir Agafonkin
@@ -5612,7 +5696,7 @@ torque_filters.prototype = {
 
 module.exports = torque_filters;
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 (function (global){
 var torque = require('./core');
 
@@ -5716,5 +5800,5 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./core":4}]},{},[10])(10)
+},{"./core":5}]},{},[11])(11)
 });
