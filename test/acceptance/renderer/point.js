@@ -5,6 +5,11 @@ QUnit.module('renderer/point');
 
 var IMAGE_DIFF_TOLERANCE = 4 / 100;
 
+// HOW TO debug image output
+// -------------------------
+// Once you have a valid canvas and no errors, it's possible to write to disk the canvas buffer as a png image with:
+// require('fs').writeFileSync('/tmp/torque-acceptance-test-tile.png', canvas.toBuffer(), {encoding: null});
+
 asyncTest('navy example', function(assert) {
     var cartocss = [
         'Map {',
@@ -61,6 +66,46 @@ asyncTest('basic heatmap', function(assert) {
         assert.ok(!err, 'no error while getting tile');
         var imageDiff = image.compare(canvas.toBuffer(), 'heatmap_navy_3-2-3.png');
         assert.ok(imageDiff < IMAGE_DIFF_TOLERANCE, 'heatmap tile is ok');
+        QUnit.start();
+    });
+});
+
+asyncTest('render multiple steps', function(assert) {
+    var CARTOCSS = [
+        'Map {',
+        '  -torque-frame-count: 360;',
+        '  -torque-animation-duration: 30;',
+        '  -torque-time-attribute: "cartodb_id";',
+        '  -torque-aggregation-function: "count(cartodb_id)";',
+        '  -torque-resolution: 1;',
+        '  -torque-data-aggregation: linear;',
+        '}',
+        '#generate_series {',
+        '  comp-op: lighter;',
+        '  marker-fill-opacity: 0.9;',
+        '  marker-line-color: #FFF;',
+        '  marker-line-width: 0;',
+        '  marker-line-opacity: 1;',
+        '  marker-type: rectable;',
+        '  marker-width: 6;',
+        '  marker-fill: #0F3B82;',
+        '}'
+    ].join('\n');
+
+    var steps = [];
+    for (var i = 20; i <= 50; i++) {
+        steps.push(i);
+    }
+
+    // Dataset can be regenerated with:
+    // SELECT
+    //   s + 181 as cartodb_id,
+    //   st_transform(ST_SetSRID (st_makepoint(s, 20 + 10*sin(s)), 4326), 3857) as the_geom_webmercator
+    // FROM generate_series(-180, 180, 1) as s
+    pointRenderer.getTile('generate_series_sin-2-0-1.torque.json', CARTOCSS, 2, 0, 1, steps, function(err, canvas) {
+        assert.ok(!err, 'no error while getting tile');
+        var imageDiff = image.compare(canvas.toBuffer(), 'generate_series_sin-2-0-1.png');
+        assert.ok(imageDiff < IMAGE_DIFF_TOLERANCE, 'image not matching, probably not rendering several steps');
         QUnit.start();
     });
 });
