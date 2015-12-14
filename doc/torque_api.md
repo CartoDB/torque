@@ -14,11 +14,11 @@ Name | Description
 --- | ---
 provider | A string object, where is the data coming from. Default value is `sql_api`
 
-options |
+options | &nbsp;
 --- | ---
-&#124;_ sql_api | 
-&#124;_ url_template | 
-&#124;_ windshaft | 
+&#124;_ sql_api | &nbsp;
+&#124;_ url_template | &nbsp;
+&#124;_ windshaft | &nbsp;
 
 {% comment %}writer note_csobier: for consistency, describe options above and add ### Returns section.{% endcomment %}
 
