@@ -1603,7 +1603,12 @@ function GMapsTorqueLayer(options) {
   if (!torque.isBrowserSupported()) {
     throw new Error("browser is not supported by torque");
   }
-  this.key = 0;
+  this.keys = [0];
+  Object.defineProperty(this, 'key', {
+    get: function() {
+      return this.getKey();
+    }
+  });
   this.shader = null;
   this.ready = false;
   this.options = torque.extend({}, options);
@@ -1625,7 +1630,7 @@ function GMapsTorqueLayer(options) {
 
   this.animator = new torque.Animator(function(time) {
     var k = time | 0;
-    if(self.key !== k) {
+    if(self.getKey() !== k) {
       self.setKey(k);
     }
   }, torque.extend(torque.clone(this.options), {
@@ -1696,7 +1701,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
       self.fire('change:steps', {
         steps: self.provider.getSteps()
       });
-      self.setKey(self.key);
+      self.setKey(self.getKey());
     };
 
     this.provider = new this.providers[this.options.provider](this.options);
@@ -1805,7 +1810,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
       if (tile) {
         pos = this.getTilePos(tile.coord);
         ctx.setTransform(1, 0, 0, 1, pos.x, pos.y);
-        this.renderer.renderTile(tile, this.key);
+        this.renderer.renderTile(tile, this.keys);
       }
     }
     this.renderer.applyFilters();
@@ -1827,10 +1832,18 @@ GMapsTorqueLayer.prototype = torque.extend({},
    * accumulated
    */
   setKey: function(key) {
-    this.key = key;
-    this.animator.step(key);
+    this.setKeys([key]);
+  },
+
+  setKeys: function(keys) {
+    this.keys = keys;
+    this.animator.step(this.getKey());
     this.redraw();
-    this.fire('change:time', { time: this.getTime(), step: this.key });
+    this.fire('change:time', { time: this.getTime(), step: this.getKey() });
+  },
+
+  getKey: function() {
+    return this.keys[0];
   },
 
   /**
@@ -1842,6 +1855,20 @@ GMapsTorqueLayer.prototype = torque.extend({},
       throw new Error("setTime only accept scalars");
     }
     this.setKey(time);
+  },
+
+  renderRange: function(start, end) {
+    this.pause();
+    var keys = [];
+    for (var i = start; i <= end; i++) {
+      keys.push(i);
+    }
+    this.setKeys(keys);
+  },
+
+  resetRenderRange: function() {
+    this.stop();
+    this.play();
   },
 
   /**
@@ -1866,7 +1893,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   getStep: function() {
-    return this.key;
+    return this.getKey();
   },
 
   /**
@@ -1874,7 +1901,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
    * in the defined column. Date object
    */
   getTime: function() {
-    return this.stepToTime(this.key);
+    return this.stepToTime(this.getKey());
   },
 
   /**
@@ -1922,7 +1949,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
    */
   getValues: function(step) {
     var values = [];
-    step = step === undefined ? this.key: step;
+    step = step === undefined ? this.getKey(): step;
     var t, tile;
     for(t in this._tiles) {
       tile = this._tiles[t];
@@ -1932,7 +1959,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
   },
 
   getValueForPos: function(x, y, step) {
-    step = step === undefined ? this.key: step;
+    step = step === undefined ? this.getKey(): step;
     var t, tile, pos, value = null, xx, yy;
     for(t in this._tiles) {
       tile = this._tiles[t];
@@ -1996,7 +2023,7 @@ GMapsTiledTorqueLayer.prototype = torque.extend({}, CanvasTileLayer.prototype, {
 
   initialize: function(options) {
     var self = this;
-    this.key = 0;
+    this.keys = [0];
 
     this.options.renderer = this.options.renderer || 'pixel';
     this.options.provider = this.options.provider || 'sql_api';
@@ -2032,12 +2059,12 @@ GMapsTiledTorqueLayer.prototype = torque.extend({}, CanvasTileLayer.prototype, {
 
     this.renderer.setCanvas(canvas);
 
-    var accum = this.renderer.accumulate(tile.data, this.key);
+    var accum = this.renderer.accumulate(tile.data, this.getKey());
     this.renderer.renderTileAccum(accum, 0, 0);
   },
 
   setKey: function(key) {
-    this.key = key;
+    this.keys = [key];
     this.redraw();
   },
 
@@ -2528,7 +2555,12 @@ L.TorqueLayer = L.CanvasLayer.extend({
       throw new Error("browser is not supported by torque");
     }
     options.tileLoader = true;
-    this.key = 0;
+    this.keys = [0];
+    Object.defineProperty(this, 'key', {
+      get: function() {
+        return this.getKey();
+      }
+    });
     this.prevRenderedKey = 0;
     if (options.cartocss) {
       torque.extend(options, torque.common.TorqueLayer.optionsFromCartoCSS(options.cartocss));
@@ -2541,7 +2573,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     this.animator = new torque.Animator(function(time) {
       var k = time | 0;
-      if(self.key !== k) {
+      if(self.getKey() !== k) {
         self.setKey(k, { direct: true });
       }
     }, torque.extend(torque.clone(options), {
@@ -2586,7 +2618,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
       self.fire('change:steps', {
         steps: self.provider.getSteps()
       });
-      self.setKey(self.key);
+      self.setKey(self.getKey());
     };
 
     this.renderer.on("allIconsLoaded", this.render.bind(this));
@@ -2741,7 +2773,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
           // all the points
           this.renderer._ctx.drawImage(tile._tileCache, 0, 0);
         } else {
-          this.renderer.renderTile(tile, this.key);
+          this.renderer.renderTile(tile, this.keys);
         }
       }
     }
@@ -2750,7 +2782,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     // prepare caches if the animation is not running
     // don't cache if the key has just changed, this avoids to cache
     // when the user is dragging, it only cache when the map is still
-    if (!this.animator.isRunning() && this.key === this.prevRenderedKey) {
+    if (!this.animator.isRunning() && this.getKey() === this.prevRenderedKey) {
       var tile_size = this.renderer.TILE_SIZE;
       for(t in this._tiles) {
         tile = this._tiles[t];
@@ -2770,7 +2802,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
       }
     }
 
-    this.prevRenderedKey = this.key;
+    this.prevRenderedKey = this.getKey();
 
   },
 
@@ -2780,11 +2812,28 @@ L.TorqueLayer = L.CanvasLayer.extend({
    * accumulated
    */
   setKey: function(key, options) {
-    this.key = key;
-    this.animator.step(key);
+    this.setKeys([key], options);
+  },
+
+  setKeys: function(keys, options) {
+    this.keys = keys;
+    this.animator.step(this.getKey());
     this._clearTileCaches();
     this.redraw(options && options.direct);
-    this.fire('change:time', { time: this.getTime(), step: this.key });
+    this.fire('change:time', {
+        time: this.getTime(),
+        step: this.getKey(),
+        start: this.getKey(),
+        end: this.getLastKey()
+    });
+  },
+
+  getKey: function() {
+    return this.keys[0];
+  },
+
+  getLastKey: function() {
+    return this.keys[this.keys.length - 1];
   },
 
   /**
@@ -2796,6 +2845,20 @@ L.TorqueLayer = L.CanvasLayer.extend({
       throw new Error("setTime only accept scalars");
     }
     this.setKey(time);
+  },
+
+  renderRange: function(start, end) {
+    this.pause();
+    var keys = [];
+    for (var i = start; i <= end; i++) {
+      keys.push(i);
+    }
+    this.setKeys(keys);
+  },
+
+  resetRenderRange: function() {
+    this.stop();
+    this.play();
   },
 
   /**
@@ -2819,7 +2882,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
   },
 
   getStep: function() {
-    return this.key;
+    return this.getKey();
   },
 
   /**
@@ -2827,7 +2890,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
    * in the defined column. Date object
    */
   getTime: function() {
-    return this.stepToTime(this.key);
+    return this.stepToTime(this.getKey());
   },
 
   /**
@@ -2883,7 +2946,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
    */
   getValues: function(step) {
     var values = [];
-    step = step === undefined ? this.key: step;
+    step = step === undefined ? this.getKey(): step;
     var t, tile;
     for(t in this._tiles) {
       tile = this._tiles[t];
@@ -2896,7 +2959,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
    * return the value for position relative to map coordinates. null for no value
    */
   getValueForPos: function(x, y, step) {
-    step = step === undefined ? this.key: step;
+    step = step === undefined ? this.getKey(): step;
     var t, tile, pos, value = null, xx, yy;
     for(t in this._tiles) {
       tile = this._tiles[t];
@@ -5141,13 +5204,19 @@ var Filters = require('./torque_filters');
     //
     // renders all the layers (and frames for each layer) from cartocss
     //
-    renderTile: function(tile, key, callback) {
+    renderTile: function(tile, keys, callback) {
       if (this._iconsToLoad > 0) {
           this.on('allIconsLoaded', function() {
-              this.renderTile.apply(this, [tile, key, callback]);
+              this.renderTile.apply(this, [tile, keys, callback]);
           });
           return false;
       }
+
+      // convert scalar key to keys array
+      if (typeof keys.length === 'undefined') {
+        keys = [keys];
+      }
+
       var prof = Profiler.metric('torque.renderer.point.renderLayers').start();
       var layers = this._shader.getLayers();
       for(var i = 0, n = layers.length; i < n; ++i ) {
@@ -5158,7 +5227,9 @@ var Filters = require('./torque_filters');
           for(var fr = 0; fr < layer.frames().length; ++fr) {
             var frame = layer.frames()[fr];
             var fr_sprites = sprites[frame] || (sprites[frame] = []);
-            this._renderTile(tile, key - frame, frame, fr_sprites, layer);
+            for (var k = 0, len = keys.length; k < len; k++) {
+              this._renderTile(tile, keys[k] - frame, frame, fr_sprites, layer);
+            }
           }
         }
       }
