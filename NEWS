@@ -1,5 +1,5 @@
-2.14.1
-    -
+2.15.0
+    - Allow to render several steps at the same time (#247)
 
 2.14.0
     - Allow custom animator range (#243)
