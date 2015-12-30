@@ -60,7 +60,7 @@ Method | Options | Returns | Description |
 `getTime()` | | current animation time (Date) | gets the real animation time
 `isRunning()` | | `true`/`false` | describes whether the Torque layer is playing or is stopped
 
-**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into Steps, depending on the number you set. It does not necessarily draw one frame for each row. 
+**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](/cartodb-platform/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
 
 ### Layer Control Methods
 
@@ -73,9 +73,10 @@ Method | Options | Returns | Description |
 
 Method | Options | Returns | Description
 ---|---|---|---|
-`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side cartocss (not available with named maps)
+`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](/cartodb-platform/maps-api/named-maps/))
 
-The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation](/cartodb-platform/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation (see `countby` constructor option). `zoom` is the current zoom being rendered.
+Torque supports a limited subset of CartoCSS parameters, as described in the [torque-reference](https://github.com/cartodb/torque-reference). Alternatively, Mapnik supports the following [mapnik-reference](https://github.com/cartodb/torque-reference) for Torque rendering. 
+To see the full list of supported parameters, read the [Torque CartoCSS documentation](/cartodb-platform/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation (see `countby` constructor option). `zoom` is the current zoom being rendered.
 
 TorqueLayer currently expects `marker` styling.
 

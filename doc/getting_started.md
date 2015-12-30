@@ -32,7 +32,7 @@ Torque lets you render bigdata&trade;, time series or categorical data interacti
 
 If you are interested in using advanced interaction methods, it is a prerequisite to load the Torque.js library before using the advanced interaction methods.
 
-- Download the [latest release](https://github.com/CartoDB/torque/releases) of the Torque.js source code
+- Download the [latest registry version](https://www.npmjs.com/package/torque.js) of the Torque.js source code
 
 
 ## Torque Tiles Specifications

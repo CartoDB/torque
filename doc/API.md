@@ -1,6 +1,6 @@
 # Torque API
 
-Torque.js is an efficient and stylish rendering method to animate your data. Torque.js uses TileCubes, which are JSON representations of multidimensional data with geospatial coordinates, to render data on the client.
+Torque.js is an efficient and stylish rendering method to animate your data. Torque.js uses [TileCubes](http://wiki.osgeo.org/wiki/Tile_Map_Service_Specification), which are JSON representations of multidimensional data with geospatial coordinates, to render data on the client.
 
 ## Documentation
 
