@@ -1,51 +1,53 @@
-# Torque API Methods
-
-Torque API methods can be applied when creating a visualization using the [CartoDB.js API methods](/cartodb-platform/cartodb-js/api-methods/).
+# Torque API
 
 ### L.TorqueLayer(options)
 
-One of two core classes for the Torque library - it is used to create an animated torque layer with custom settings.
+A layer to be added to a Leaflet map. It works as a regular tiled layer within the Leaflet tile pane, but instead of containing `<img>` elements, it's composed of a single [`<canvas>`](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) where all markers are drawn.
 
-#### Arguments
-
-##### Provider options
-
-Name | Description
---- | ---
-provider | A string object, where is the data coming from. Default value is `sql_api`
-
-options | &nbsp;
---- | ---
-&#124;_ sql_api | &nbsp;
-&#124;_ url_template | &nbsp;
-&#124;_ windshaft | &nbsp;
-
-{% comment %}writer note_csobier: for consistency, describe options above and add ### Returns section.{% endcomment %}
-
-#### Example
-
-```js
-// initialize a torque layer that uses the CartoDB account details and SQL API to pull in data
+```javascript
 var torqueLayer = new L.TorqueLayer({
   user: 'viz2',
   table: 'ow',
-  cartocss: CARTOCSS
+  cartocss: '<cartocss here>'
 });
+
+map.addLayer(torqueLayer);
 ```
 
-##### CartoDB Data Options (SQL API Provider)
+#### Options
 
 Name | Description
 --- | ---
-user_name | A string object, your CartoDB [account name](/cartodb-editor/your-account/#account). Default value is  ```null```
-table_name | A string object, the CartoDB table name where data is found (also known as a dataset.) Default value is  ```null```
-query | A string object, the SQL query to be performed to fetch the data. Default value is ```null```.<br/><br/>You must use this param or table, but not at the same time
 cartocss | A string object, the CartoCSS style for the map. Default value is  ```null```
 loop | A boolean object that defines the animation loop. Default value is ```true```. If ```false```, the animation is paused when it reaches the last frame
+resolution | Spatial resolution in pixels. A resolution of 1 means no spatial aggregation of the data. Its value must be a power of 2
+steps | Number of steps that the animation is divided into
+animationDuration | Duration, in seconds, of the animation
+zIndex | Z-Index CSS property of the layer
+attribution | Attribution to be added in the bottom right of the map
+maxZoom | Maximum zoom for the layer. 
+tileSize | Size, in pixels of the tiles
+
+##### Using your CartoDB credentials
+
+Name | Description
+--- | ---
+user | A string object, your CartoDB [account name](/cartodb-editor/your-account/#account). Default value is  ```null```
+table | A string object, the CartoDB table name where data is found (also known as a dataset.) Default value is  ```null```
+
+##### Using a custom SQL query
+
+Name | Description
+--- | ---
+query | A string object, the SQL query to be performed to fetch the data. Default value is ```null```.<br/><br/>You must use this param or table, but not at the same time
 
 **Tip:** For a Torque category layer that is created dynamically with `cartodb.createLayer`, the SQL query must explicitly include how to build the torque_category column. You must include both the `sql` and `table_name` parameters. See this [createLayer with torque category layer](https://gist.github.com/danicarrion/dcaf6f00a71aa55134b4) example.
 
-{% comment %}writer note_csobier: for consistency, add ### Returns section and ### Example. Note that the following table show some returns that do not make much sense to me, I did not edit the tables below, except to remove blank options columns.{% endcomment %}
+##### Providing a TileJSON file
+
+Name | Description
+--- | ---
+tileJSON | A URL pointing to a valid [TileJSON](https://github.com/mapbox/tilejson-spec) file from which to get the Torque tile templates
 
 ### Time Methods
 
@@ -109,7 +111,7 @@ Method | Options | Returns | Description
 
 #### Example
 
-SQL Example to limit the data used in the Torque map.
+SQL Example to limit the data used in the Torque map.§
 
 ```js
 torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
