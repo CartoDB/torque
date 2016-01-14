@@ -165,10 +165,3 @@ is not a layer but is an overlay, so in order to add it to the a map use, ``laye
 Name | Description
 --- | ---
 map | A google.maps.Map instance
-
-
-## Torque Functions
-
-Since Torque API methods can be applied when creating a visualization using the [CartoDB.js API methods](/cartodb-platform/cartodb-js/api-methods/), these [Torque Functions](https://github.com/CartoDB/cartodb.js/blob/be76b55caeeb0dfc147e3fa36628d9e215717ce5/src/vis/vis.js#L229) are available.
-
-_**Note:** We are currently in the process of enhancing this functions and returns. A future documentation update will include complete descriptions of these Torque functions._
