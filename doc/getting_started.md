@@ -82,7 +82,7 @@ The TorqueMap Tiles document contains the required, core set of information to b
 
 #### The URL Schema
 
-`http://host.com/{z}/{x}/{y}.torque.[json|bin]`
+`http://host.com/{z}/{x}/{y}.torque.json`
 
 #### Tile Format
 
