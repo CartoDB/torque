@@ -1,7 +1,6 @@
 # Getting Started with Torque.js
 
-Torque.js is a JavaScript library that enables you to animate time series data. Torque.js uses tile cubes, which are JSON representations of multidimensional data with geospatial coordinates. [Tile cube specifications](http://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
-) render data on the client, to optimize the transfer of temporal and categorical data for maps.
+Torque.js is a JavaScript library that enables you to display animated maps using time series data. Torque.js uses a [special tile specification](https://github.com/cartodb/torque-tiles), which consists of JSON representations of multidimensional data with geospatial coordinates.
 
 **Tip:** Torque is both a spatial and temporal aggregator. It does not plot your exact lat/lon points, it lays an invisible grid over your map, and draws one marker for each grid cell that contains points (representing an aggregation of all of the points in the grid cell). You can control the size of this grid with the CartoCSS [`-torque-resolution`](/cartodb-platform/cartocss/properties-for-torque/#torque-resolution-float) property. You are also able to control the type of aggregation with the CartoCSS [`-torque-aggregation-function`](/cartodb-platform/cartocss/properties-for-torque/#torque-aggregation-function-keyword). For more details, see the wiki page about how [Torque aggregates data](https://github.com/CartoDB/torque/wiki/How-spatial-aggregation-works).
 
