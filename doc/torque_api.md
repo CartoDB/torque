@@ -49,7 +49,7 @@ Name | Description
 --- | ---
 tileJSON | A URL pointing to a valid [TileJSON](https://github.com/mapbox/tilejson-spec) file from which to get the Torque tile templates
 
-### Time Methods
+#### Time Methods
 
 Method | Options | Returns | Description |
 ---|---|---|---|
@@ -64,14 +64,14 @@ Method | Options | Returns | Description |
 
 **Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](/cartodb-platform/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
 
-### Layer Control Methods
+#### Layer Control Methods
 
  Method | Options | Returns | Description
 ---|---|---|---
 `hide()` | none | `this` | hides the Torque layer
 `show()` | none| `this` | shows the Torque layer
 
-### Style Methods 
+#### Style Methods 
 
 Method | Options | Returns | Description
 ---|---|---|---|
