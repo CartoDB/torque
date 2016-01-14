@@ -84,21 +84,20 @@ TorqueLayer currently expects `marker` styling.
 
 #### Example
 
-This CartoCSS example should be `string` encoded in Javascript.
+This is how a minimal example of a stylesheet for a Torque visualisation would look like.
 
-```scss
+```css
+Map {
+-torque-time-attribute: "date";
+-torque-aggregation-function: "count(cartodb_id)";
+-torque-frame-count: 760;
+-torque-animation-duration: 15;
+-torque-resolution: 2;
+}
 #layer {
-  marker-fill: #662506;
-  marker-width: 20;
-  [value > 1] { marker-fill: #FEE391; }
-  [value > 2] { marker-fill: #FEC44F; }
-  [value > 3] { marker-fill: #FE9929; }
-  [value > 4] { marker-fill: #EC7014; }
-  [value > 5] { marker-fill: #CC4C02; }
-  [value > 6] { marker-fill: #993404; }
-  [value > 7] { marker-fill: #662506; }
-  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}' // renders the previous frame
-  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}' // renders two frames ago from the current being rendered
+  marker-width: 3;
+  marker-fill-opacity: 0.8;
+  marker-fill: #FEE391; 
 }
 ```
 
