@@ -28,7 +28,7 @@ attribution | Attribution to be added in the bottom right of the map
 maxZoom | Maximum zoom for the layer. 
 tileSize | Size, in pixels of the tiles
 
-##### Using your CartoDB credentials
+##### Using a CartoDB table directly
 
 Name | Description
 --- | ---
