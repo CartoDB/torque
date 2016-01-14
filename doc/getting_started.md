@@ -90,10 +90,10 @@ Each Torque tile is a JSON document containing an array, each of whose elements 
 
 Tile Format | Type | Description
 --- | --- |
-`x`| ` integer` | x pixel coordinate in tile system reference
-`y`| `integer` | y pixel coordinate in tile system reference
-`steps` | | time slots when this pixel is **active**, there is data at that time
-`values` | | values for each time slot<br /><br />**Tip:** You can use the values column to store encoding categories for your data
+`x__uint8`| ` integer` | x pixel coordinate in tile system reference
+`y__unit8`| `integer` | y pixel coordinate in tile system reference
+`dates__uint8` | | time slots when this pixel is **active**, there is data at that time
+`vals__unit8` | | values for each time slot<br /><br />**Tip:** You can use the values column to store encoding categories for your data
 
 #### Extracting Tile Results for Calculations
 
@@ -127,10 +127,10 @@ The `current_time`, `translate.start, translate.end`, and `data_steps` values ar
 {% highlight js %}
 [
   {
-    x: 25,
-    y: 77,
-    values: [ 1, 10 ],
-    steps: [214, 215]
+    x__uint8: 25,
+    y__uint8: 77,
+    vals__unit8: [ 1, 10 ],
+    dates__uint8: [214, 215]
   },
 ...
 ]
