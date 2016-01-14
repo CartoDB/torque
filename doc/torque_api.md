@@ -77,8 +77,7 @@ Method | Options | Returns | Description
 ---|---|---|---|
 `setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](/cartodb-platform/maps-api/named-maps/))
 
-Torque supports a limited subset of CartoCSS parameters, as described in the [torque-reference](https://github.com/cartodb/torque-reference). Alternatively, Mapnik supports the following [mapnik-reference](https://github.com/cartodb/torque-reference) for Torque rendering. 
-To see the full list of supported parameters, read the [Torque CartoCSS documentation](/cartodb-platform/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation (see `countby` constructor option). `zoom` is the current zoom being rendered.
+Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/cartodb/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation](/cartodb-platform/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
 
 TorqueLayer currently expects `marker` styling.
 
