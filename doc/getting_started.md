@@ -20,7 +20,7 @@ Customize your Animation | Style and customize your animations with [CartoCSS Pr
 
 ## Torque Library
 
-Torque lets you render bigdata&trade;, time series or categorical data interactively. This is useful when you need to go beyond a static map, and create visualizations from temporal datasets. You can customize how your animated data appears in order to map such things as human movement, Twitter activity, biodiversity data, and other large-scale datasets. 
+Torque lets you render large datasets containing time series or categorical data interactively. This is useful when you need to go beyond a static map, and create visualizations from temporal datasets. You can customize how your animated data appears in order to map such things as human movement, Twitter activity, biodiversity data, and other large-scale datasets. 
 
 - Export Torque tiles from your CartoDB account, or use a local Postgres installation [https://github.com/CartoDB/torque-gen](https://github.com/CartoDB/torque-gen)
 
