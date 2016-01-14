@@ -115,7 +115,7 @@ Method | Options | Returns | Description
 
 #### Example
 
-SQL Example to limit the data used in the Torque map.§
+SQL Example to limit the data used in the Torque map.
 
 ```js
 torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
