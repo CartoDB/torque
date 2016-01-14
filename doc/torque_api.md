@@ -88,11 +88,11 @@ This is how a minimal example of a stylesheet for a Torque visualisation would l
 
 ```css
 Map {
--torque-time-attribute: "date";
--torque-aggregation-function: "count(cartodb_id)";
--torque-frame-count: 760;
--torque-animation-duration: 15;
--torque-resolution: 2;
+  -torque-time-attribute: "date";
+  -torque-aggregation-function: "count(cartodb_id)";
+  -torque-frame-count: 760;
+  -torque-animation-duration: 15;
+  -torque-resolution: 2;
 }
 #layer {
   marker-width: 3;
