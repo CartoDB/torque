@@ -1,4 +1,4 @@
-#Getting started
+##Getting started
 
 Although the most straightforward way to use Torque is through either the CartoDB editor, or by passing the layer's viz.json to [CartoDB.js](http://docs.cartodb.com/cartodb-platform/cartodb-js/getting-started/), many use cases work best with the standalone [Torque.js](https://github.com/CartoDB/torque/tree/master/dist). Assuming you have a public dataset with a `date` column, it's really simple to create an animated map with the library. First you need to have a Leaflet map prepared in an HTML page:
 
@@ -73,9 +73,21 @@ Optionally, it is also possible to use a custom SQL query for your visualization
 
 Like in a video player, you can use animation control methods such as `play`, `stop` and `pause` at any point. Torque's animator fires a `change:time` event each time the animation "ticks" to the next frame, and there are a number of properties and methods that can be run during playback, which are detailed in the [API documentation](../torque_api.md). At any point, for example, the styling of the layer's markers can be changed using the `layer.setCartoCSS('##style##')`.
 
-#Usage examples
+##Usage examples
 The best way to start learning about the library is by taking a look at some of the examples below:
 
 * A basic example using the WWI British Navy dataset - ([view live](http://cartodb.github.io/torque/examples/navy_leaflet.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html))
 * Using tileJSON to fetch tiles - ([view live](http://cartodb.github.io/torque/examples/tilejson.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/tilejson.html))
 * A car's route at the Nürburgring track mapped in Torque - ([view live](http://cartodb.github.io/torque/examples/car.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/car.html))
+
+## Additional Torque Resources
+
+The following links contain examples, and other public information, about using Torque maps.
+
+- Torque [CartoCSS Reference page](https://github.com/cartodb/torque-reference), useful for building parsers, tests, compilers, and syntax highlighting/checking
+- CartoDB repository of [examples](https://github.com/CartoDB/torque/tree/master/examples)
+- A CartoDB [time example](http://cartodb.github.com/torque/) of a Torque map and data
+- CartoDB wiki page describing [how spatial aggregration works](https://github.com/CartoDB/torque/wiki/How-spatial-aggregation-works)
+- The [Guardian's Data Blog](http://www.guardian.co.uk/news/datablog/interactive/2012/oct/01/first-world-war-royal-navy-ships-mapped) about Royal Navy ships in WWI using a Torque map
+- An example of how to create a [simple Torque visualization](https://github.com/CartoDB/torque#getting-started) and the [source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html) used to create the example
+- An example of how to use CartoDB.js to [add a Torque layer from a named map with auth_tokens enabled](https://gist.github.com/chriswhong/a4d1e6305ecaf2ad507a)
