@@ -1,146 +1,84 @@
-# Getting Started with Torque.js
+##Getting Started
 
-Torque.js is a JavaScript library that enables you to animate time series data. Torque.js uses tile cubes, which are JSON representations of multidimensional data with geospatial coordinates. [Tile cube specifications](http://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
-) render data on the client, to optimize the transfer of temporal and categorical data for maps.
+Although the most straightforward way to use Torque is through either the CartoDB Editor, or by passing the layer's viz.json to [CartoDB.js](http://docs.cartodb.com/cartodb-platform/cartodb-js/getting-started/), many use cases work best with the standalone [Torque.js](https://github.com/CartoDB/torque/tree/master/dist). Assuming you have a public dataset with a `date` column, it is really simple to create an animated map with the library. First, you need to have a Leaflet map prepared in an HTML page:
 
-**Tip:** Torque is both a spatial and temporal aggregator. It does not plot your exact lat/lon points, it lays an invisible grid over your map, and draws one marker for each grid cell that contains points (representing an aggregation of all of the points in the grid cell). You can control the size of this grid with the CartoCSS [`-torque-resolution`](/cartodb-platform/cartocss/properties-for-torque/#torque-resolution-float) property. You are also able to control the type of aggregation with the CartoCSS [`-torque-aggregation-function`](/cartodb-platform/cartocss/properties-for-torque/#torque-aggregation-function-keyword). For more details, see the wiki page about how [Torque aggregates data](https://github.com/CartoDB/torque/wiki/How-spatial-aggregation-works).
+```html
+  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+  <body>
+    <div id="map"></div>
+    <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+    <script>
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
 
+      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+    </script>
+  </body>
+```
 
-## Implementing Torque.js
+For Torque to work with your table, you only need a username, the name of the table, and a CartoCSS string to style the map. Leaflet's method `addTo` adds the Torque layer to the map. `play` runs the animation with the options specified in the CartoCSS properties.
 
-The following workflow describes how to implement Torque.js:
+```html
+  <script>
+    var CARTOCSS = [
+      'Map {',
+      '-torque-time-attribute: "date";',
+      '-torque-aggregation-function: "count(cartodb_id)";',
+      '-torque-frame-count: 760;',
+      '-torque-animation-duration: 15;',
+      '-torque-resolution: 2',
+      '}',
+      '#layer {',
+      '  marker-width: 3;',
+      '  marker-fill-opacity: 0.8;',
+      '  marker-fill: #FEE391; ',
+      '  comp-op: "lighten";',
+      '}'
+    ].join('\n');
 
-Workflow | Details
---- | ---
-Preparing your Torque Data | When visualizing Torque style maps, it is required that you normalize your data to show a total count, or a range, of `0`-`255`. For more details, see this description about [statistical normalization](https://books.google.com/books?id=FrUQHIzXK6EC&pg=PT347&lpg=PT347&dq=choropleth+normalization&source=bl&ots=muDZhsb2jT&sig=DbomJnKedQjaKvcQgm_sVqHBt-8&hl=en&sa=X&ved=0CCYQ6AEwAjgKahUKEwje0ee8qaTHAhUCZj4KHRF5CjM#v=onepage&q=choropleth%20normalization&f=false).<br /><br />Currently, you can only animate Torque point data. Line, polygon, and multipoint data are not supported for Torque animation.<br /><br />**Note:** When importing Torque data, CartoDB uploads and assumes timezones are in UTC format by default. To specify a different timezone format, you must use the SQL API to import data into CartoDB.
-Initialize the Torque.js Layer | Specify your username, tablename and date column to add a Torque layer to your map<br /><br /><span class="wrap-border"><img src="/img/layout/torque/initialize_torquejs.jpg" alt="Intialize Torque.js" /></span>
-Install the required CartoDB Torque Libraries | The Torque.js library interacts with CartoDB to generate the Torque tile format. If you are hosting your data on an external connector, you can modify the input parameters to redirect to any "Torque tiles service".<br /><br />- For [basic Torque.js](#torque-library), you can export Torque tiles from your CartoDB account or use a local Postgres installation<br /><br />- For [advanced interaction methods](#advanced-torquejs-libraries), you must download the latest Torque.js source code
-Include all Torque Tiles Specifications | [Torque tile specifications](#torque-tiles-specifications) define the TorqueMap Metadata and tileset information.<br /><br />**Note:** All Torque tile fields in the specification are required.
-Customize your Animation | Style and customize your animations with [CartoCSS Properties for Torque Style Maps](/cartodb-platform/cartocss/properties-for-torque/)
+    var torqueLayer = new L.TorqueLayer({
+      user       : 'your_username',
+      table      : 'your_table_name',
+      cartocss: CARTOCSS
+    });
+    torqueLayer.addTo(map);
+    torqueLayer.play()
+  </script>
+```
 
+You can use any kind of tile source outside CartoDB, by specifying the location of a [valid TileJSON](https://github.com/mapbox/tilejson-spec) file:
 
-## Torque Library
+```javascript
+  var torqueLayer = new L.TorqueLayer({
+    tileJSON: 'http://url.to/tile.json'
+    cartocss: CARTOCSS
+  });
+```
 
-Torque lets you render bigdata&trade;, time series or categorical data interactively. This is useful when you need to go beyond a static map, and create visualizations from temporal datasets. You can customize how your animated data appears in order to map such things as human movement, Twitter activity, biodiversity data, and other large-scale datasets. 
+Optionally, it is also possible to use a custom SQL query for your visualization:
 
-- Export Torque tiles from your CartoDB account, or use a local Postgres installation [https://github.com/CartoDB/torque-gen](https://github.com/CartoDB/torque-gen)
+```javascript
+  var torqueLayer = new L.TorqueLayer({
+    user       : 'your_username',
+    table      : 'your_table_name',
+    sql_query  : 'SELECT * FROM your_table_name WHERE whatever'
+    cartocss: CARTOCSS
+  });
+```
 
-- Install [https://github.com/CartoDB/torque/blob/master/dist/torque.js](https://github.com/CartoDB/torque/blob/master/dist/torque.js)
+Like in a video player, you can use animation control methods such as `play`, `stop` and `pause` at any point. Torque's animator fires a `change:time` event each time the animation "ticks" to the next frame, and there are a number of properties and methods that can be run during playback, which are detailed in the [API documentation](/cartodb-platform/torque/torqueapi/). At any point, for example, the styling of the layer's markers can be changed using the `layer.setCartoCSS('##style##')`.
 
+##Usage Examples
+The best way to start learning about the library is by taking a look at some of the examples below:
 
-## Advanced Torque.js Libraries
-
-If you are interested in using advanced interaction methods, it is a prerequisite to load the Torque.js library before using the advanced interaction methods.
-
-- Download the [latest release](https://github.com/CartoDB/torque/releases) of the Torque.js source code
-
-
-## Torque Tiles Specifications
-
-Torque tiles are JSON representations of multidimensional data, with geospatial coordinates, that utilizes client-side resolution for rendering data. This optimizes the transfer of data for your Torque maps. Torque tile specifications are defined by two document types, Metadata and Tiles. The Metadata document describes the shared information across the Torque tile dataset. For each tile requested, there is a Tile document returned, which describes the data for that tile.
-
-### Metadata
-
-The TorqueMap Metadata document describes key tileset information, and includes the following fields:
-
-Metadata Field | Description
---- | ---
-`start`| start time, in steps or unix timestamp
-`end`| end time, in steps or unix timestamp
-`resolution`| the pixel resolution,by the power of two (1/4, 1/2,... 2, 4, 16), for a scale of 256 x 256 pixels<br /><br />**Note:** TileCubes are typically rendered on tiles of 256 x 256 pixels. It is recommended that you choose a scale that renders perfectly along the borders of the 256 x 256 tile, otherwise there may be issues rendering artifacts. The available pixel resolutions are: `1, 2, 4, 8, 16, 32, 64, 128, 256`
-`data_steps`| number of steps (in integer format)
-`column_type`| "integer" or "date", default "integer"
-`minzoom`| minimum zoom level, optional
-`maxzoom`| max zoom level, optional
-`tiles`| tile array for this set, **required**
-`bounds`| [bounding box](http://wiki.openstreetmap.org/wiki/Bounding_Box) for tileset, optional
-
-#### Example of Metadata Document
-
-{% highlight js %}
-{
-  start: 0,
-  end: 100, 
-  resolution: 2
-  # scale: 1/resolution,
-  data_steps: 365,
-  column_type: "number"
-  "minzoom": 0,
-  "maxzoom": 11,
-  "tiles": [
-    'http://a.host.com/{z}/{x}/{y}.torque.json',
-    'http://b.host.com/{z}/{x}/{y}.torque.json',
-    'http://c.host.com/{z}/{x}/{y}.torque.json',
-    'http://d.host.com/{z}/{x}/{y}.torque.json'
-  ],
-  "bounds": [ -180, -85.05112877980659, 180, 85.0511287798066 ]
-}
-{% endhighlight %}
-
-### Tiles
-
-The TorqueMap Tiles document contains the required, core set of information to be rendered. This includes the number of pixels for the data, and the x and y values for each pixel.
-
-#### The URL Schema
-
-`http://host.com/{z}/{x}/{y}.torque.[json|bin]`
-
-#### Tile Format
-
-Each Torque tile is a JSON document containing an array, each of whose elements represents a point within the tile. The tile format is notated using the following format:
-
-Tile Format | Type | Description
---- | --- |
-`x`| ` integer` | x pixel coordinate in tile system reference
-`y`| `integer` | y pixel coordinate in tile system reference
-`steps` | | time slots when this pixel is **active**, there is data at that time
-`values` | | values for each time slot<br /><br />**Tip:** You can use the values column to store encoding categories for your data
-
-#### Extracting Tile Results for Calculations
-
-You can extract the pixel position, and the current time, with the Tile document results.
-
-##### Extract the Pixel Position
-
-To extract the pixel position for the tile, use the following calculation:
-
-`pixel_x = x * resolution`
-`pixel_y = y * resolution`
-
-Where:
-
-`x` and `y` are in range [0, 256/resolution] to render the final pixel position (based on 256 x2 56 tiles).
-
-The coordinate origin for Torque tiles is the bottom left corner of the grid.
-
-##### Extract the Current Time
-
-To extract the current time from the Tile document, use the following calculation:
-
-`current_time = translate.start  + step * (translate.end - translate.start)/data_steps;`
-
-Where:
-
-The `current_time`, `translate.start, translate.end`, and `data_steps` values are used to extract the time.
-
-##### Tile Format Example
-
-{% highlight js %}
-[
-  {
-    x: 25,
-    y: 77,
-    values: [ 1, 10 ],
-    steps: [214, 215]
-  },
-...
-]
-{% endhighlight %}
-
-### Errors
-
-All Torque tile fields in the specification are required. If a tile returns with no data or no value, _Uncaught TypeErrors_ may appear. For example, suppose you have `x, y, values` and `steps` defined, but `data_steps` are not defined in integer format, you will receive an error.
-
+* A basic example using the WWI British Navy dataset - ([view live](http://cartodb.github.io/torque/examples/navy_leaflet.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html))
+* Using tileJSON to fetch tiles - ([view live](http://cartodb.github.io/torque/examples/tilejson.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/tilejson.html))
+* A car's route at the Nürburgring track mapped in Torque - ([view live](http://cartodb.github.io/torque/examples/car.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/car.html))
 
 ## Additional Torque Resources
 

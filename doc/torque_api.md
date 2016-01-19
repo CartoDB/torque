@@ -1,53 +1,55 @@
-# Torque API Methods
-
-Torque API methods can be applied when creating a visualization using the [CartoDB.js API methods](/cartodb-platform/cartodb-js/api-methods/).
+# Torque API
 
 ### L.TorqueLayer(options)
 
-One of two core classes for the Torque library - it is used to create an animated torque layer with custom settings.
+A layer to be added to a Leaflet map. It works as a regular tiled layer within the Leaflet tile pane, but instead of containing `<img>` elements, it's composed of a single [`<canvas>`](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) where all markers are drawn.
 
-#### Arguments
-
-##### Provider options
-
-Name | Description
---- | ---
-provider | A string object, where is the data coming from. Default value is `sql_api`
-
-options | &nbsp;
---- | ---
-&#124;_ sql_api | &nbsp;
-&#124;_ url_template | &nbsp;
-&#124;_ windshaft | &nbsp;
-
-{% comment %}writer note_csobier: for consistency, describe options above and add ### Returns section.{% endcomment %}
-
-#### Example
-
-```js
-// initialize a torque layer that uses the CartoDB account details and SQL API to pull in data
+```javascript
 var torqueLayer = new L.TorqueLayer({
   user: 'viz2',
   table: 'ow',
-  cartocss: CARTOCSS
+  cartocss: '<cartocss here>'
 });
+
+map.addLayer(torqueLayer);
 ```
 
-##### CartoDB Data Options (SQL API Provider)
+#### Options
 
 Name | Description
 --- | ---
-user_name | A string object, your CartoDB [account name](/cartodb-editor/your-account/#account). Default value is  ```null```
-table_name | A string object, the CartoDB table name where data is found (also known as a dataset.) Default value is  ```null```
-query | A string object, the SQL query to be performed to fetch the data. Default value is ```null```.<br/><br/>You must use this param or table, but not at the same time
 cartocss | A string object, the CartoCSS style for the map. Default value is  ```null```
 loop | A boolean object that defines the animation loop. Default value is ```true```. If ```false```, the animation is paused when it reaches the last frame
+resolution | Spatial resolution in pixels. A resolution of 1 means no spatial aggregation of the data. Its value must be a power of 2
+steps | Number of steps that the animation is divided into
+animationDuration | Duration, in seconds, of the animation
+zIndex | Z-Index CSS property of the layer
+attribution | Attribution to be added in the bottom right of the map
+maxZoom | Maximum zoom for the layer. 
+tileSize | Size, in pixels of the tiles
+
+##### Using a CartoDB table directly
+
+Name | Description
+--- | ---
+user | A string object, your CartoDB [account name](/cartodb-editor/your-account/#account). Default value is  ```null```
+table | A string object, the CartoDB table name where data is found (also known as a dataset.) Default value is  ```null```
+
+##### Using a custom SQL query
+
+Name | Description
+--- | ---
+query | A string object, the SQL query to be performed to fetch the data. Default value is ```null```.<br/><br/>You must use this param or table, but not at the same time
 
 **Tip:** For a Torque category layer that is created dynamically with `cartodb.createLayer`, the SQL query must explicitly include how to build the torque_category column. You must include both the `sql` and `table_name` parameters. See this [createLayer with torque category layer](https://gist.github.com/danicarrion/dcaf6f00a71aa55134b4) example.
 
-{% comment %}writer note_csobier: for consistency, add ### Returns section and ### Example. Note that the following table show some returns that do not make much sense to me, I did not edit the tables below, except to remove blank options columns.{% endcomment %}
+##### Providing a TileJSON file
 
-### Time Methods
+Name | Description
+--- | ---
+tileJSON | A URL pointing to a valid [TileJSON](https://github.com/mapbox/tilejson-spec) file from which to get the Torque tile templates
+
+#### Time Methods
 
 Method | Options | Returns | Description |
 ---|---|---|---|
@@ -60,42 +62,47 @@ Method | Options | Returns | Description |
 `getTime()` | | current animation time (Date) | gets the real animation time
 `isRunning()` | | `true`/`false` | describes whether the Torque layer is playing or is stopped
 
-**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into Steps, depending on the number you set. It does not necessarily draw one frame for each row. 
+**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](/cartodb-platform/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
 
-### Layer Control Methods
+#### Layer Control Methods
 
  Method | Options | Returns | Description
 ---|---|---|---
 `hide()` | none | `this` | hides the Torque layer
 `show()` | none| `this` | shows the Torque layer
 
-### Style Methods 
+#### Style Methods 
 
 Method | Options | Returns | Description
 ---|---|---|---|
-`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side cartocss (not available with named maps)
+`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](/cartodb-platform/maps-api/named-maps/))
 
-The full CartoCSS spec is not supported by Torque but instead only a limited subset with some additions related to torque rendering. To see the full list of supported parameters, read the [Torque CartoCSS documentation](/cartodb-platform/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation (see `countby` constructor option). `zoom` is the current zoom being rendered.
+Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/cartodb/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation](/cartodb-platform/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
 
 TorqueLayer currently expects `marker` styling.
 
 #### Example
 
-This CartoCSS example should be `string` encoded in Javascript.
+This is how a minimal example of a stylesheet for a Torque visualisation would look like.
 
-```scss
+```css
+Map {
+  -torque-time-attribute: "date";
+  -torque-aggregation-function: "count(cartodb_id)";
+  -torque-frame-count: 760;
+  -torque-animation-duration: 15;
+  -torque-resolution: 2;
+}
 #layer {
-  marker-fill: #662506;
-  marker-width: 20;
-  [value > 1] { marker-fill: #FEE391; }
-  [value > 2] { marker-fill: #FEC44F; }
-  [value > 3] { marker-fill: #FE9929; }
-  [value > 4] { marker-fill: #EC7014; }
-  [value > 5] { marker-fill: #CC4C02; }
-  [value > 6] { marker-fill: #993404; }
-  [value > 7] { marker-fill: #662506; }
-  [frame-offset = 1] {  marker-width: 20; marker-fill-opacity: 0.05;}' // renders the previous frame
-  [frame-offset = 2] {  marker-fill: red; marker-width: 30; marker-fill-opacity: 0.02;}' // renders two frames ago from the current being rendered
+  marker-width: 3;
+  marker-fill-opacity: 0.8;
+  marker-fill: #FEE391; 
+}
+#layer[value = 4] { // Use of the value variable, generated by the function specified in -torque-aggregation-function
+  marker-fill: #FABADA; 
+}
+#layer[zoom = 12] { // Use of the zoom variable
+  marker-width: 10;
 }
 ```
 
@@ -158,10 +165,3 @@ is not a layer but is an overlay, so in order to add it to the a map use, ``laye
 Name | Description
 --- | ---
 map | A google.maps.Map instance
-
-
-## Torque Functions
-
-Since Torque API methods can be applied when creating a visualization using the [CartoDB.js API methods](/cartodb-platform/cartodb-js/api-methods/), these [Torque Functions](https://github.com/CartoDB/cartodb.js/blob/be76b55caeeb0dfc147e3fa36628d9e215717ce5/src/vis/vis.js#L229) are available.
-
-_**Note:** We are currently in the process of enhancing this functions and returns. A future documentation update will include complete descriptions of these Torque functions._
