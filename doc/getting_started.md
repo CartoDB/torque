@@ -15,7 +15,7 @@ Currently, you can only animate Torque point data. Line, polygon, and multipoint
 **Note:** When importing Torque data, CartoDB uploads and assumes timezones are in UTC format by default. To specify a different timezone format, you must use the SQL API to import data into CartoDB.
 
 
-1.  You need to have a Leaflet map prepared in an HTML page
+1.  Prepare a Leaflet map in an HTML page
 
 ```html
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
@@ -68,23 +68,17 @@ For Torque to work with your table, specify your username, tablename and a Carto
   </script>
 ```
 
-3.  Install the required CartoDB Torque Libraries  
+3.  Required Torque Libraries  
 
-The Torque.js library interacts with CartoDB to generate the Torque tile format. If you are hosting your data on an external connector, you can modify the input parameters to redirect to any "Torque tiles service".
-
-Torque Library:
+Torque libraries are generated when the HTML document is added in step one. The following links are resources for alternative code libraries for more advanced Torque functionality.
 
 - Export Torque tiles from your CartoDB account, or use a local Postgres installation [https://github.com/CartoDB/torque-gen](https://github.com/CartoDB/torque-gen)
 
-- Install [https://github.com/CartoDB/torque/blob/master/dist/torque.js](https://github.com/CartoDB/torque/blob/master/dist/torque.js)
+- View the resource for Torque distribution files [https://github.com/CartoDB/torque/blob/master/dist/torque.js](https://github.com/CartoDB/torque/blob/master/dist/torque.js)
 
-Advanced Torque.js Libraries:
+- View the [latest release](https://github.com/CartoDB/torque/releases) of the Torque.js source code
 
-If you are interested in using advanced interaction methods, it is a prerequisite to load the Torque.js library before using the advanced interaction methods.
-
-- Download the [latest release](https://github.com/CartoDB/torque/releases) of the Torque.js source code
-
-4. Include all Torque Tiles Specifications
+4. Optionally, implement Torque Tiles Specifications
 
 Torque tile specifications define the TorqueMap Metadata and tileset information. You can use any kind of tile source outside CartoDB, by specifying the location of a [valid TileJSON](https://github.com/mapbox/tilejson-spec) file:
 
@@ -96,7 +90,7 @@ Torque tile specifications define the TorqueMap Metadata and tileset information
 ```
 **Note:** All Torque tile fields in the specification are required.
 
-5. Optionally, it is also possible to use a custom SQL query for your visualization:
+5. Optionally, it is also possible to run a custom SQL query for your visualization:
 
 ```javascript
   var torqueLayer = new L.TorqueLayer({
