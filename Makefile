@@ -7,7 +7,7 @@ JS_CLIENT_FILES= lib/torque/*.js \
 	lib/torque/gmaps/*.js \
 	lib/torque/leaflet/leaflet_tileloader_mixin.js \
 	lib/torque/leaflet/canvas_layer.js \
-	lib/torque/leaflet/torque.js 
+	lib/torque/leaflet/torque.js
 
 all: dist/torque.js dist/torque.full.js add-header
 
@@ -26,6 +26,9 @@ dist/torque.js: dist_folder dist/torque.uncompressed.js
 dist_folder:
 	mkdir -p dist
 
+test_dist_folder:
+	mkdir -p test/dist
+
 dist: dist_folder dist/torque.js
 
 clean-results:
@@ -34,8 +37,8 @@ clean-results:
 add-header:
 	node lib/header.js
 
-prepare-test-suite:
-	$(BROWSERIFY) test/suite.js > test/suite-bundle.js
+prepare-test-suite: test_dist_folder
+	$(BROWSERIFY) test/suite.js > test/dist/suite-bundle.js
 
 test: prepare-test-suite
 	@echo "***tests***"
@@ -47,7 +50,7 @@ test-acceptance: clean-results
 
 test-all: test test-acceptance
 
-clean: 
+clean:
 	rm -rf dist
 
 .PHONY: clean dist_folder
