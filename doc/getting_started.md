@@ -111,7 +111,7 @@ Style and customize your animations with [CartoCSS Properties for Torque Style M
 The best way to start learning about the library is by taking a look at some of the examples below:
 
 * A basic example using the WWI British Navy dataset - ([view live](http://cartodb.github.io/torque/examples/navy_leaflet.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html))
-* Using tileJSON to fetch tiles - ([view live](http://cartodb.github.io/torque/examples/tilejson.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/tilejson.html))
+* Using tileJSON to fetch tiles - ([view live](https://github.com/CartoDB/torque/blob/master/examples/tilejson.json) / [source code](https://github.com/CartoDB/torque/blob/master/examples/tilejson.html))
 * A car's route at the Nürburgring track mapped in Torque - ([view live](http://cartodb.github.io/torque/examples/car.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/car.html))
 
 ## Additional Torque Resources
