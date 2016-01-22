@@ -15,9 +15,9 @@ Currently, you can only animate Torque point data. Line, polygon, and multipoint
 **Note:** When importing Torque data, CartoDB uploads and assumes timezones are in UTC format by default. To specify a different timezone format, you must use the SQL API to import data into CartoDB.
 
 
-1.  Prepare a Leaflet map in an HTML page
+1)  Prepare a Leaflet map in an HTML page
 
-```html
+{% highlight html %}
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
   <body>
     <div id="map"></div>
@@ -34,13 +34,13 @@ Currently, you can only animate Torque point data. Line, polygon, and multipoint
       }).addTo(map);
     </script>
   </body>
-```
+{% endhighlight %}
 
-2. Initialize the Torque.js layer
+2) Initialize the Torque.js layer
 
 For Torque to work with your table, specify your username, tablename and a CartoCSS string to style the map. Leaflet's method `addTo` adds the Torque layer to the map. `play` runs the animation with the options specified in the CartoCSS properties
 
-```html
+{% highlight html %}
   <script>
     var CARTOCSS = [
       'Map {',
@@ -66,9 +66,9 @@ For Torque to work with your table, specify your username, tablename and a Carto
     torqueLayer.addTo(map);
     torqueLayer.play()
   </script>
-```
+{% endhighlight %}
 
-3.  Required Torque Libraries  
+3) Required Torque Libraries  
 
 Torque libraries are automatically generated when the HTML document is added in step one. The following links are resources to the actual code libraries, if you need to reference them for more advanced Torque functionality.
 
@@ -78,37 +78,38 @@ Torque libraries are automatically generated when the HTML document is added in 
 
 - View the [latest release](https://github.com/CartoDB/torque/releases) of the Torque.js source code
 
-4. Optionally, implement Torque Tiles Specifications
+4) Optionally, implement Torque Tiles Specifications
 
 Torque tile specifications define the TorqueMap Metadata and tileset information. You can use any kind of tile source outside CartoDB, by specifying the location of a [valid TileJSON](https://github.com/mapbox/tilejson-spec) file:
 
-```javascript
+{% highlight javascript %}
   var torqueLayer = new L.TorqueLayer({
     tileJSON: 'http://url.to/tile.json'
     cartocss: CARTOCSS
   });
-```
+{% endhighlight %}
+
 **Note:** All Torque tile fields in the specification are required.
 
-5. Optionally, it is also possible to run a custom SQL query for your visualization:
+5) Optionally, it is also possible to run a custom SQL query for your visualization:
 
-```javascript
+{% highlight javascript %}
   var torqueLayer = new L.TorqueLayer({
     user       : 'your_username',
     table      : 'your_table_name',
     sql_query  : 'SELECT * FROM your_table_name WHERE whatever'
     cartocss: CARTOCSS
   });
-```
+{% endhighlight %}
 
-Like in a video player, you can use animation control methods such as `play`, `stop` and `pause` at any point. Torque's animator fires a `change:time` event each time the animation "ticks" to the next frame, and there are a number of properties and methods that can be run during playback, which are detailed in the [API documentation](/cartodb-platform/torque/torqueapi/). At any point, for example, the styling of the layer's markers can be changed using the `layer.setCartoCSS('##style##')`.
+Similar to using a video player, you can use animation control methods such as `play`, `stop` and `pause` at any point. Torque's animator fires a `change:time` event each time the animation "ticks" to the next frame, and there are a number of properties and methods that can be run during playback, which are detailed in the [API documentation](/cartodb-platform/torque/torqueapi/). At any point, for example, the styling of the layer's markers can be changed using the `layer.setCartoCSS('##style##')`.
 
-6. Customize your animation 
+6) Customize your animation 
 
-Style and customize your animations with [CartoCSS Properties for Torque Style Maps](/cartodb-platform/cartocss/properties-for-torque/)
+Style and customize your animations with [CartoCSS Properties for Torque Style Maps](/cartodb-platform/cartocss/properties-for-torque/).
 
 ## Usage Examples
-The best way to start learning about the library is by taking a look at some of the examples below:
+The best way to start learning about the library is by viewing some of these examples:
 
 * A basic example using the WWI British Navy dataset - ([view live](http://cartodb.github.io/torque/examples/navy_leaflet.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html))
 * Using tileJSON to fetch tiles - ([view live](http://cartodb.github.io/torque/examples/tilejson.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/tilejson.html))
