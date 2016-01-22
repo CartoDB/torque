@@ -64,6 +64,7 @@ QUnit.module('provider.windshaft', {
 
   test("url cdn https", function() {
     windshaft.options.tiler_protocol = 'https';
+    windshaft._buildMapsApiTemplate(windshaft.options);
     windshaft.options.cdn_url = { https: 'cartocdn.com' };
     equal(windshaft.url(), "https://cartocdn.com/rambo");
   });
@@ -108,6 +109,21 @@ QUnit.module('provider.windshaft', {
       }
     });
     ok(lastCall.indexOf("stat_tag=test") !== -1);
+  })
+
+  test("include extra params in named maps", function() {
+    windshaft_named = new torque.providers.windshaft({
+      table: 'test',
+      user: "rambo",
+      stat_tag: 'test',
+      named_map: {
+        name: 'test_named',
+        params: {
+          "wololo": "wololo"
+        }
+      }
+    });
+    ok(lastCall.indexOf("wololo%22%3A%22wololo") !== -1);
   })
 
 test("auth_token as array param", function() {

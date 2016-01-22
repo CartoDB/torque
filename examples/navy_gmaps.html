@@ -9,8 +9,7 @@
 
 
     <script src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
-    <script src="vendor/carto.js"></script>
-    <script src="../dist/torque.uncompressed.js"></script>
+    <script src="../dist/torque.full.uncompressed.js"></script>
 
 
     <script>
@@ -78,7 +77,11 @@
         cartocss: CARTOCSS,
         map: map
       });
-
+      torqueLayer.error(function(err){
+        for(error in err){
+          console.warn(err[error]);
+        }
+      });
       torqueLayer.setMap(map);
       torqueLayer.play()
     }
