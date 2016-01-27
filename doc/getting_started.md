@@ -70,13 +70,7 @@ For Torque to work with your table, specify your username, tablename and a Carto
 
 3) Required Torque Libraries  
 
-Torque libraries are automatically generated when the HTML document is added in step one. The following links are resources to the actual code libraries, if you need to reference them for more advanced Torque functionality.
-
-- Export Torque tiles from your CartoDB account, or use a local Postgres installation [https://github.com/CartoDB/torque-gen](https://github.com/CartoDB/torque-gen)
-
-- View the resource for Torque distribution files [https://github.com/CartoDB/torque/blob/master/dist/torque.js](https://github.com/CartoDB/torque/blob/master/dist/torque.js)
-
-- View the [latest release](https://github.com/CartoDB/torque/releases) of the Torque.js source code
+Torque libraries are automatically generated when the HTML document is added in step one. 
 
 4) Optionally, implement Torque Tiles Specifications
 
