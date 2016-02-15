@@ -1,6 +1,6 @@
 {
     "name": "torque.js",
-    "version": "2.15.1",
+    "version": "2.15.2",
     "description": "Temporal mapping for CartoDB",
     "repository": {
         "type": "git",
@@ -32,7 +32,6 @@
     "browserify": "^7.0.0",
     "canvas": "~1.2.1",
     "leaflet": "0.7.3",
-    "mapnik": "https://github.com/CartoDB/node-mapnik/tarball/1.4.15-cdb1",
     "node-qunit-phantomjs": "^1.0.0",
     "phantomjs-polyfill": "0.0.1",
     "qunit": "~0.7.5",

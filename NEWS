@@ -1,5 +1,5 @@
 2.15.1
-    -
+    - Fixed ready event then rendering more than one step
 
 2.15.0
     - Allow to render several steps at the same time (#247)
