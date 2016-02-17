@@ -29,17 +29,18 @@
     "carto": "https://github.com/CartoDB/carto/archive/master.tar.gz"
   },
   "devDependencies": {
-    "browserify": "^7.0.0",
+    "browserify": "~7.0.0",
     "canvas": "~1.2.1",
     "leaflet": "0.7.3",
-    "node-qunit-phantomjs": "^1.0.0",
+    "mapnik": "https://github.com/CartoDB/node-mapnik/tarball/1.4.15-cdb1",
+    "node-qunit-phantomjs": "1.3.0",
     "phantomjs-polyfill": "0.0.1",
     "qunit": "~0.7.5",
     "qunitjs": "1.x",
-    "request": "^2.53.0",
+    "request": "~2.53.0",
     "uglify-js": "1.3.3",
-    "underscore": "^1.6.0",
-    "sinon": "^1.15.4"
+    "underscore": "~1.6.0",
+    "sinon": "~1.15.4"
   },
   "scripts": {
     "test": "make test-all"
