@@ -1,8 +1,5 @@
 # Advanced Torque.js Interaction Methods
 
-_**Note:** Before applying Torque.js interaction methods, you must first load the [required libraries](http://docs.cartodb.com/cartodb-platform/torque/torquejs-getting-started/#advanced-torquejs-libraries)_.
-
-
 ## Torque Layers
 
 While you can add multiple layers with Torque.js, this is not recommended as it effects performance.
