@@ -123,8 +123,6 @@ torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
 
 ### Events
 
-_**Note:** You can only run events after the [required libraries](/cartodb-platform/torque/torquejs-getting-started/#advanced-torquejs-libraries) are loaded. Otherwise, the [interaction methods](/cartodb-platform/torque/torque-interaction-methods/) will not work._
-
 Events in Torque follow the format:
 
 ```js
