@@ -28,12 +28,12 @@ attribution | Attribution to be added in the bottom right of the map
 maxZoom | Maximum zoom for the layer. 
 tileSize | Size, in pixels of the tiles
 
-##### Using a CartoDB table directly
+##### Using a Carto table directly
 
 Name | Description
 --- | ---
-user | A string object, your CartoDB [account name](/cartodb-editor/your-account/#account). Default value is  ```null```
-table | A string object, the CartoDB table name where data is found (also known as a dataset.) Default value is  ```null```
+user | A string object, your Carto [account name](/carto-editor/your-account/#account). Default value is  ```null```
+table | A string object, the Carto table name where data is found (also known as a dataset.) Default value is  ```null```
 
 ##### Using a custom SQL query
 
@@ -41,7 +41,7 @@ Name | Description
 --- | ---
 query | A string object, the SQL query to be performed to fetch the data. Default value is ```null```.<br/><br/>You must use this param or table, but not at the same time
 
-**Tip:** For a Torque category layer that is created dynamically with `cartodb.createLayer`, the SQL query must explicitly include how to build the torque_category column. You must include both the `sql` and `table_name` parameters. See this [createLayer with torque category layer](https://gist.github.com/danicarrion/dcaf6f00a71aa55134b4) example.
+**Tip:** For a Torque category layer that is created dynamically with `carto.createLayer`, the SQL query must explicitly include how to build the torque_category column. You must include both the `sql` and `table_name` parameters. See this [createLayer with torque category layer](https://gist.github.com/danicarrion/dcaf6f00a71aa55134b4) example.
 
 ##### Providing a TileJSON file
 
@@ -62,7 +62,7 @@ Method | Options | Returns | Description |
 `getTime()` | | current animation time (Date) | gets the real animation time
 `isRunning()` | | `true`/`false` | describes whether the Torque layer is playing or is stopped
 
-**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](/cartodb-platform/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
+**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
 
 #### Layer Control Methods
 
@@ -75,9 +75,9 @@ Method | Options | Returns | Description |
 
 Method | Options | Returns | Description
 ---|---|---|---|
-`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](/cartodb-platform/maps-api/named-maps/))
+`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](/carto-engine/maps-api/named-maps/))
 
-Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/cartodb/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation](/cartodb-platform/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
+Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/carto/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation](/carto-engine/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
 
 TorqueLayer currently expects `marker` styling.
 
@@ -88,7 +88,7 @@ This is how a minimal example of a stylesheet for a Torque visualisation would l
 ```css
 Map {
   -torque-time-attribute: "date";
-  -torque-aggregation-function: "count(cartodb_id)";
+  -torque-aggregation-function: "count(carto_id)";
   -torque-frame-count: 760;
   -torque-animation-duration: 15;
   -torque-resolution: 2;
