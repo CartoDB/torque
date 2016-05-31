@@ -28,12 +28,12 @@ attribution | Attribution to be added in the bottom right of the map
 maxZoom | Maximum zoom for the layer. 
 tileSize | Size, in pixels of the tiles
 
-##### Using a Carto table directly
+##### Using a CARTO table directly
 
 Name | Description
 --- | ---
-user | A string object, your Carto [account name](/carto-editor/your-account/#account). Default value is  ```null```
-table | A string object, the Carto table name where data is found (also known as a dataset.) Default value is  ```null```
+user | A string object, your CARTO [account name](/carto-editor/your-account/#account). Default value is  ```null```
+table | A string object, the CARTO table name where data is found (also known as a dataset.) Default value is  ```null```
 
 ##### Using a custom SQL query
 
@@ -41,7 +41,7 @@ Name | Description
 --- | ---
 query | A string object, the SQL query to be performed to fetch the data. Default value is ```null```.<br/><br/>You must use this param or table, but not at the same time
 
-**Tip:** For a Torque category layer that is created dynamically with `carto.createLayer`, the SQL query must explicitly include how to build the torque_category column. You must include both the `sql` and `table_name` parameters. See this [createLayer with torque category layer](https://gist.github.com/danicarrion/dcaf6f00a71aa55134b4) example.
+**Tip:** For a Torque category layer that is created dynamically with `cartodb.createLayer`, the SQL query must explicitly include how to build the torque_category column. You must include both the `sql` and `table_name` parameters. See this [createLayer with torque category layer](https://gist.github.com/danicarrion/dcaf6f00a71aa55134b4) example.
 
 ##### Providing a TileJSON file
 
@@ -88,7 +88,7 @@ This is how a minimal example of a stylesheet for a Torque visualisation would l
 ```css
 Map {
   -torque-time-attribute: "date";
-  -torque-aggregation-function: "count(carto_id)";
+  -torque-aggregation-function: "count(cartodb_id)";
   -torque-frame-count: 760;
   -torque-animation-duration: 15;
   -torque-resolution: 2;
