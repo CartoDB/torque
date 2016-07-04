@@ -120,7 +120,7 @@ var map = new L.Map('map', {
   zoom: 3
 });
 L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
-  attribution: 'CartoDB'
+  attribution: 'CARTO'
 }).addTo(map);
 var torqueLayer = new L.TorqueLayer({
   user : 'viz2',

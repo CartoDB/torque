@@ -15,7 +15,7 @@ Although the most straightforward way to use Torque is through either the CARTO 
       });
 
       L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
-        attribution: 'CartoDB'
+        attribution: 'CARTO'
       }).addTo(map);
     </script>
   </body>
