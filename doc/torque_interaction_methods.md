@@ -29,7 +29,7 @@ This layer source object is used for Torque maps. Note that it does not allow su
 Used to create an animated torque layer with customized settings.
 
 ```javascript
-// initialize a torque layer that uses the CartoDB account details and SQL API to pull in data
+// initialize a torque layer that uses the CARTO account details and SQL API to pull in data
 var torqueLayer = new L.TorqueLayer({
   user : 'viz2',
   table : 'ow',
@@ -120,7 +120,7 @@ var map = new L.Map('map', {
   zoom: 3
 });
 L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
-  attribution: 'CartoDB'
+  attribution: 'CARTO'
 }).addTo(map);
 var torqueLayer = new L.TorqueLayer({
   user : 'viz2',
