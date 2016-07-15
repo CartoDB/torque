@@ -1,7 +1,11 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="vendor/leaflet.css"/>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+        <link rel="stylesheet" href="vendor/bootstrap-colorpicker/css/bootstrap-colorpicker.min.css"/>
         <style>
             html, body, #map {
                 width: 100%;
@@ -9,140 +13,425 @@
                 padding: 0;
                 margin: 0;
             }
+            #file_selector input[type="number"] {
+                width: 80px;
+            }
         </style>
+        <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+        <script src="vendor/bootstrap-colorpicker/js/bootstrap-colorpicker.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+        <script src="http://underscorejs.org/underscore-min.js"></script>
     </head>
     <body>
-        <div id="file_selector"><input type="file" id="files" name="files" /> <i>Row: lat, lon, time, value</i></div>
-        <div id="map">
-            <div class="mapLayer" id="filter">
-                <p>Filter zone</p>
-                <input type="checkbox" class="toogle" name="foo" value="foo">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="#">CARTO Torque</a>
+                </div>
+            </div>
+        </nav>
+        <div class="container-fluid">
+            <div class="row" id="pre_file">
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Column definition</h3>
+                        </div>
+                        <div class="panel-body">
+                            <form>
+                                <div class="form-group">
+                                    <label for="latitude_column">Latitude column #</label>
+                                    <input type="number" id="latitude_column" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="longitude_column">Longitude column #</label>
+                                    <input type="number" id="longitude_column" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="value_column">Value column #</label>
+                                    <input type="number" id="value_column" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="timestamp_column">Timestamp column #</label>
+                                    <input type="number" id="timestamp_column" />
+                                </div>
+                            </form>
+                            <p><i>First column in file is #0</i></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Animation parameters</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label for="animation_duration">Animation duration</label>
+                                <input type="number" id="animation_duration" value="0" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label for="animation_steps">Animation steps</label>
+                                <input type="number" id="animation_steps" value="1" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label for="max_points">Max. points to load</label>
+                                <input type="number" id="max_points" value="20000" max="100000" min="0" step="1000"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">File selector</h3>
+                        </div>
+                        <div class="panel-body">
+                            <form id="file_selector">
+                                <div class="form-group">
+                                    <label for="files">Select CSV file</label>
+                                    <input type="file" id="files" name="files" disabled />
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row" id="post_file" style="display: none;">
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Map configuration</h3>
+                        </div>
+                        <div class="panel-body">
+                            <form>
+                                <div class="form-group">
+                                    <label for="map_type">Map type</label>
+                                    <select id="map_type">
+                                        <option value="normal">Normal</option>
+                                        <option value="heatmap">Heatmap</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="basemap">Basemap</label>
+                                    <select id="basemap">
+                                        <option value="dark">Dark</option>
+                                        <option value="light">Light</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Marker fill</h3>
+                        </div>
+                        <div class="panel-body">
+                            <form>
+                                <div class="form-group">
+                                    <label for="marker_fill">Marker color</label>
+                                    <div id="marker_fill" class="input-group colorpicker-component">
+                                        <input type="text" class="form-control" value="#ff6600" />
+                                        <span class="input-group-addon"><i></i></span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="marker_opacity">Marker opacity</label>
+                                    <input type="number" id="marker_opacity" value="0.2" max="1" min="0" step="0.1"/>
+                                </div>
+                                <div class="form-group">
+                                    <label for="marker_width">Marker width</label>
+                                    <input type="number" id="marker_width" value="2" max="10" min="0" step="1"/>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Marker border</h3>
+                        </div>
+                        <div class="panel-body">
+                            <form>
+                                <div class="form-group">
+                                    <label for="_color">Border color</label>
+                                    <div id="border_color" class="input-group colorpicker-component">
+                                        <input type="text" class="form-control" value="#ffffff" />
+                                        <span class="input-group-addon"><i></i></span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="border_opacity">Border opacity</label>
+                                    <input type="number" id="border_opacity" value="0.2" max="1" min="0" step="0.1" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="border_width">Border width</label>
+                                    <input type="number" id="border_width" value="0" max="10" min="0" step="1" />
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+        <div id="map"></div>
 
         <script src="vendor/leaflet.js"></script>
         <script src="vendor/papaparse.min.js"></script>
         <script src="../dist/torque.full.uncompressed.js"></script>
 
-
         <script>
+            $('#marker_fill').colorpicker();
+            $('#border_color').colorpicker();
+
             var map = new L.Map('map', {
                 zoomControl: true,
                 center: [40, 0],
                 zoom: 6
             });
 
-            L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+            var basemapLayer = L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://carto.com/attributions">CARTO</a>'
             }).addTo(map);
+
+            var torqueLayer;
+
+            var layoutParameters = {
+                marker_fill: "#ff6600",
+                marker_width: 2,
+                marker_opacity: 0.2,
+                border_width: 0,
+                border_opacity: 1,
+                border_color: "#ffffff",
+            };
+
+            var columns = {};
 
             var CARTOCSS_NORMAL = [
                 'Map {',
                 '}',
                 '#layer{',
                 '  comp-op: lighter;',
-                '  marker-line-color: #FFF;',
-                '  marker-line-width: 0;',
-                '  marker-line-opacity: 1;',
+                '  marker-line-color: <%= border_color %>;',
+                '  marker-line-width: <%= border_width %>;',
+                '  marker-line-opacity: <%= border_opacity %>;',
                 '  marker-type: ellipse;',
-                '  marker-width: 2;',
-                '  marker-fill: #FF6600;',
-                '  marker-opacity: 0.1',
+                '  marker-width: <%= marker_width %>;',
+                '  marker-fill: <%= marker_fill %>',
+                '  marker-opacity: <%= marker_opacity %>',
                 '}',
                 '#layer::point2 {',
-                '  marker-width: 1;',
-                '  marker-fill: #FF6600;',
+                '  marker-width: <%= marker_width / 2 %>;',
+                '  marker-fill: <%= marker_fill %>;',
                 '  marker-fill-opacity: 1;',
-                '  marker-line-color: #fff;',
-                '  marker-line-width: 1;',
                 '  marker-line-opacity: 0;',
                 '}',
                 '#layer::point3 {',
-                '  marker-width: 4;',
-                '  marker-fill: #ff6600;',
+                '  marker-width: <%= marker_width * 2 %>;',
+                '  marker-fill: <%= marker_fill %>;',
                 '  marker-fill-opacity: .2;',
-                '  marker-line-color: #fff;',
+                '  marker-line-color: <%= border_color %>;',
                 '  marker-line-width: 1;',
-                '  marker-line-opacity: 0;',
+                '  marker-line-opacity: <%= marker_opacity %>;',
                 '}',
                 '#layer::point {',
-                '  marker-width: 6;',
-                '  marker-fill: #ff6600;',
+                '  marker-width: <%= marker_width * 3 %>;',
                 '  marker-fill-opacity: 0;',
-                '  marker-line-color: #ff6600;',
+                '  marker-line-color: <%= border_color %>;',
                 '  marker-line-width: 1;',
-                '  marker-line-opacity: .1;',
+                '  marker-line-opacity: <%= border_opacity / 2 %>;',
                 '}',
                 '#layer[frame-offset=1] {',
-                '  marker-width:2;',
-                '  marker-opacity:0.45;',
+                '  marker-width: <%= marker_width %>;',
+                '  marker-opacity: 0.45;',
                 '}',
                 '#layer[frame-offset=2]{',
-                '  marker-width:4;',
-                '  marker-opacity:0.225;',
+                '  marker-width: <%= marker_width * 2 %>;',
+                '  marker-opacity: 0.225;',
                 '}',
                 '#layer[frame-offset=3]{',
-                '  marker-width:6;',
-                '  marker-opacity:0.1;',
+                '  marker-width: <%= marker_width * 3 %>;',
+                '  marker-opacity: 0.1;',
                 '}',
                 '#layer[frame-offset=4]{',
-                '  marker-width:8;',
-                '  marker-opacity:0.05;',
+                '  marker-width: <%= marker_width * 4 %>;',
+                '  marker-opacity: 0.05;',
                 '}',
                 '#layer[frame-offset=5]{',
-                '  marker-width:10;',
-                '  marker-opacity:0.02;',
+                '  marker-width: <%= marker_width * 5 %>;',
+                '  marker-opacity: 0.02;',
                 '}'
             ].join('\n');
 
-            var CARTOCSS_INTENSITY = [
-                    'Map {',
-                    '}',
-                    '#layer {',
-                    '  image-filters: colorize-alpha(blue, cyan, lightgreen, yellow , orange, red);',
-                    '  marker-file: url(http://s3.amazonaws.com/com.cartodb.assets.static/alphamarker.png);',
-                    '  marker-fill-opacity: 0.4*[value];',
-                    '  marker-width: 35;',
-                    '}'
+            var CARTOCSS_HEATMAP = [
+                'Map {',
+                '}',
+                '#layer{',
+                '  image-filters: colorize-alpha(blue, cyan, lightgreen, yellow , orange, red);',
+                '  marker-file: url(http://s3.amazonaws.com/com.cartodb.assets.static/alphamarker.png);',
+                '  marker-fill-opacity: <%= marker_opacity %>*[value];',
+                '  marker-width: <%= marker_width %>;',
+                '}',
+                '#layer[frame-offset=1] {',
+                '  marker-width: <%= marker_width + 2 %>;',
+                '  marker-fill-opacity: <%= marker_opacity / 2 %>; ',
+                '}',
+                '#layer[frame-offset=2] {',
+                '  marker-width: <%= marker_width + 4%>;',
+                '  marker-fill-opacity: <%= marker_opacity / 4 %>; ',
+                '}'
             ].join('\n');
 
-            var pointsToLoad = 50000;
+            var mapType = "normal";
 
-            var animationDuration = 60;
-            var steps = 2048;
-            var cumulative = false;
-            var loop = true;
-            var cartocss = CARTOCSS_NORMAL;
+            var cartocss = _.template(CARTOCSS_NORMAL);
 
-            var torqueLayer = new L.TorqueLayer({
-                provider: 'internal',
-                loop: loop,
-                steps: steps,
-                animationDuration: animationDuration,
-                data_aggregation: cumulative ? "cumulative" : undefined,
-                cartocss: cartocss
-            });
+            function redraw() {
+                if (mapType == "normal") {
+                    cartocss = _.template(CARTOCSS_NORMAL);
+                } else {
+                    cartocss = _.template(CARTOCSS_HEATMAP);
+                }
 
-            torqueLayer.addTo(map);
+                torqueLayer.setCartoCSS(cartocss(layoutParameters));
+            }
 
             function handleFileSelect(evt) {
-                document.getElementById("file_selector").style.display = "none";
+                document.getElementById("pre_file").style.display = "none";
+                document.getElementById("post_file").style.display = "block";
                 var file = evt.target.files[0];
 
                 Papa.parse(file, {
                     complete: function (results) {
-                        for (var i = 1; i <= pointsToLoad && i < results.data.length; i++) {
+                        for (var i = 1; i <= parseInt($("#max_points").val()) && i < (results.data.length - 1); i++) {  // avoid header row
                             var point = results.data[i];
-                            // lat, lon, time, value
-                            torqueLayer.provider.addPoint(point[0], point[1], point[2], point[3]);
+                            torqueLayer.provider.addPoint(point[columns.latitude], point[columns.longitude], point[columns.timestamp] || 0, point[columns.value] || 1);
                         }
                         torqueLayer.provider.setReady();
                         torqueLayer.play();
                     }
                 });
+
+                torqueLayer = new L.TorqueLayer({
+                   provider: 'internal',
+                   loop: true,
+                   steps: parseInt($("#animation_steps").val()),
+                   animationDuration: parseInt($("#animation_duration").val()),
+                   cartocss: cartocss(layoutParameters)
+               });
+               torqueLayer.addTo(map);
+
+               redraw();
             }
-            document.getElementById('files').addEventListener('change', handleFileSelect, false);
+            document.getElementById('files').addEventListener('change', handleFileSelect);
+
+            function handleMapTypeSelect(e) {
+                mapType = e.target.value;
+                redraw();
+            }
+            document.getElementById('map_type').addEventListener('change', handleMapTypeSelect);
+
+            function handleBasemapSelect(e) {
+                if (e.target.value == "light") {
+                    basemapLayer.setUrl("http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png");
+                } else {
+                    basemapLayer.setUrl("http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png");
+                }
+            }
+            document.getElementById('basemap').addEventListener('change', handleBasemapSelect);
+
+            function handleMarkerFillSelect(e) {
+                layoutParameters.marker_fill = e.color.toHex();
+                redraw();
+            }
+            $('#marker_fill').on('changeColor', handleMarkerFillSelect);
+
+            function handleMarkerOpacitySelect() {
+                layoutParameters.marker_opacity = parseFloat($(this).val());
+                redraw();
+            }
+            $('#marker_opacity').on('change', handleMarkerOpacitySelect);
+
+            function handleMarkerWidthSelect() {
+                layoutParameters.marker_width = parseInt($(this).val());
+                redraw();
+            }
+            $('#marker_width').on('change', handleMarkerWidthSelect);
+
+            function handleBorderOpacitySelect() {
+                layoutParameters.border_opacity = parseFloat($(this).val());
+                redraw();
+            }
+            $('#border_opacity').on('change', handleBorderOpacitySelect);
+
+            function handleBorderWidthSelect() {
+                layoutParameters.border_width = parseInt($(this).val());
+                redraw();
+            }
+            $('#border_width').on('change', handleBorderWidthSelect);
+
+            function handleBorderColorSelect(e) {
+                layoutParameters.border_color = e.color.toHex();
+                redraw();
+            }
+            $('#border_color').on('changeColor', handleBorderColorSelect);
+
+            function handleLatitudeColumnSelect(e) {
+                columns.latitude = parseInt(e.target.value);
+                if (columns.longitude) {
+                    $("#files").prop("disabled", false);
+                }
+            }
+            document.getElementById('latitude_column').addEventListener('change', handleLatitudeColumnSelect);
+
+            function handleLongitudeColumnSelect(e) {
+                columns.longitude = parseInt(e.target.value);
+                if (columns.latitude) {
+                    $("#files").prop("disabled", false);
+                }
+            }
+            document.getElementById('longitude_column').addEventListener('change', handleLongitudeColumnSelect);
+
+            function handleTimestampColumnSelect(e) {
+                var timestamp = parseInt(e.target.value);
+
+                if (timestamp >= 0) {
+                    $("#animation_duration").prop("disabled", false);
+                    $("#animation_steps").prop("disabled", false);
+
+                    if (parseInt($("#animation_duration").val()) === 0) {
+                        $("#animation_duration").val(60);
+                    }
+                    if ($("#animation_steps").val() == "1") {
+                        $("#animation_steps").val(2048);
+                    }
+
+                    columns.timestamp = timestamp;
+                } else {
+                    $("#animation_duration").prop("disabled", true);
+                    $("#animation_steps").prop("disabled", true);
+
+                    $("#animation_duration").val(0);
+                    $("#animation_steps").val(1);
+
+                    columns.timestamp = null;
+                }
+            }
+            document.getElementById('timestamp_column').addEventListener('change', handleTimestampColumnSelect);
+
+            function handleValueColumnSelect(e) {
+                columns.value = parseInt(e.target.value);
+            }
+            document.getElementById('value_column').addEventListener('change', handleValueColumnSelect);
         </script>
     </body>
 </html>
-
