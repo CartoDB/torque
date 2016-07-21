@@ -1,6 +1,6 @@
 # Getting Started
 
-Although the most straightforward way to use Torque is through either the CARTO Editor, or by passing the layer's viz.json to [CARTO.js](http://docs.carto.com/carto-engine/carto-js/getting-started/), many use cases work best with the standalone [Torque.js](https://github.com/CartoDB/torque/tree/master/dist). Assuming you have a public dataset with a `date` column, it is really simple to create an animated map with the library. First, you need to have a Leaflet map prepared in an HTML page:
+Although the most straightforward way to use Torque is through either the CARTO Editor, or by passing the layer's viz.json to [CARTO.js](https://carto.com/docs/carto-engine/carto-js/getting-started/), many use cases work best with the standalone [Torque.js](https://github.com/CartoDB/torque/tree/master/dist). Assuming you have a public dataset with a `date` column, it is really simple to create an animated map with the library. First, you need to have a Leaflet map prepared in an HTML page:
 
 ```html
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
@@ -71,7 +71,7 @@ Optionally, it is also possible to use a custom SQL query for your visualization
   });
 ```
 
-Like in a video player, you can use animation control methods such as `play`, `stop` and `pause` at any point. Torque's animator fires a `change:time` event each time the animation "ticks" to the next frame, and there are a number of properties and methods that can be run during playback, which are detailed in the [API documentation](/carto-engine/torque/torqueapi/). At any point, for example, the styling of the layer's markers can be changed using the `layer.setCartoCSS('##style##')`.
+Like in a video player, you can use animation control methods such as `play`, `stop` and `pause` at any point. Torque's animator fires a `change:time` event each time the animation "ticks" to the next frame, and there are a number of properties and methods that can be run during playback, which are detailed in the [API documentation](https://carto.com/docs/carto-engine/torque/torqueapi/). At any point, for example, the styling of the layer's markers can be changed using the `layer.setCartoCSS('##style##')`.
 
 ## Usage Examples
 The best way to start learning about the library is by taking a look at some of the examples below:
