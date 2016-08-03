@@ -27,16 +27,16 @@
     }
   ],
   "dependencies": {
-    "carto": "https://github.com/CartoDB/carto/archive/master.tar.gz",
-    "d3": "^3.5.6",
-    "turbo-carto": "^0.15.0",
-    "turf-jenks": "^1.0.1"
+    "carto": "cartodb/carto#master",
+    "d3": "~3.5.6",
+    "turbo-carto": "~0.15.1",
+    "turf-jenks": "~1.0.1"
   },
   "devDependencies": {
     "browserify": "~7.0.0",
     "canvas": "~1.2.1",
     "leaflet": "0.7.3",
-    "mapnik": "https://github.com/CartoDB/node-mapnik/tarball/1.4.15-cdb1",
+    "mapnik": "cartodb/node-mapnik#1.4.15-cdb8",
     "node-qunit-phantomjs": "1.3.0",
     "phantomjs-polyfill": "0.0.1",
     "qunit": "~0.7.5",
