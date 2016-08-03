@@ -6,3 +6,5 @@ Torque.js is an efficient and stylish rendering method to animate your data. Tor
 
 * [Getting Started with Torque.js](getting_started.md)
 * [Torque API Methods](torque_api.md)
+* [Advanced Interaction Methods](torque_interaction_methods.md)
+* [Torque Time Slider](torque_time_slider.md)
