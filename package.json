@@ -25,7 +25,7 @@
   "dependencies": {
     "carto": "cartodb/carto#master",
     "d3": "3.5.17",
-    "turbo-carto": "0.16.1",
+    "turbo-carto": "0.16.0",
     "turf-jenks": "~1.0.1"
   },
   "devDependencies": {
