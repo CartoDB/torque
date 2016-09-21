@@ -1,7 +1,7 @@
 {
   "name": "torque.js",
   "version": "2.15.2",
-  "description": "Temporal mapping for CartoDB",
+  "description": "Temporal mapping for CARTO",
   "repository": {
     "type": "git",
     "url": "git://github.com/CartoDB/torque.git"
