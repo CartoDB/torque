@@ -7,9 +7,9 @@
     "url": "git://github.com/CartoDB/torque.git"
   },
   "author": {
-    "name": "CartoDB",
-    "url": "http://cartodb.com/",
-    "email": "wadus@cartodb.com"
+    "name": "CARTO",
+    "url": "http://carto.com/",
+    "email": "wadus@carto.com"
   },
   "contributors": [
     "Andrew Hill <andrew@vizzuality.com>",
