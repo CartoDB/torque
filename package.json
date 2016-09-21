@@ -24,8 +24,8 @@
   "license": "BSD-3-Clause",
   "dependencies": {
     "carto": "cartodb/carto#master",
-    "d3": "~3.5.6",
-    "turbo-carto": "~0.15.1",
+    "d3": "3.5.17",
+    "turbo-carto": "0.16.1",
     "turf-jenks": "~1.0.1"
   },
   "devDependencies": {
