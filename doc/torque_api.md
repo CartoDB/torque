@@ -32,7 +32,7 @@ tileSize | Size, in pixels of the tiles
 
 Name | Description
 --- | ---
-user | A string object, your CARTO [account name](/carto-editor/your-account/#account). Default value is  ```null```
+user | A string object, your CARTO [account name](https://carto.com/docs/carto-editor/your-account/#account). Default value is  ```null```
 table | A string object, the CARTO table name where data is found (also known as a dataset.) Default value is  ```null```
 
 ##### Using a custom SQL query
@@ -62,7 +62,7 @@ Method | Options | Returns | Description |
 `getTime()` | | current animation time (Date) | gets the real animation time
 `isRunning()` | | `true`/`false` | describes whether the Torque layer is playing or is stopped
 
-**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
+**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
 
 #### Layer Control Methods
 
@@ -75,9 +75,9 @@ Method | Options | Returns | Description |
 
 Method | Options | Returns | Description
 ---|---|---|---|
-`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](/carto-engine/maps-api/named-maps/))
+`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](https://carto.com/docs/carto-engine/maps-api/named-maps/))
 
-Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/cartodb/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation](/carto-engine/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
+Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/cartodb/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
 
 TorqueLayer currently expects `marker` styling.
 
