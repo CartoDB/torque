@@ -17,9 +17,9 @@ Related Examples | To disable the time slider option, use `time_slider: false`. 
 
 You can customize the animation of your Torque time slider by editing the `-torque-frame-count` and `-torque-animation-duration` CartoCSS properties. (Optionally, you can create a [CARTO.js](https://carto.com/docs/carto-engine/carto-js/api-methods/#api-methods) map to create a custom time slider). This section also describes how time interval data is aggregated, and describes the formula used to calculate time buckets.
 
-- [`-torque-frame-count`](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number) specifies the number of animation steps/frames in your torque animation. You can change the time slider timestamp by adjusting the number of steps.<br /><br />**Tip:** This is the _Steps_ option from the [Torque wizard](https://carto.com/docs/carto-editor/maps/#torque) of the CARTO Editor.
+- [`-torque-frame-count`](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number) specifies the number of animation steps/frames in your torque animation. You can change the time slider timestamp by adjusting the number of steps.<br /><br />**Tip:** In CARTO Builder, this is the STEPS value when the style is ANIMATED.
 
-- [`-torque-animation-duration`](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-animation-duration-number) specifies the length of time for your animation, in seconds. You can adjust the duration of the animation as needed.<br /><br />**Tip:** This is the _Duration (secs)_ option from the [Torque wizard](https://carto.com/docs/carto-editor/maps/#torque) of the CARTO Editor.
+- [`-torque-animation-duration`](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-animation-duration-number) specifies the length of time for your animation, in seconds. You can adjust the duration of the animation as needed.<br /><br />**Tip:** In CARTO Builder, this is the DURATION value when the style is ANIMATED.
 
 ### Aggregating Time Interval Data
 
@@ -34,7 +34,7 @@ Before customizing the time slider, you should understand how Torque time interv
   
 Thus, the start and end time for each bucket depends on the number of divided steps (not a specific start time or end time that you entered). 
 
-**Note:** If you are creating Torque maps with the CARTO Editor, the date format of the Torque time slider is automatically calculated by CARTO and cannot be edited. See [Calculating the Time Slider in the CARTO Editor](#calculating-the-time-slider-in-the-carto-editor) for more details.
+**Note:** If you are creating Torque maps with CARTO Builder, the date format of the Torque time slider is automatically calculated by CARTO and cannot be edited. See [Calculating the Time Slider in CARTO Builder](#calculating-the-time-slider-in-carto-builder) for more details.
 
 ### Formula for Calculating Time Buckets
 
@@ -50,9 +50,9 @@ Where:
 
 The Torque time slider displays these buckets of time, animating the entire sequence of your dataset, and divides the time according to the number of specified steps. You can alter the [duration](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-animation-duration-number) of the animation, and adjust the time slider timestamp with the number of [Steps](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number).
 
-#### Calculating the Time Slider in the CARTO Editor
+#### Calculating the Time Slider in CARTO Builder
 
-When creating Torque maps with the CARTO Editor, the date format of the Torque time slider is automatically calculated by CARTO, depending on the range of time in your dataset. It cannot be edited. If your data contains the following range of time, the time slider displays as described:
+When creating Torque maps with CARTO Builder, the date format of the Torque time slider is automatically calculated by CARTO, depending on the range of time in your dataset. It cannot be edited. If your data contains the following range of time, the time slider displays as described:
 
 - Time range is _less than one day_, the time slider displays the _time_
 - Time range is _less than three days_, the time slider displays the _day and time_
