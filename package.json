@@ -1,6 +1,6 @@
 {
   "name": "torque.js",
-  "version": "2.15.2",
+  "version": "2.16.0",
   "description": "Temporal mapping for CARTO",
   "repository": {
     "type": "git",
@@ -25,7 +25,7 @@
   "dependencies": {
     "carto": "cartodb/carto#master",
     "d3": "3.5.17",
-    "turbo-carto": "0.16.0",
+    "turbo-carto": "0.19.0",
     "turf-jenks": "~1.0.1"
   },
   "devDependencies": {
