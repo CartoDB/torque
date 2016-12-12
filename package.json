@@ -1,6 +1,6 @@
 {
   "name": "torque.js",
-  "version": "2.16.0",
+  "version": "2.16.1",
   "description": "Temporal mapping for CARTO",
   "repository": {
     "type": "git",
