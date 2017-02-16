@@ -1,5 +1,6 @@
 2.11.5
-    
+    - Backport fix for #280: Remove width trick to use clear rect.
+
 2.11.4
     - Static torque maps now draw correctly when unhiding them
     - Fixed animation always playing when rescaling
@@ -44,7 +45,7 @@
     - Improved out of bounds correction function
     - Fixed image-asset sizing
     - Fixed items to load counter being sometimes negative
-    
+
 2.8.0
     - Supports use of external image markers via marker-file
     - Fixes Torque tiles not rendering outside normal lat/lng ranges.
