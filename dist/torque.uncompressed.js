@@ -1,5 +1,5 @@
 /**
-Torque 2.11.4
+Torque 2.11.5
 Temporal mapping for CartoDB
 https://github.com/cartodb/torque
 **/
@@ -4564,7 +4564,7 @@ var Filters = require('./torque_filters');
     this.TILE_SIZE = 256;
     this._style = null;
     this._gradients = {};
-    
+
     this._forcePoints = false;
   }
 
@@ -4574,10 +4574,13 @@ var Filters = require('./torque_filters');
       var canvas = this._canvas;
       var color = this._Map['-torque-clear-color']
       // shortcut for the default value
+      var ctx = this._ctx;
       if (color  === "rgba(255, 255, 255, 0)" || !color) {
-        this._canvas.width = this._canvas.width;
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
       } else {
-        var ctx = this._ctx;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         var compop = this._Map['comp-op']
         ctx.globalCompositeOperation = compop2canvas(compop);
@@ -4672,7 +4675,7 @@ var Filters = require('./torque_filters');
         i.src = canvas.toDataURL();
         return i;
       }
-      
+
       return canvas;
     },
 
@@ -4700,7 +4703,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
       prof.end(true);
 
       return callback && callback(null);
@@ -4744,7 +4747,7 @@ var Filters = require('./torque_filters');
     },
 
     //
-    // renders a tile in the canvas for key defined in 
+    // renders a tile in the canvas for key defined in
     // the torque tile
     //
     _renderTile: function(tile, key, frame_offset, sprites, shader, shaderVars) {
@@ -4781,7 +4784,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
 
       prof.end(true);
     },
@@ -4932,7 +4935,7 @@ var Filters = require('./torque_filters');
           }
           gradient = {};
           var colorize = this._style['image-filters'].args;
-          
+
           var increment = 1/colorize.length;
           for (var i = 0; i < colorize.length; i++){
             var key = increment * i + increment;

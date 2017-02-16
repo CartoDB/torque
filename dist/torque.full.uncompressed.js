@@ -4557,7 +4557,7 @@ var Filters = require('./torque_filters');
     this.TILE_SIZE = 256;
     this._style = null;
     this._gradients = {};
-    
+
     this._forcePoints = false;
   }
 
@@ -4567,10 +4567,13 @@ var Filters = require('./torque_filters');
       var canvas = this._canvas;
       var color = this._Map['-torque-clear-color']
       // shortcut for the default value
+      var ctx = this._ctx;
       if (color  === "rgba(255, 255, 255, 0)" || !color) {
-        this._canvas.width = this._canvas.width;
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
       } else {
-        var ctx = this._ctx;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         var compop = this._Map['comp-op']
         ctx.globalCompositeOperation = compop2canvas(compop);
@@ -4665,7 +4668,7 @@ var Filters = require('./torque_filters');
         i.src = canvas.toDataURL();
         return i;
       }
-      
+
       return canvas;
     },
 
@@ -4693,7 +4696,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
       prof.end(true);
 
       return callback && callback(null);
@@ -4737,7 +4740,7 @@ var Filters = require('./torque_filters');
     },
 
     //
-    // renders a tile in the canvas for key defined in 
+    // renders a tile in the canvas for key defined in
     // the torque tile
     //
     _renderTile: function(tile, key, frame_offset, sprites, shader, shaderVars) {
@@ -4774,7 +4777,7 @@ var Filters = require('./torque_filters');
           }
         }
       }
-      
+
 
       prof.end(true);
     },
@@ -4925,7 +4928,7 @@ var Filters = require('./torque_filters');
           }
           gradient = {};
           var colorize = this._style['image-filters'].args;
-          
+
           var increment = 1/colorize.length;
           for (var i = 0; i < colorize.length; i++){
             var key = increment * i + increment;
@@ -5672,31 +5675,6 @@ var objectKeys = Object.keys || function (obj) {
 };
 
 },{"util/":34}],30:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],31:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5924,7 +5902,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":32}],32:[function(require,module,exports){
+},{"_process":31}],31:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -6011,6 +5989,31 @@ process.cwd = function () { return '/' };
 process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
+
+},{}],32:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
 
 },{}],33:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
@@ -6609,7 +6612,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":33,"_process":32,"inherits":30}],35:[function(require,module,exports){
+},{"./support/isBuffer":33,"_process":31,"inherits":32}],35:[function(require,module,exports){
 (function (tree) {
 
 tree.functions = {
@@ -6942,7 +6945,7 @@ function stylize(str, style) {
 }
 
 }).call(this,require('_process'),"/node_modules/carto/lib/carto")
-},{"../../package.json":72,"./functions":35,"./parser":37,"./renderer":38,"./renderer_js":39,"./torque-reference":40,"./tree":41,"./tree/call":42,"./tree/color":43,"./tree/comment":44,"./tree/definition":45,"./tree/dimension":46,"./tree/element":47,"./tree/expression":48,"./tree/field":49,"./tree/filter":50,"./tree/filterset":51,"./tree/fontset":52,"./tree/frame_offset":53,"./tree/imagefilter":54,"./tree/invalid":55,"./tree/keyword":56,"./tree/layer":57,"./tree/literal":58,"./tree/operation":59,"./tree/quoted":60,"./tree/reference":61,"./tree/rule":62,"./tree/ruleset":63,"./tree/selector":64,"./tree/style":65,"./tree/url":66,"./tree/value":67,"./tree/variable":68,"./tree/zoom":69,"_process":32,"fs":28,"path":31,"util":34}],37:[function(require,module,exports){
+},{"../../package.json":71,"./functions":35,"./parser":37,"./renderer":38,"./renderer_js":39,"./torque-reference":40,"./tree":41,"./tree/call":42,"./tree/color":43,"./tree/comment":44,"./tree/definition":45,"./tree/dimension":46,"./tree/element":47,"./tree/expression":48,"./tree/field":49,"./tree/filter":50,"./tree/filterset":51,"./tree/fontset":52,"./tree/frame_offset":53,"./tree/imagefilter":54,"./tree/invalid":55,"./tree/keyword":56,"./tree/layer":57,"./tree/literal":58,"./tree/operation":59,"./tree/quoted":60,"./tree/reference":61,"./tree/rule":62,"./tree/ruleset":63,"./tree/selector":64,"./tree/style":65,"./tree/url":66,"./tree/value":67,"./tree/variable":68,"./tree/zoom":69,"_process":31,"fs":28,"path":30,"util":34}],37:[function(require,module,exports){
 (function (global){
 var carto = exports,
     tree = require('./tree'),
@@ -7727,7 +7730,7 @@ carto.Parser = function Parser(env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./tree":41,"underscore":71}],38:[function(require,module,exports){
+},{"./tree":41,"underscore":72}],38:[function(require,module,exports){
 (function (global){
 var _ = global._ || require('underscore');
 var carto = require('./index');
@@ -8133,7 +8136,7 @@ module.exports.inheritDefinitions = inheritDefinitions;
 module.exports.sortStyles = sortStyles;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./index":36,"underscore":71}],39:[function(require,module,exports){
+},{"./index":36,"underscore":72}],39:[function(require,module,exports){
 (function (global){
 (function(carto) {
 var tree = require('./tree');
@@ -8425,7 +8428,7 @@ if(typeof(module) !== 'undefined') {
 })(require('../carto'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../carto":36,"./torque-reference":40,"./tree":41,"underscore":71}],40:[function(require,module,exports){
+},{"../carto":36,"./torque-reference":40,"./tree":41,"underscore":72}],40:[function(require,module,exports){
 var _mapnik_reference_latest = {
     "version": "2.1.1",
     "style": {
@@ -10468,7 +10471,7 @@ tree.Call.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],43:[function(require,module,exports){
+},{"../tree":41,"underscore":72}],43:[function(require,module,exports){
 (function(tree) {
 // RGB Colors - #ff0014, #eee
 // can be initialized with a 3 or 6 char string or a 3 or 4 element
@@ -10845,7 +10848,7 @@ tree.Definition.prototype.toJS = function(env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"assert":29,"underscore":71}],46:[function(require,module,exports){
+},{"../tree":41,"assert":29,"underscore":72}],46:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -10948,7 +10951,7 @@ tree.Dimension.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],47:[function(require,module,exports){
+},{"../tree":41,"underscore":72}],47:[function(require,module,exports){
 (function(tree) {
 
 // An element is an id or class selector
@@ -11368,7 +11371,7 @@ tree.Filterset.prototype.add = function(filter, env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],52:[function(require,module,exports){
+},{"../tree":41,"underscore":72}],52:[function(require,module,exports){
 (function(tree) {
 
 tree._getFontSet = function(env, fonts) {
@@ -11912,7 +11915,7 @@ tree.Reference = ref;
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"mapnik-reference":70,"underscore":71}],62:[function(require,module,exports){
+},{"../tree":41,"mapnik-reference":70,"underscore":72}],62:[function(require,module,exports){
 (function(tree) {
 // a rule is a single property and value combination, or variable
 // name and value combination, like
@@ -12314,7 +12317,7 @@ tree.StyleXML = function(name, attachment, definitions, env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":41,"underscore":71}],66:[function(require,module,exports){
+},{"../tree":41,"underscore":72}],66:[function(require,module,exports){
 (function(tree) {
 
 tree.URL = function URL(val, paths) {
@@ -12579,7 +12582,94 @@ refs.map(function(version) {
 });
 
 }).call(this,"/node_modules/carto/node_modules/mapnik-reference")
-},{"fs":28,"path":31}],71:[function(require,module,exports){
+},{"fs":28,"path":30}],71:[function(require,module,exports){
+module.exports={
+  "name": "carto",
+  "version": "0.15.1-cdb1",
+  "description": "CartoCSS Stylesheet Compiler",
+  "url": "https://github.com/cartodb/carto",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/cartodb/carto.git"
+  },
+  "author": {
+    "name": "CartoDB",
+    "url": "http://cartodb.com/"
+  },
+  "keywords": [
+    "maps",
+    "css",
+    "stylesheets"
+  ],
+  "contributors": [
+    {
+      "name": "Tom MacWright",
+      "email": "macwright@gmail.com"
+    },
+    {
+      "name": "Konstantin Käfer"
+    },
+    {
+      "name": "Alexis Sellier",
+      "email": "self@cloudhead.net"
+    },
+    {
+      "name": "Raul Ochoa",
+      "email": "rochoa@cartodb.com"
+    },
+    {
+      "name": "Javi Santana",
+      "email": "jsantana@cartodb.com"
+    }
+  ],
+  "licenses": [
+    {
+      "type": "Apache"
+    }
+  ],
+  "bin": {
+    "carto": "./bin/carto"
+  },
+  "man": [
+    "./man/carto.1"
+  ],
+  "main": "./lib/carto/index",
+  "engines": {
+    "node": ">=0.4.x"
+  },
+  "dependencies": {
+    "underscore": "~1.6.0",
+    "mapnik-reference": "~6.0.2",
+    "optimist": "~0.6.0"
+  },
+  "devDependencies": {
+    "mocha": "1.12.x",
+    "jshint": "0.2.x",
+    "sax": "0.1.x",
+    "istanbul": "~0.2.14",
+    "coveralls": "~2.10.1",
+    "browserify": "~7.0.0",
+    "uglify-js": "1.3.3"
+  },
+  "scripts": {
+    "pretest": "npm install",
+    "test": "mocha -R spec",
+    "coverage": "istanbul cover ./node_modules/.bin/_mocha && coveralls < ./coverage/lcov.info"
+  },
+  "gitHead": "8050ec843f1f32a6469e5d1cf49602773015d398",
+  "readme": "# CartoCSS\n\n[![Build Status](https://secure.travis-ci.org/mapbox/carto.png)](http://travis-ci.org/mapbox/carto)\n\nIs as stylesheet renderer for javascript, It's an evolution of the Mapnik renderer from Mapbox.\nPlease, see original [Mapbox repo](http://github.com/mapbox/carto) for more information and credits\n\n## Quick Start\n\n```javascript\n// shader is a CartoCSS object\n\nvar cartocss = [\n    '#layer {',\n    ' marker-width: [property]',\n    ' marker-fill: red',\n    '}'\n].join('')\nvar shader = new carto.RendererJS().render(cartocss);\nvar layers = shader.getLayers()\nfor (var i = 0; i < layers.length; ++i) {\n    var layer = layers[i];\n    console.log(\"layer name: \", layer.fullName())\n    console.log(\"- frames: \", layer.frames())\n    console.log(\"- attachment: \", layer.attachment())\n\n    var layerShader = layer.getStyle({ property: 1 }, { zoom: 10 })\n    console.log(layerShader['marker-width']) // 1\n    console.log(layerShader['marker-fill']) // #FF0000\n}\n\n```\n\n# API\n\n## RendererJS\n\n### render(cartocss)\n\n## CartoCSS\n\ncompiled cartocss object\n\n### getLayers\n\nreturn the layers, an array of ``CartoCSS.Layer`` object\n\n### getDefault\n\nreturn the default layer (``CartoCSS.Layer``), usually the Map layer\n\n\n### findLayer(where)\n\nfind a layer using where object.\n\n```\nshader.findLayer({ name: 'test' })\n```\n\n## CartoCSS.Layer\n\n### getStyle(props, context)\n\nreturn the evaluated style:\n    - props: object containing properties needed to render the style. If the cartocss style uses\n      some variables they should be passed in this object\n    - context: rendering context variables like ``zoom`` or animation ``frame``\n\n\n\n\n\n\n\n\n\n\n## Reference Documentation\n\n* [mapbox.com/carto](http://mapbox.com/carto/)\n\n\n",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/cartodb/carto/issues"
+  },
+  "homepage": "https://github.com/cartodb/carto#readme",
+  "_id": "carto@0.15.1-cdb1",
+  "_shasum": "9bd71a967caad86493561b8a335a38137aec3098",
+  "_from": "cartodb/carto#0.15.1-cdb1",
+  "_resolved": "git://github.com/cartodb/carto.git#8050ec843f1f32a6469e5d1cf49602773015d398"
+}
+
+},{}],72:[function(require,module,exports){
 //     Underscore.js 1.6.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -13923,92 +14013,6 @@ refs.map(function(version) {
     });
   }
 }).call(this);
-
-},{}],72:[function(require,module,exports){
-module.exports={
-  "name": "carto",
-  "version": "0.15.1-cdb1",
-  "description": "CartoCSS Stylesheet Compiler",
-  "url": "https://github.com/cartodb/carto",
-  "repository": {
-    "type": "git",
-    "url": "http://github.com/cartodb/carto.git"
-  },
-  "author": {
-    "name": "CartoDB",
-    "url": "http://cartodb.com/"
-  },
-  "keywords": [
-    "maps",
-    "css",
-    "stylesheets"
-  ],
-  "contributors": [
-    {
-      "name": "Tom MacWright",
-      "email": "macwright@gmail.com"
-    },
-    {
-      "name": "Konstantin Käfer"
-    },
-    {
-      "name": "Alexis Sellier",
-      "email": "self@cloudhead.net"
-    },
-    {
-      "name": "Raul Ochoa",
-      "email": "rochoa@cartodb.com"
-    },
-    {
-      "name": "Javi Santana",
-      "email": "jsantana@cartodb.com"
-    }
-  ],
-  "licenses": [
-    {
-      "type": "Apache"
-    }
-  ],
-  "bin": {
-    "carto": "./bin/carto"
-  },
-  "man": [
-    "./man/carto.1"
-  ],
-  "main": "./lib/carto/index",
-  "engines": {
-    "node": ">=0.4.x"
-  },
-  "dependencies": {
-    "underscore": "~1.6.0",
-    "mapnik-reference": "~6.0.2",
-    "optimist": "~0.6.0"
-  },
-  "devDependencies": {
-    "mocha": "1.12.x",
-    "jshint": "0.2.x",
-    "sax": "0.1.x",
-    "istanbul": "~0.2.14",
-    "coveralls": "~2.10.1",
-    "browserify": "~7.0.0",
-    "uglify-js": "1.3.3"
-  },
-  "scripts": {
-    "pretest": "npm install",
-    "test": "mocha -R spec",
-    "coverage": "istanbul cover ./node_modules/.bin/_mocha && coveralls < ./coverage/lcov.info"
-  },
-  "readme": "# CartoCSS\n\n[![Build Status](https://secure.travis-ci.org/mapbox/carto.png)](http://travis-ci.org/mapbox/carto)\n\nIs as stylesheet renderer for javascript, It's an evolution of the Mapnik renderer from Mapbox.\nPlease, see original [Mapbox repo](http://github.com/mapbox/carto) for more information and credits\n\n## Quick Start\n\n```javascript\n// shader is a CartoCSS object\n\nvar cartocss = [\n    '#layer {',\n    ' marker-width: [property]',\n    ' marker-fill: red',\n    '}'\n].join('')\nvar shader = new carto.RendererJS().render(cartocss);\nvar layers = shader.getLayers()\nfor (var i = 0; i < layers.length; ++i) {\n    var layer = layers[i];\n    console.log(\"layer name: \", layer.fullName())\n    console.log(\"- frames: \", layer.frames())\n    console.log(\"- attachment: \", layer.attachment())\n\n    var layerShader = layer.getStyle({ property: 1 }, { zoom: 10 })\n    console.log(layerShader['marker-width']) // 1\n    console.log(layerShader['marker-fill']) // #FF0000\n}\n\n```\n\n# API\n\n## RendererJS\n\n### render(cartocss)\n\n## CartoCSS\n\ncompiled cartocss object\n\n### getLayers\n\nreturn the layers, an array of ``CartoCSS.Layer`` object\n\n### getDefault\n\nreturn the default layer (``CartoCSS.Layer``), usually the Map layer\n\n\n### findLayer(where)\n\nfind a layer using where object.\n\n```\nshader.findLayer({ name: 'test' })\n```\n\n## CartoCSS.Layer\n\n### getStyle(props, context)\n\nreturn the evaluated style:\n    - props: object containing properties needed to render the style. If the cartocss style uses\n      some variables they should be passed in this object\n    - context: rendering context variables like ``zoom`` or animation ``frame``\n\n\n\n\n\n\n\n\n\n\n## Reference Documentation\n\n* [mapbox.com/carto](http://mapbox.com/carto/)\n\n\n",
-  "readmeFilename": "README.md",
-  "bugs": {
-    "url": "https://github.com/cartodb/carto/issues"
-  },
-  "homepage": "https://github.com/cartodb/carto",
-  "_id": "carto@0.15.1-cdb1",
-  "_shasum": "62534c2975cbee073f10c6c14a0c7e889c9469e7",
-  "_resolved": "https://github.com/CartoDB/carto/archive/master.tar.gz",
-  "_from": "https://github.com/CartoDB/carto/archive/master.tar.gz"
-}
 
 },{}]},{},[10])(10)
 });
