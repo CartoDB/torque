@@ -1,5 +1,6 @@
 2.16.1
-    - …
+    - Remove width trick to use clear rect #280
+    - Map option reference broken gmaps #279
 
 2.16.0
     - Updated Turbo-carto dependency to version 0.19.0.
@@ -21,7 +22,7 @@
     - Added getValues to fetch values for step
     - Improved reference/api documentation
     - Removed out of date examples
-    
+
 2.11.4
     - Static torque maps now draw correctly when unhiding them
     - Fixed animation always playing when rescaling
@@ -66,7 +67,7 @@
     - Improved out of bounds correction function
     - Fixed image-asset sizing
     - Fixed items to load counter being sometimes negative
-    
+
 2.8.0
     - Supports use of external image markers via marker-file
     - Fixes Torque tiles not rendering outside normal lat/lng ranges.
