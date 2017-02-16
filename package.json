@@ -26,7 +26,7 @@
     }
   ],
   "dependencies": {
-    "carto": "https://github.com/CartoDB/carto/archive/master.tar.gz"
+    "carto": "CartoDB/carto#0.15.1-cdb1"
   },
   "devDependencies": {
     "browserify": "^7.0.0",
@@ -39,7 +39,7 @@
     "qunitjs": "1.x",
     "request": "^2.53.0",
     "uglify-js": "1.3.3",
-    "underscore": "^1.6.0",
+    "underscore": "~1.6.0",
     "sinon": "^1.15.4"
   },
   "scripts": {
