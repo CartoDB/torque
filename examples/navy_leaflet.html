@@ -9,7 +9,7 @@
     <div id="map"></div>
 
     <script src="vendor/leaflet.js"></script>
-    <script src="../dist/torque.full.uncompressed.js"></script>
+    <script src="../dist/torque.full.uncompressed.js"  type="application/javascript" charset="utf-8"></script>
 
 
     <script>
@@ -52,6 +52,7 @@
       var torqueLayer = new L.TorqueLayer({
         user       : 'viz2',
         table      : 'ow',
+        zIndex: 100,
         cartocss: CARTOCSS
       });
       torqueLayer.error(function(err){
