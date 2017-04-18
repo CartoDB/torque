@@ -2517,6 +2517,8 @@ L.Mixin.TileLoader = {
           center = bounds.getCenter(),
           zoom = this._map.getZoom();
 
+      zoom = Math.round(zoom);
+
       var j, i, point;
 
       for (j = bounds.min.y; j <= bounds.max.y; j++) {
@@ -15477,7 +15479,7 @@ module.exports={
   },
   "homepage": "https://github.com/cartodb/carto#readme",
   "_id": "carto@0.15.1-cdb3",
-  "_shasum": "a923a069a2a4c9d010b78a1d92ba6c9ed4232717",
+  "_shasum": "e4e274f41b3d89c82f25aa9a663e26c50835d68e",
   "_from": "cartodb/carto#master",
   "_resolved": "git://github.com/cartodb/carto.git#945f5efb74fd1af1f5e1f69f409f9567f94fb5a7"
 }

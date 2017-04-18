@@ -2524,6 +2524,8 @@ L.Mixin.TileLoader = {
           center = bounds.getCenter(),
           zoom = this._map.getZoom();
 
+      zoom = Math.round(zoom);
+
       var j, i, point;
 
       for (j = bounds.min.y; j <= bounds.max.y; j++) {
