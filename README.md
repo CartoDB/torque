@@ -23,14 +23,15 @@ The library uses CartoDB to generate a [layercube](https://github.com/CartoDB/ti
 
 The simplest way to use a visualization with Torque is...
 
-<div class="margin20"></div>
-<div class="code_title">Create a simple Torque visualization</div>
-  ``` javascript
-      ...
-        <body>
-          <div id="map"></div>
-        </body>
-      ...
+#### Create a simple Torque visualization
+
+```javascript
+    ...
+    <body>
+      <div id="map"></div>
+    </body>
+    ...
+    <script>
       // define the torque layer style using cartocss
       var CARTOCSS = [
           'Map {',
@@ -74,9 +75,9 @@ The simplest way to use a visualization with Torque is...
       });
       torqueLayer.addTo(map);
       torqueLayer.play()
+  </script>
+```
 
-    <script>
-  ```
 [Grab the complete example source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html)
 <div class="margin20"></div>
 
