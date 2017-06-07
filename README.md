@@ -26,10 +26,9 @@ The simplest way to use a visualization with Torque is...
 #### Create a simple Torque visualization
 
 ```javascript
-    ...
-    <body>
-      <div id="map"></div>
-    </body>
+  ...
+  <body>
+    <div id="map"></div>
     ...
     <script>
       // define the torque layer style using cartocss
@@ -75,7 +74,8 @@ The simplest way to use a visualization with Torque is...
       });
       torqueLayer.addTo(map);
       torqueLayer.play()
-  </script>
+    </script>
+  </body>
 ```
 
 [Grab the complete example source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html)
