@@ -1,12 +1,15 @@
 language: node_js
 node_js:
   - 6.9.2
+before_install:
+  - export CXX=g++-4.9
 addons:
   apt:
     packages:
     - pkg-config
     - libcairo2-dev
-    - libstdc++6
+    - gcc-4.9
+    - g++-4.9
     - libpango1.0-dev
     - libjpeg8-dev
     - libgif-dev
