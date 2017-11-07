@@ -6,6 +6,7 @@ addons:
     packages:
     - pkg-config
     - libcairo2-dev
+    - libpango1.0-dev
     - libjpeg8-dev
     - libgif-dev
 sudo: false
