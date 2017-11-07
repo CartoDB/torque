@@ -1,17 +1,22 @@
 var torque = require('../lib/torque');
 var providers = torque.providers;
 
-window.XMLHttpRequest = function () {
-  return {
-    open: function () { },
-    send: function () { },
-    readyState: 4,
-    responseText: {}
-  }
-};
-
-var json, url;
+var json, url, _XMLHttpRequest;
 QUnit.module('provider.json');
+QUnit.moduleStart(function() {
+  _XMLHttpRequest = window.XMLHttpRequest;
+  window.XMLHttpRequest = function () {
+    return {
+      open: function () { },
+      send: function () { },
+      readyState: 4,
+      responseText: {}
+    }
+  };
+});
+QUnit.moduleDone(function() {
+  window.XMLHttpRequest = _XMLHttpRequest;
+});
 QUnit.testStart(function() {
     json = new providers.json({
       table: 'test',
