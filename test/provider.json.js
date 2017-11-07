@@ -1,6 +1,15 @@
 var torque = require('../lib/torque');
 var providers = torque.providers;
 
+window.XMLHttpRequest = function () {
+  return {
+    open: function () { },
+    send: function () { },
+    readyState: 4,
+    responseText: {}
+  }
+};
+
 var json, url;
 QUnit.module('provider.json');
 QUnit.testStart(function() {
