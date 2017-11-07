@@ -26,7 +26,7 @@ QUnit.module('provider.windshaft', {
         testing: 'abcd%'
       }
     });
-  }, 
+  },
   teardown: function() {
     torque.net.jsonp = old_net;
     torque.net.get = old_get;
@@ -83,7 +83,7 @@ QUnit.module('provider.windshaft', {
 
   test("fetch tile", function() {
     windshaft._ready = true;
-    windshaft.getTileData({x: 0, y: 1, corrected: {x: 0, y: 1}}, 2, function() {});
+    windshaft.getTileData({x: 0, y: 1, corrected: {x: 0, y: 1}}, 2, function() {}, function() {});
     equal(lastCall,"http://rambo.cartodb.com:80/api/v1/map/testlg/0/2/0/1.json.torque?testing=abcd%25");
   });
 
