@@ -3,15 +3,13 @@ node_js:
   - 6.9.2
 before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-before_script:
+  - sudo apt-get install gcc-4.9 g++-4.9
   - export CXX=g++-4.9
 addons:
   apt:
     packages:
     - pkg-config
     - libcairo2-dev
-    - gcc-4.9
-    - g++-4.9
     - libpango1.0-dev
     - libjpeg8-dev
     - libgif-dev
