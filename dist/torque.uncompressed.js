@@ -1781,20 +1781,24 @@ GMapsTorqueLayer.prototype = torque.extend({},
     // for each tile shown on the map request the data
   onTileAdded: function(t) {
     var self = this;
-    var successCallback = function (tileData) {
+    var callback = function (tileData, error) {
       // don't load tiles that are not being shown
       if (t.zoom !== self.map.getZoom()) return;
+
       self._tileLoaded(t, tileData);
-      self.fire('tileLoaded');
+
       if (tileData) {
         self.redraw();
       }
-    };
-    var errorCallback = function (error) {
-      self.fire('tileError', error);
+
+      self.fire('tileLoaded');
+
+      if (error) {
+        self.fire('tileError', error);
+      }
     }
 
-    this.provider.getTileData(t, t.zoom, successCallback, errorCallback);
+    this.provider.getTileData(t, t.zoom, callback);
   },
 
   clear: function() {
@@ -2676,29 +2680,25 @@ L.TorqueLayer = L.CanvasLayer.extend({
     // for each tile shown on the map request the data
     this.on('tileAdded', function(t) {
       var callback = function (tileData, error) {
-        self._onTileAdded(t, tileData);
+        // don't load tiles that are not being shown
+        if (t.zoom !== self._map.getZoom()) return;
+
+        self._tileLoaded(t, tileData);
+        self._clearTileCaches();
+
+        if (tileData) {
+          self.redraw();
+        }
+
+        self.fire('tileLoaded');
 
         if (error) {
           self.fire('tileError', error);
         }
-
-        self.fire('tileLoaded');
       };
 
       var tileData = this.provider.getTileData(t, t.zoom, callback);
     }, this);
-  },
-
-  _onTileAdded: function(t, tileData) {
-    // don't load tiles that are not being shown
-    if (t.zoom !== this._map.getZoom()) return;
-
-    this._tileLoaded(t, tileData);
-    this._clearTileCaches();
-
-    if (tileData) {
-      this.redraw();
-    }
   },
 
   _clearTileCaches: function() {
@@ -5555,11 +5555,11 @@ var Profiler = require('../profiler');
       return null;
     },
 
-    getTileData: function(coord, zoom, successCallback, errorCallback) {
+    getTileData: function(coord, zoom, callback) {
       if(!this._ready) {
-        this._tileQueue.push([coord, zoom, successCallback, errorCallback]);
+        this._tileQueue.push([coord, zoom, callback]);
       } else {
-        this._getTileData(coord, zoom, successCallback, errorCallback);
+        this._getTileData(coord, zoom, callback);
       }
     },
 
@@ -5608,7 +5608,7 @@ var Profiler = require('../profiler');
           }
         } else {
           Profiler.metric('torque.provider.windshaft.tile.error').inc();
-          successCallback(null);
+          callback(null);
         }
       });
     },
