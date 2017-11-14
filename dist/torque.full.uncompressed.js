@@ -5948,7 +5948,7 @@ var Filters = require('./torque_filters');
 var turbocarto = require('turbo-carto');
 var CartoDatasource = require('./datasource');
 
-  var ERROR_IMG_URL = 'http://matataonboarding.localhost.lan:3000/assets/4.10.67/images/error.svg';
+  var ERROR_IMG_URL = 'http://s3.amazonaws.com/com.cartodb.assets.static/error.svg';
 
   var DEFAULT_CARTOCSS = [
     '#layer {',
