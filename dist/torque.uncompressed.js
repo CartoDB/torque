@@ -1781,7 +1781,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
     // for each tile shown on the map request the data
   onTileAdded: function(t) {
     var self = this;
-    this.provider.getTileData(t, t.zoom, function(tileData) {
+    var successCallback = function (tileData) {
       // don't load tiles that are not being shown
       if (t.zoom !== self.map.getZoom()) return;
       self._tileLoaded(t, tileData);
@@ -1789,7 +1789,12 @@ GMapsTorqueLayer.prototype = torque.extend({},
       if (tileData) {
         self.redraw();
       }
-    });
+    };
+    var errorCallback = function (error) {
+      self.fire('tileError', error);
+    }
+
+    this.provider.getTileData(t, t.zoom, successCallback, errorCallback);
   },
 
   clear: function() {
@@ -1926,7 +1931,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
       console.log('Torque layer: CartoCSS style on named maps is read-only');
       return false;
     }
-    
+
     var shader = new carto.RendererJS().render(cartocss);
     this.shader = shader;
     if (this.renderer) {
@@ -2007,7 +2012,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
     }
     return c;
   },
-  
+
   getValueForBBox: function(x, y, w, h) {
     var xf = x + w, yf = y + h;
     var sum = 0;
@@ -2638,7 +2643,6 @@ L.TorqueLayer = L.CanvasLayer.extend({
     this.setDuration = this.animator.duration.bind(this.animator);
     this.isRunning = this.animator.isRunning.bind(this.animator);
 
-
     L.CanvasLayer.prototype.initialize.call(this, options);
 
     this.options.renderer = this.options.renderer || 'point';
@@ -2669,21 +2673,32 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     this.renderer.on("allIconsLoaded", this.render.bind(this));
 
-
     // for each tile shown on the map request the data
     this.on('tileAdded', function(t) {
-      var tileData = this.provider.getTileData(t, t.zoom, function(tileData) {
-        // don't load tiles that are not being shown
-        if (t.zoom !== self._map.getZoom()) return;
-        self._tileLoaded(t, tileData);
-        self._clearTileCaches();
-        if (tileData) {
-          self.redraw();
-        }
-        self.fire('tileLoaded');
-      });
-    }, this);
+      var callback = function (tileData, error) {
+        self._onTileAdded(t, tileData);
 
+        if (error) {
+          self.fire('tileError', error);
+        }
+
+        self.fire('tileLoaded');
+      };
+
+      var tileData = this.provider.getTileData(t, t.zoom, callback);
+    }, this);
+  },
+
+  _onTileAdded: function(t, tileData) {
+    // don't load tiles that are not being shown
+    if (t.zoom !== this._map.getZoom()) return;
+
+    this._tileLoaded(t, tileData);
+    this._clearTileCaches();
+
+    if (tileData) {
+      this.redraw();
+    }
   },
 
   _clearTileCaches: function() {
@@ -3065,7 +3080,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     }
     return c;
   },
-  
+
   invalidate: function() {
     this.provider.reload();
   },
@@ -5459,11 +5474,22 @@ var Profiler = require('../profiler');
       };
     },
 
+    proccessTileError: function(error, coord, zoom) {
+      return {
+        error: error,
+        coord: {
+          x: coord.x,
+          y: coord.y,
+          z: zoom
+        }
+      };
+    },
+
     /*setCartoCSS: function(c) {
       this.options.cartocss = c;
     },*/
 
-    setSteps: function(steps, opt) { 
+    setSteps: function(steps, opt) {
       opt = opt || {};
       if (this.options.steps !== steps) {
         this.options.steps = steps;
@@ -5529,11 +5555,11 @@ var Profiler = require('../profiler');
       return null;
     },
 
-    getTileData: function(coord, zoom, callback) {
+    getTileData: function(coord, zoom, successCallback, errorCallback) {
       if(!this._ready) {
-        this._tileQueue.push([coord, zoom, callback]);
+        this._tileQueue.push([coord, zoom, successCallback, errorCallback]);
       } else {
-        this._getTileData(coord, zoom, callback);
+        this._getTileData(coord, zoom, successCallback, errorCallback);
       }
     },
 
@@ -5568,14 +5594,21 @@ var Profiler = require('../profiler');
                 .replace('{s}', subdomains[index])
 
       var extra = this._extraParams();
-      torque.net.get( url + (extra ? "?" + extra: ''), function (data) {
+      torque.net.get( url + (extra ? "?" + extra: ''), function (response) {
         prof_fetch_time.end();
-        if (data && data.responseText) {
-          var rows = JSON.parse(data.responseText);
-          callback(self.proccessTile(rows, coord, zoom));
+        if (response && response.responseText) {
+          var body = JSON.parse(response.responseText);
+
+          if (response.status === 429) {
+            var error = body.errors_with_context[0];
+
+            callback(self.proccessTileError(error, coord, zoom), error);
+          } else {
+            callback(self.proccessTile(body, coord, zoom));
+          }
         } else {
           Profiler.metric('torque.provider.windshaft.tile.error').inc();
-          callback(null);
+          successCallback(null);
         }
       });
     },
@@ -5712,7 +5745,7 @@ var Profiler = require('../profiler');
           }]
         };
       }
-      
+
       if(this.options.stat_tag){
         allParams["stat_tag"] = this.options.stat_tag;
       }
@@ -5922,7 +5955,8 @@ var Filters = require('./torque_filters');
 var turbocarto = require('turbo-carto');
 var CartoDatasource = require('./datasource');
 
-  var TAU = Math.PI * 2;
+  var ERROR_IMG_URL = 'http://matataonboarding.localhost.lan:3000/assets/4.10.67/images/error.svg';
+
   var DEFAULT_CARTOCSS = [
     '#layer {',
     '  marker-fill: #662506;',
@@ -6036,6 +6070,10 @@ var CartoDatasource = require('./datasource');
       if (PointRenderer.isTurboCarto(cartocss)) {
         var datasource = new CartoDatasource(self.layer._tiles);
         turbocarto(cartocss, datasource, function (err, parsedCartoCSS) {
+          if (err) {
+            return callback(err, null);
+          }
+
           self.setShader(new carto.RendererJS().render(parsedCartoCSS));
           self.layer.redraw();
           self.layer.animator.start();
@@ -6053,6 +6091,8 @@ var CartoDatasource = require('./datasource');
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
       var img_names = this._shader.getImageURLs();
+      img_names.push(ERROR_IMG_URL);
+
       this._preloadIcons(img_names);
     },
 
@@ -6128,6 +6168,12 @@ var CartoDatasource = require('./datasource');
     // renders all the layers (and frames for each layer) from cartocss
     //
     renderTile: function(tile, keys, callback) {
+      if (tile.error) {
+        this._renderErrorTile(tile);
+
+        return false;
+      }
+
       if (this._iconsToLoad > 0) {
           this.on('allIconsLoaded', function() {
               this.renderTile.apply(this, [tile, keys, callback]);
@@ -6197,6 +6243,11 @@ var CartoDatasource = require('./datasource');
         a.href = url;
         return a.href;
       }
+    },
+
+    _renderErrorTile: function(tile) {
+      var img = this._icons[ERROR_IMG_URL];
+      img && this._ctx.drawImage(img, 0, 0, this.TILE_SIZE, this.TILE_SIZE);
     },
 
     //
@@ -6380,47 +6431,47 @@ var CartoDatasource = require('./datasource');
       } else {
           this.fire("allIconsLoaded");
       }
-  },
+    },
 
-  applyFilters: function(){
-    if(this._style){
-      if(this._style['image-filters']){
-        function gradientKey(imf){
-          var hash = ""
-          for(var i = 0; i < imf.args.length; i++){
-            var rgb = imf.args[i].rgb;
-            hash += rgb[0] + ":" + rgb[1] + ":" + rgb[2];
+    applyFilters: function(){
+      if(this._style){
+        if(this._style['image-filters']){
+          function gradientKey(imf){
+            var hash = ""
+            for(var i = 0; i < imf.args.length; i++){
+              var rgb = imf.args[i].rgb;
+              hash += rgb[0] + ":" + rgb[1] + ":" + rgb[2];
+            }
+            return hash;
           }
-          return hash;
+          var gradient = this._gradients[gradientKey(this._style['image-filters'])];
+          if(!gradient){
+            function componentToHex(c) {
+              var hex = c.toString(16);
+              return hex.length == 1 ? "0" + hex : hex;
+            }
+
+            function rgbToHex(r, g, b) {
+              return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+            }
+            gradient = {};
+            var colorize = this._style['image-filters'].args;
+
+            var increment = 1/colorize.length;
+            for (var i = 0; i < colorize.length; i++){
+              var key = increment * i + increment;
+              var rgb = colorize[i].rgb;
+              var formattedColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
+              gradient[key] = formattedColor;
+            }
+            this._gradients[gradientKey(this._style['image-filters'])] = gradient;
+          }
+          this._filters.gradient(gradient);
+          this._filters.draw();
         }
-        var gradient = this._gradients[gradientKey(this._style['image-filters'])];
-        if(!gradient){
-          function componentToHex(c) {
-            var hex = c.toString(16);
-            return hex.length == 1 ? "0" + hex : hex;
-          }
-
-          function rgbToHex(r, g, b) {
-            return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
-          }
-          gradient = {};
-          var colorize = this._style['image-filters'].args;
-
-          var increment = 1/colorize.length;
-          for (var i = 0; i < colorize.length; i++){
-            var key = increment * i + increment;
-            var rgb = colorize[i].rgb;
-            var formattedColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
-            gradient[key] = formattedColor;
-          }
-          this._gradients[gradientKey(this._style['image-filters'])] = gradient;
-        }
-        this._filters.gradient(gradient);
-        this._filters.draw();
       }
     }
-  }
-});
+  });
 
 PointRenderer.isTurboCarto = function (cartocss) {
   var reservedWords = ['ramp', 'colorbrewer', 'buckets']
@@ -6725,9 +6776,9 @@ var torque = require('./core');
      };
 
      // timeout for errors
-     var timeoutTimer = setTimeout(function() { 
+     var timeoutTimer = setTimeout(function() {
        clean();
-       callback.call(window, null); 
+       callback.call(window, null);
      }, options.timeout);
 
      // setup url
@@ -6760,7 +6811,7 @@ var torque = require('./core');
     function respond() {
       var status = req.status, result;
       var r = options.responseType === 'arraybuffer' ? req.response: req.responseText;
-      if (!status && r || status >= 200 && status < 300 || status === 304) {
+      if (!status && r || status >= 200 && status < 300 || status === 304 || status === 429) {
         callback(req);
       } else {
         callback(null);
