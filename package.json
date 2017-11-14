@@ -19,7 +19,8 @@
     "Javier Santana <jsantana@vizzuality.com>",
     "Raúl Ochoa <rochoa@cartodb.com>",
     "Nicklas Gummesson <nicklas@cartodb.com>",
-    "Francisco Dans <francisco@cartodb.com>"
+    "Francisco Dans <francisco@cartodb.com>",
+    "Carlos Matallín <matallo@carto.com>"
   ],
   "license": "BSD-3-Clause",
   "dependencies": {
