@@ -2647,6 +2647,8 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     if (this.options.tileJSON) this.options.provider = 'tileJSON';
 
+    this.showLimitErrors = options.showLimitErrors;
+
     this.provider = new this.providers[this.options.provider](options);
     options.layer = this;
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), options);
@@ -6084,7 +6086,9 @@ var CartoDatasource = require('./datasource');
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
       var img_names = this._shader.getImageURLs();
-      img_names.push(ERROR_IMG_URL);
+      if (this.layer.showLimitErrors) {
+        img_names.push(ERROR_IMG_URL);
+      }
 
       this._preloadIcons(img_names);
     },
@@ -6239,8 +6243,10 @@ var CartoDatasource = require('./datasource');
     },
 
     _renderErrorTile: function(tile) {
-      var img = this._icons[ERROR_IMG_URL];
-      img && this._ctx.drawImage(img, 0, 0, this.TILE_SIZE, this.TILE_SIZE);
+      if(this.layer.showLimitErrors) {
+        var img = this._icons[ERROR_IMG_URL];
+        img && this._ctx.drawImage(img, 0, 0, this.TILE_SIZE, this.TILE_SIZE);
+      }
     },
 
     //
@@ -13002,9 +13008,9 @@ tree.Filterset.prototype.toJS = function(env) {
     }
     var attrs = "data";
     if (op === '=~') {
-      return "(" + attrs + "['" + filter.key.value  + "'] + '').match(" + (val.is === 'string' ? "'" + val.toString().replace(/'/g, "\\'").replace(/&amp;/g, '&') + "'" : val) + ")";
+      return "(" + attrs + "['" + filter.key.value  + "'] + '').match(" + (val.is === 'string' ? "'" + val.toString().replace(/'/g, "\\'") + "'" : val) + ")";
     }
-    return attrs + "['" + filter.key.value  + "'] " + op + " " + (val.is === 'string' ? "'" + val.toString().replace(/'/g, "\\'").replace(/&amp;/g, '&') + "'" : val);
+    return attrs + "['" + filter.key.value  + "'] " + op + " " + (val.is === 'string' ? "'" + val.toString().replace(/'/g, "\\'") + "'" : val);
   }).join(' && ');
 };
 
@@ -14181,7 +14187,7 @@ tree.Value.prototype = {
       var val = this.ev(env);
       var v = val.toString();
       if(val.is === "color" || val.is === 'uri' || val.is === 'string' || val.is === 'keyword') {
-        v = "'" + v.replace(/&amp;/g, '&') + "'";
+        v = "'" + v + "'";
       } else if (Array.isArray(this.value) && this.value.length > 1) {
         // This covers something like `line-dasharray: 5, 10;`
         // where the return _value has more than one element.
@@ -14391,7 +14397,7 @@ module.exports={
           "directUrl": "https://raw.githubusercontent.com/cartodb/carto/master/package.json"
         }
       },
-      "/Users/matallo/src/torque"
+      "/Users/ruben/Projects/Carto/torque"
     ]
   ],
   "_from": "cartodb/carto#master",
@@ -14420,11 +14426,11 @@ module.exports={
   "_requiredBy": [
     "/"
   ],
-  "_resolved": "git://github.com/cartodb/carto.git#4dfe5361b302dda8163cd41ccbf7a9dc6898019a",
-  "_shasum": "82c13a17299d6fc91e9bdb8d193d84bbf7b88b9f",
+  "_resolved": "git://github.com/cartodb/carto.git#cbe66020f98647429d2bb04b7cf73dcf194f2abf",
+  "_shasum": "81502a07a925021884ef159715147788290f7910",
   "_shrinkwrap": null,
   "_spec": "carto@github:cartodb/carto#master",
-  "_where": "/Users/matallo/src/torque",
+  "_where": "/Users/ruben/Projects/Carto/torque",
   "author": {
     "name": "CartoDB",
     "url": "http://cartodb.com/"
@@ -14474,7 +14480,7 @@ module.exports={
   "engines": {
     "node": ">=0.4.x"
   },
-  "gitHead": "4dfe5361b302dda8163cd41ccbf7a9dc6898019a",
+  "gitHead": "cbe66020f98647429d2bb04b7cf73dcf194f2abf",
   "homepage": "https://github.com/cartodb/carto#readme",
   "keywords": [
     "maps",
@@ -27713,12 +27719,11 @@ module.exports = isArray || function (val) {
 };
 
 },{}],85:[function(require,module,exports){
-(function (global){
 /*
  * $Id: base64.js,v 2.15 2014/04/05 12:58:57 dankogai Exp dankogai $
  *
- *  Licensed under the BSD 3-Clause License.
- *    http://opensource.org/licenses/BSD-3-Clause
+ *  Licensed under the MIT license.
+ *    http://opensource.org/licenses/mit-license
  *
  *  References:
  *    http://en.wikipedia.org/wiki/Base64
@@ -27728,7 +27733,7 @@ module.exports = isArray || function (val) {
     'use strict';
     // existing version for noConflict()
     var _Base64 = global.Base64;
-    var version = "2.3.2";
+    var version = "2.1.9";
     // if node.js, we use Buffer
     var buffer;
     if (typeof module !== 'undefined' && module.exports) {
@@ -27787,16 +27792,11 @@ module.exports = isArray || function (val) {
     } : function(b) {
         return b.replace(/[\s\S]{1,3}/g, cb_encode);
     };
-    var _encode = buffer ?
-        buffer.from && buffer.from !== Uint8Array.from ? function (u) {
-            return (u.constructor === buffer.constructor ? u : buffer.from(u))
-                .toString('base64')
-        }
-        :  function (u) {
-            return (u.constructor === buffer.constructor ? u : new  buffer(u))
-                .toString('base64')
-        }
-        : function (u) { return btoa(utob(u)) }
+    var _encode = buffer ? function (u) {
+        return (u.constructor === buffer.constructor ? u : new buffer(u))
+        .toString('base64')
+    }
+    : function (u) { return btoa(utob(u)) }
     ;
     var encode = function(u, urisafe) {
         return !urisafe
@@ -27858,16 +27858,11 @@ module.exports = isArray || function (val) {
     } : function(a){
         return a.replace(/[\s\S]{1,4}/g, cb_decode);
     };
-    var _decode = buffer ?
-        buffer.from && buffer.from !== Uint8Array.from ? function(a) {
-            return (a.constructor === buffer.constructor
-                    ? a : buffer.from(a, 'base64')).toString();
-        }
-        : function(a) {
-            return (a.constructor === buffer.constructor
-                    ? a : new buffer(a, 'base64')).toString();
-        }
-        : function(a) { return btou(atob(a)) };
+    var _decode = buffer ? function(a) {
+        return (a.constructor === buffer.constructor
+                ? a : new buffer(a, 'base64')).toString();
+    }
+    : function(a) { return btou(atob(a)) };
     var decode = function(a){
         return _decode(
             String(a).replace(/[-_]/g, function(m0) { return m0 == '-' ? '+' : '/' })
@@ -27913,29 +27908,12 @@ module.exports = isArray || function (val) {
                 }));
         };
     }
-    //
-    // export Base64 to the namespace
-    //
-    if (global['Meteor']) { // Meteor.js
-        Base64 = global.Base64;
-    }
-    // module.exports and AMD are mutually exclusive.
-    // module.exports has precedence.
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports.Base64 = global.Base64;
-    }
-    else if (typeof define === 'function' && define.amd) {		
-        // AMD. Register as an anonymous module.	
-        define([], function(){ return global.Base64 });
-    }
     // that's it!
-})(   typeof self   !== 'undefined' ? self
-    : typeof window !== 'undefined' ? window
-    : typeof global !== 'undefined' ? global
-    : this
-);
+    if (global['Meteor']) {
+       Base64 = global.Base64; // for normal export in Meteor.js
+    }
+})(this);
 
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"buffer":38}],86:[function(require,module,exports){
 (function (__dirname){
 var fs = require('fs'),
@@ -37081,7 +37059,7 @@ module.exports={
         "spec": "0.19.0",
         "type": "version"
       },
-      "/Users/matallo/src/torque"
+      "/Users/ruben/Projects/Carto/torque"
     ]
   ],
   "_from": "turbo-carto@0.19.0",
@@ -37111,11 +37089,11 @@ module.exports={
   "_requiredBy": [
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/turbo-carto/-/turbo-carto-0.19.0.tgz",
+  "_resolved": "http://registry.npmjs.org/turbo-carto/-/turbo-carto-0.19.0.tgz",
   "_shasum": "83fb1932acd42acb426312eef216b5f6ac34708e",
   "_shrinkwrap": null,
   "_spec": "turbo-carto@0.19.0",
-  "_where": "/Users/matallo/src/torque",
+  "_where": "/Users/ruben/Projects/Carto/torque",
   "author": {
     "name": "CartoDB",
     "email": "wadus@cartodb.com",

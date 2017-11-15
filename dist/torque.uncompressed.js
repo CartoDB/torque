@@ -2654,6 +2654,8 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     if (this.options.tileJSON) this.options.provider = 'tileJSON';
 
+    this.showLimitErrors = options.showLimitErrors;
+
     this.provider = new this.providers[this.options.provider](options);
     options.layer = this;
     this.renderer = new this.renderers[this.options.renderer](this.getCanvas(), options);
@@ -6091,7 +6093,9 @@ var CartoDatasource = require('./datasource');
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
       var img_names = this._shader.getImageURLs();
-      img_names.push(ERROR_IMG_URL);
+      if (this.layer.showLimitErrors) {
+        img_names.push(ERROR_IMG_URL);
+      }
 
       this._preloadIcons(img_names);
     },
@@ -6246,8 +6250,10 @@ var CartoDatasource = require('./datasource');
     },
 
     _renderErrorTile: function(tile) {
-      var img = this._icons[ERROR_IMG_URL];
-      img && this._ctx.drawImage(img, 0, 0, this.TILE_SIZE, this.TILE_SIZE);
+      if(this.layer.showLimitErrors) {
+        var img = this._icons[ERROR_IMG_URL];
+        img && this._ctx.drawImage(img, 0, 0, this.TILE_SIZE, this.TILE_SIZE);
+      }
     },
 
     //
