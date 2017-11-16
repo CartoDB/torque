@@ -37,6 +37,9 @@ function getTile(jsonRelPath, cartocss, z, x, y, step, callback) {
         },
         qualifyURL: function(url) {
             return url;
+        },
+        layer: {
+            showLimitErros: false
         }
     });
 

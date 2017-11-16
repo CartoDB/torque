@@ -656,7 +656,7 @@ TorqueLayer.optionsFromCartoCSS = function(cartocss) {
 module.exports.TorqueLayer = TorqueLayer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":47}],5:[function(require,module,exports){
+},{"carto":40}],5:[function(require,module,exports){
 (function (global){
   var Event = {};
   Event.on = function(evt, callback) {
@@ -1774,15 +1774,24 @@ GMapsTorqueLayer.prototype = torque.extend({},
     // for each tile shown on the map request the data
   onTileAdded: function(t) {
     var self = this;
-    this.provider.getTileData(t, t.zoom, function(tileData) {
+    var callback = function (tileData, error) {
       // don't load tiles that are not being shown
       if (t.zoom !== self.map.getZoom()) return;
+
       self._tileLoaded(t, tileData);
-      self.fire('tileLoaded');
+
       if (tileData) {
         self.redraw();
       }
-    });
+
+      self.fire('tileLoaded');
+
+      if (error) {
+        self.fire('tileError', error);
+      }
+    }
+
+    this.provider.getTileData(t, t.zoom, callback);
   },
 
   clear: function() {
@@ -1919,7 +1928,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
       console.log('Torque layer: CartoCSS style on named maps is read-only');
       return false;
     }
-    
+
     var shader = new carto.RendererJS().render(cartocss);
     this.shader = shader;
     if (this.renderer) {
@@ -2000,7 +2009,7 @@ GMapsTorqueLayer.prototype = torque.extend({},
     }
     return c;
   },
-  
+
   getValueForBBox: function(x, y, w, h) {
     var xf = x + w, yf = y + h;
     var sum = 0;
@@ -2122,7 +2131,7 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":11,"./CanvasLayer":6,"./canvas_tile_layer":7,"./gmaps_tileloader_mixin":8,"carto":47}],11:[function(require,module,exports){
+},{"../":11,"./CanvasLayer":6,"./canvas_tile_layer":7,"./gmaps_tileloader_mixin":8,"carto":40}],11:[function(require,module,exports){
 module.exports = require('./core');
 
 module.exports.Animator = require('./animator');
@@ -2631,13 +2640,14 @@ L.TorqueLayer = L.CanvasLayer.extend({
     this.setDuration = this.animator.duration.bind(this.animator);
     this.isRunning = this.animator.isRunning.bind(this.animator);
 
-
     L.CanvasLayer.prototype.initialize.call(this, options);
 
     this.options.renderer = this.options.renderer || 'point';
     this.options.provider = this.options.provider || 'windshaft';
 
     if (this.options.tileJSON) this.options.provider = 'tileJSON';
+
+    this.showLimitErrors = options.showLimitErrors;
 
     this.provider = new this.providers[this.options.provider](options);
     options.layer = this;
@@ -2662,21 +2672,28 @@ L.TorqueLayer = L.CanvasLayer.extend({
 
     this.renderer.on("allIconsLoaded", this.render.bind(this));
 
-
     // for each tile shown on the map request the data
     this.on('tileAdded', function(t) {
-      var tileData = this.provider.getTileData(t, t.zoom, function(tileData) {
+      var callback = function (tileData, error) {
         // don't load tiles that are not being shown
         if (t.zoom !== self._map.getZoom()) return;
+
         self._tileLoaded(t, tileData);
         self._clearTileCaches();
+
         if (tileData) {
           self.redraw();
         }
-        self.fire('tileLoaded');
-      });
-    }, this);
 
+        self.fire('tileLoaded');
+
+        if (error) {
+          self.fire('tileError', error);
+        }
+      };
+
+      var tileData = this.provider.getTileData(t, t.zoom, callback);
+    }, this);
   },
 
   _clearTileCaches: function() {
@@ -3058,7 +3075,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
     }
     return c;
   },
-  
+
   invalidate: function() {
     this.provider.reload();
   },
@@ -3082,7 +3099,7 @@ L.TorqueLayer = L.CanvasLayer.extend({
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":11,"./canvas_layer":12,"carto":47}],16:[function(require,module,exports){
+},{"../":11,"./canvas_layer":12,"carto":40}],16:[function(require,module,exports){
   function clamp(a, b) {
     return function(t) {
       return Math.max(Math.min(t, b), a);
@@ -3962,7 +3979,7 @@ ol.TorqueLayer.prototype = torque.extend({},
 
 module.exports = ol.TorqueLayer;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":11,"./canvas_layer":18,"carto":47}],22:[function(require,module,exports){
+},{"../":11,"./canvas_layer":18,"carto":40}],22:[function(require,module,exports){
 /*
 # metrics profiler
 
@@ -5452,11 +5469,22 @@ var Profiler = require('../profiler');
       };
     },
 
+    proccessTileError: function(error, coord, zoom) {
+      return {
+        error: error,
+        coord: {
+          x: coord.x,
+          y: coord.y,
+          z: zoom
+        }
+      };
+    },
+
     /*setCartoCSS: function(c) {
       this.options.cartocss = c;
     },*/
 
-    setSteps: function(steps, opt) { 
+    setSteps: function(steps, opt) {
       opt = opt || {};
       if (this.options.steps !== steps) {
         this.options.steps = steps;
@@ -5561,11 +5589,18 @@ var Profiler = require('../profiler');
                 .replace('{s}', subdomains[index])
 
       var extra = this._extraParams();
-      torque.net.get( url + (extra ? "?" + extra: ''), function (data) {
+      torque.net.get( url + (extra ? "?" + extra: ''), function (response) {
         prof_fetch_time.end();
-        if (data && data.responseText) {
-          var rows = JSON.parse(data.responseText);
-          callback(self.proccessTile(rows, coord, zoom));
+        if (response && response.responseText) {
+          var body = JSON.parse(response.responseText);
+
+          if (response.status === 429) {
+            var error = body.errors_with_context[0];
+
+            callback(self.proccessTileError(error, coord, zoom), error);
+          } else {
+            callback(self.proccessTile(body, coord, zoom));
+          }
         } else {
           Profiler.metric('torque.provider.windshaft.tile.error').inc();
           callback(null);
@@ -5705,7 +5740,7 @@ var Profiler = require('../profiler');
           }]
         };
       }
-      
+
       if(this.options.stat_tag){
         allParams["stat_tag"] = this.options.stat_tag;
       }
@@ -5899,7 +5934,7 @@ TorqueDataSource.prototype.getRamp = function (column, bins, method, callback) {
   }
   callback(error, ramp)
 }
-},{"d3":83,"turf-jenks":164}],30:[function(require,module,exports){
+},{"d3":79,"turf-jenks":162}],30:[function(require,module,exports){
 module.exports = {
     cartocss: require('./cartocss_render'),
     Point: require('./point'),
@@ -5915,7 +5950,8 @@ var Filters = require('./torque_filters');
 var turbocarto = require('turbo-carto');
 var CartoDatasource = require('./datasource');
 
-  var TAU = Math.PI * 2;
+  var ERROR_IMG_URL = 'http://s3.amazonaws.com/com.cartodb.assets.static/error.svg';
+
   var DEFAULT_CARTOCSS = [
     '#layer {',
     '  marker-fill: #662506;',
@@ -6029,6 +6065,10 @@ var CartoDatasource = require('./datasource');
       if (PointRenderer.isTurboCarto(cartocss)) {
         var datasource = new CartoDatasource(self.layer._tiles);
         turbocarto(cartocss, datasource, function (err, parsedCartoCSS) {
+          if (err) {
+            return callback(err, null);
+          }
+
           self.setShader(new carto.RendererJS().render(parsedCartoCSS));
           self.layer.redraw();
           self.layer.animator.start();
@@ -6046,6 +6086,10 @@ var CartoDatasource = require('./datasource');
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
       var img_names = this._shader.getImageURLs();
+      if (this.layer.showLimitErrors) {
+        img_names.push(ERROR_IMG_URL);
+      }
+
       this._preloadIcons(img_names);
     },
 
@@ -6121,6 +6165,12 @@ var CartoDatasource = require('./datasource');
     // renders all the layers (and frames for each layer) from cartocss
     //
     renderTile: function(tile, keys, callback) {
+      if (tile.error) {
+        this._renderErrorTile(tile);
+
+        return false;
+      }
+
       if (this._iconsToLoad > 0) {
           this.on('allIconsLoaded', function() {
               this.renderTile.apply(this, [tile, keys, callback]);
@@ -6189,6 +6239,13 @@ var CartoDatasource = require('./datasource');
         var a = document.createElement('a');
         a.href = url;
         return a.href;
+      }
+    },
+
+    _renderErrorTile: function(tile) {
+      if(this.layer.showLimitErrors) {
+        var img = this._icons[ERROR_IMG_URL];
+        img && this._ctx.drawImage(img, 0, 0, this.TILE_SIZE, this.TILE_SIZE);
       }
     },
 
@@ -6373,47 +6430,47 @@ var CartoDatasource = require('./datasource');
       } else {
           this.fire("allIconsLoaded");
       }
-  },
+    },
 
-  applyFilters: function(){
-    if(this._style){
-      if(this._style['image-filters']){
-        function gradientKey(imf){
-          var hash = ""
-          for(var i = 0; i < imf.args.length; i++){
-            var rgb = imf.args[i].rgb;
-            hash += rgb[0] + ":" + rgb[1] + ":" + rgb[2];
+    applyFilters: function(){
+      if(this._style){
+        if(this._style['image-filters']){
+          function gradientKey(imf){
+            var hash = ""
+            for(var i = 0; i < imf.args.length; i++){
+              var rgb = imf.args[i].rgb;
+              hash += rgb[0] + ":" + rgb[1] + ":" + rgb[2];
+            }
+            return hash;
           }
-          return hash;
+          var gradient = this._gradients[gradientKey(this._style['image-filters'])];
+          if(!gradient){
+            function componentToHex(c) {
+              var hex = c.toString(16);
+              return hex.length == 1 ? "0" + hex : hex;
+            }
+
+            function rgbToHex(r, g, b) {
+              return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+            }
+            gradient = {};
+            var colorize = this._style['image-filters'].args;
+
+            var increment = 1/colorize.length;
+            for (var i = 0; i < colorize.length; i++){
+              var key = increment * i + increment;
+              var rgb = colorize[i].rgb;
+              var formattedColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
+              gradient[key] = formattedColor;
+            }
+            this._gradients[gradientKey(this._style['image-filters'])] = gradient;
+          }
+          this._filters.gradient(gradient);
+          this._filters.draw();
         }
-        var gradient = this._gradients[gradientKey(this._style['image-filters'])];
-        if(!gradient){
-          function componentToHex(c) {
-            var hex = c.toString(16);
-            return hex.length == 1 ? "0" + hex : hex;
-          }
-
-          function rgbToHex(r, g, b) {
-            return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
-          }
-          gradient = {};
-          var colorize = this._style['image-filters'].args;
-
-          var increment = 1/colorize.length;
-          for (var i = 0; i < colorize.length; i++){
-            var key = increment * i + increment;
-            var rgb = colorize[i].rgb;
-            var formattedColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
-            gradient[key] = formattedColor;
-          }
-          this._gradients[gradientKey(this._style['image-filters'])] = gradient;
-        }
-        this._filters.gradient(gradient);
-        this._filters.draw();
       }
     }
-  }
-});
+  });
 
 PointRenderer.isTurboCarto = function (cartocss) {
   var reservedWords = ['ramp', 'colorbrewer', 'buckets']
@@ -6431,7 +6488,7 @@ PointRenderer.isTurboCarto = function (cartocss) {
 module.exports = PointRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":11,"../profiler":22,"./cartocss_render":28,"./datasource":29,"./torque_filters":33,"carto":47,"turbo-carto":155}],32:[function(require,module,exports){
+},{"../":11,"../profiler":22,"./cartocss_render":28,"./datasource":29,"./torque_filters":33,"carto":40,"turbo-carto":153}],32:[function(require,module,exports){
 (function (global){
 var carto = global.carto || require('carto');
 
@@ -6595,7 +6652,7 @@ var carto = global.carto || require('carto');
 module.exports = RectanbleRenderer;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"carto":47}],33:[function(require,module,exports){
+},{"carto":40}],33:[function(require,module,exports){
 /*
  Based on simpleheat, a tiny JavaScript library for drawing heatmaps with Canvas, 
  by Vladimir Agafonkin
@@ -6718,9 +6775,9 @@ var torque = require('./core');
      };
 
      // timeout for errors
-     var timeoutTimer = setTimeout(function() { 
+     var timeoutTimer = setTimeout(function() {
        clean();
-       callback.call(window, null); 
+       callback.call(window, null);
      }, options.timeout);
 
      // setup url
@@ -6753,7 +6810,7 @@ var torque = require('./core');
     function respond() {
       var status = req.status, result;
       var r = options.responseType === 'arraybuffer' ? req.response: req.responseText;
-      if (!status && r || status >= 200 && status < 300 || status === 304) {
+      if (!status && r || status >= 200 && status < 300 || status === 304 || status === 429) {
         callback(req);
       } else {
         callback(null);
@@ -6792,8 +6849,6 @@ module.exports = {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./core":5}],35:[function(require,module,exports){
-
-},{}],36:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -7155,7 +7210,131 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":45}],37:[function(require,module,exports){
+},{"util/":166}],36:[function(require,module,exports){
+var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+;(function (exports) {
+	'use strict';
+
+  var Arr = (typeof Uint8Array !== 'undefined')
+    ? Uint8Array
+    : Array
+
+	var PLUS   = '+'.charCodeAt(0)
+	var SLASH  = '/'.charCodeAt(0)
+	var NUMBER = '0'.charCodeAt(0)
+	var LOWER  = 'a'.charCodeAt(0)
+	var UPPER  = 'A'.charCodeAt(0)
+
+	function decode (elt) {
+		var code = elt.charCodeAt(0)
+		if (code === PLUS)
+			return 62 // '+'
+		if (code === SLASH)
+			return 63 // '/'
+		if (code < NUMBER)
+			return -1 //no match
+		if (code < NUMBER + 10)
+			return code - NUMBER + 26 + 26
+		if (code < UPPER + 26)
+			return code - UPPER
+		if (code < LOWER + 26)
+			return code - LOWER + 26
+	}
+
+	function b64ToByteArray (b64) {
+		var i, j, l, tmp, placeHolders, arr
+
+		if (b64.length % 4 > 0) {
+			throw new Error('Invalid string. Length must be a multiple of 4')
+		}
+
+		// the number of equal signs (place holders)
+		// if there are two placeholders, than the two characters before it
+		// represent one byte
+		// if there is only one, then the three characters before it represent 2 bytes
+		// this is just a cheap hack to not do indexOf twice
+		var len = b64.length
+		placeHolders = '=' === b64.charAt(len - 2) ? 2 : '=' === b64.charAt(len - 1) ? 1 : 0
+
+		// base64 is 4/3 + up to two characters of the original data
+		arr = new Arr(b64.length * 3 / 4 - placeHolders)
+
+		// if there are placeholders, only get up to the last complete 4 chars
+		l = placeHolders > 0 ? b64.length - 4 : b64.length
+
+		var L = 0
+
+		function push (v) {
+			arr[L++] = v
+		}
+
+		for (i = 0, j = 0; i < l; i += 4, j += 3) {
+			tmp = (decode(b64.charAt(i)) << 18) | (decode(b64.charAt(i + 1)) << 12) | (decode(b64.charAt(i + 2)) << 6) | decode(b64.charAt(i + 3))
+			push((tmp & 0xFF0000) >> 16)
+			push((tmp & 0xFF00) >> 8)
+			push(tmp & 0xFF)
+		}
+
+		if (placeHolders === 2) {
+			tmp = (decode(b64.charAt(i)) << 2) | (decode(b64.charAt(i + 1)) >> 4)
+			push(tmp & 0xFF)
+		} else if (placeHolders === 1) {
+			tmp = (decode(b64.charAt(i)) << 10) | (decode(b64.charAt(i + 1)) << 4) | (decode(b64.charAt(i + 2)) >> 2)
+			push((tmp >> 8) & 0xFF)
+			push(tmp & 0xFF)
+		}
+
+		return arr
+	}
+
+	function uint8ToBase64 (uint8) {
+		var i,
+			extraBytes = uint8.length % 3, // if we have 1 byte left, pad 2 bytes
+			output = "",
+			temp, length
+
+		function encode (num) {
+			return lookup.charAt(num)
+		}
+
+		function tripletToBase64 (num) {
+			return encode(num >> 18 & 0x3F) + encode(num >> 12 & 0x3F) + encode(num >> 6 & 0x3F) + encode(num & 0x3F)
+		}
+
+		// go through the array every three bytes, we'll deal with trailing stuff later
+		for (i = 0, length = uint8.length - extraBytes; i < length; i += 3) {
+			temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2])
+			output += tripletToBase64(temp)
+		}
+
+		// pad the end with zeros, but make sure to not forget the extra bytes
+		switch (extraBytes) {
+			case 1:
+				temp = uint8[uint8.length - 1]
+				output += encode(temp >> 2)
+				output += encode((temp << 4) & 0x3F)
+				output += '=='
+				break
+			case 2:
+				temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1])
+				output += encode(temp >> 10)
+				output += encode((temp >> 4) & 0x3F)
+				output += encode((temp << 2) & 0x3F)
+				output += '='
+				break
+		}
+
+		return output
+	}
+
+	exports.toByteArray = b64ToByteArray
+	exports.fromByteArray = uint8ToBase64
+}(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
+
+},{}],37:[function(require,module,exports){
+
+},{}],38:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -8209,1188 +8388,7 @@ function decodeUtf8Char (str) {
   }
 }
 
-},{"base64-js":38,"ieee754":39,"is-array":40}],38:[function(require,module,exports){
-var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-;(function (exports) {
-	'use strict';
-
-  var Arr = (typeof Uint8Array !== 'undefined')
-    ? Uint8Array
-    : Array
-
-	var PLUS   = '+'.charCodeAt(0)
-	var SLASH  = '/'.charCodeAt(0)
-	var NUMBER = '0'.charCodeAt(0)
-	var LOWER  = 'a'.charCodeAt(0)
-	var UPPER  = 'A'.charCodeAt(0)
-
-	function decode (elt) {
-		var code = elt.charCodeAt(0)
-		if (code === PLUS)
-			return 62 // '+'
-		if (code === SLASH)
-			return 63 // '/'
-		if (code < NUMBER)
-			return -1 //no match
-		if (code < NUMBER + 10)
-			return code - NUMBER + 26 + 26
-		if (code < UPPER + 26)
-			return code - UPPER
-		if (code < LOWER + 26)
-			return code - LOWER + 26
-	}
-
-	function b64ToByteArray (b64) {
-		var i, j, l, tmp, placeHolders, arr
-
-		if (b64.length % 4 > 0) {
-			throw new Error('Invalid string. Length must be a multiple of 4')
-		}
-
-		// the number of equal signs (place holders)
-		// if there are two placeholders, than the two characters before it
-		// represent one byte
-		// if there is only one, then the three characters before it represent 2 bytes
-		// this is just a cheap hack to not do indexOf twice
-		var len = b64.length
-		placeHolders = '=' === b64.charAt(len - 2) ? 2 : '=' === b64.charAt(len - 1) ? 1 : 0
-
-		// base64 is 4/3 + up to two characters of the original data
-		arr = new Arr(b64.length * 3 / 4 - placeHolders)
-
-		// if there are placeholders, only get up to the last complete 4 chars
-		l = placeHolders > 0 ? b64.length - 4 : b64.length
-
-		var L = 0
-
-		function push (v) {
-			arr[L++] = v
-		}
-
-		for (i = 0, j = 0; i < l; i += 4, j += 3) {
-			tmp = (decode(b64.charAt(i)) << 18) | (decode(b64.charAt(i + 1)) << 12) | (decode(b64.charAt(i + 2)) << 6) | decode(b64.charAt(i + 3))
-			push((tmp & 0xFF0000) >> 16)
-			push((tmp & 0xFF00) >> 8)
-			push(tmp & 0xFF)
-		}
-
-		if (placeHolders === 2) {
-			tmp = (decode(b64.charAt(i)) << 2) | (decode(b64.charAt(i + 1)) >> 4)
-			push(tmp & 0xFF)
-		} else if (placeHolders === 1) {
-			tmp = (decode(b64.charAt(i)) << 10) | (decode(b64.charAt(i + 1)) << 4) | (decode(b64.charAt(i + 2)) >> 2)
-			push((tmp >> 8) & 0xFF)
-			push(tmp & 0xFF)
-		}
-
-		return arr
-	}
-
-	function uint8ToBase64 (uint8) {
-		var i,
-			extraBytes = uint8.length % 3, // if we have 1 byte left, pad 2 bytes
-			output = "",
-			temp, length
-
-		function encode (num) {
-			return lookup.charAt(num)
-		}
-
-		function tripletToBase64 (num) {
-			return encode(num >> 18 & 0x3F) + encode(num >> 12 & 0x3F) + encode(num >> 6 & 0x3F) + encode(num & 0x3F)
-		}
-
-		// go through the array every three bytes, we'll deal with trailing stuff later
-		for (i = 0, length = uint8.length - extraBytes; i < length; i += 3) {
-			temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2])
-			output += tripletToBase64(temp)
-		}
-
-		// pad the end with zeros, but make sure to not forget the extra bytes
-		switch (extraBytes) {
-			case 1:
-				temp = uint8[uint8.length - 1]
-				output += encode(temp >> 2)
-				output += encode((temp << 4) & 0x3F)
-				output += '=='
-				break
-			case 2:
-				temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1])
-				output += encode(temp >> 10)
-				output += encode((temp >> 4) & 0x3F)
-				output += encode((temp << 2) & 0x3F)
-				output += '='
-				break
-		}
-
-		return output
-	}
-
-	exports.toByteArray = b64ToByteArray
-	exports.fromByteArray = uint8ToBase64
-}(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
-
-},{}],39:[function(require,module,exports){
-exports.read = function (buffer, offset, isLE, mLen, nBytes) {
-  var e, m
-  var eLen = nBytes * 8 - mLen - 1
-  var eMax = (1 << eLen) - 1
-  var eBias = eMax >> 1
-  var nBits = -7
-  var i = isLE ? (nBytes - 1) : 0
-  var d = isLE ? -1 : 1
-  var s = buffer[offset + i]
-
-  i += d
-
-  e = s & ((1 << (-nBits)) - 1)
-  s >>= (-nBits)
-  nBits += eLen
-  for (; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8) {}
-
-  m = e & ((1 << (-nBits)) - 1)
-  e >>= (-nBits)
-  nBits += mLen
-  for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8) {}
-
-  if (e === 0) {
-    e = 1 - eBias
-  } else if (e === eMax) {
-    return m ? NaN : ((s ? -1 : 1) * Infinity)
-  } else {
-    m = m + Math.pow(2, mLen)
-    e = e - eBias
-  }
-  return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
-}
-
-exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
-  var e, m, c
-  var eLen = nBytes * 8 - mLen - 1
-  var eMax = (1 << eLen) - 1
-  var eBias = eMax >> 1
-  var rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0)
-  var i = isLE ? 0 : (nBytes - 1)
-  var d = isLE ? 1 : -1
-  var s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0
-
-  value = Math.abs(value)
-
-  if (isNaN(value) || value === Infinity) {
-    m = isNaN(value) ? 1 : 0
-    e = eMax
-  } else {
-    e = Math.floor(Math.log(value) / Math.LN2)
-    if (value * (c = Math.pow(2, -e)) < 1) {
-      e--
-      c *= 2
-    }
-    if (e + eBias >= 1) {
-      value += rt / c
-    } else {
-      value += rt * Math.pow(2, 1 - eBias)
-    }
-    if (value * c >= 2) {
-      e++
-      c /= 2
-    }
-
-    if (e + eBias >= eMax) {
-      m = 0
-      e = eMax
-    } else if (e + eBias >= 1) {
-      m = (value * c - 1) * Math.pow(2, mLen)
-      e = e + eBias
-    } else {
-      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen)
-      e = 0
-    }
-  }
-
-  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8) {}
-
-  e = (e << mLen) | m
-  eLen += mLen
-  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8) {}
-
-  buffer[offset + i - d] |= s * 128
-}
-
-},{}],40:[function(require,module,exports){
-
-/**
- * isArray
- */
-
-var isArray = Array.isArray;
-
-/**
- * toString
- */
-
-var str = Object.prototype.toString;
-
-/**
- * Whether or not the given `val`
- * is an array.
- *
- * example:
- *
- *        isArray([]);
- *        // > true
- *        isArray(arguments);
- *        // > false
- *        isArray('');
- *        // > false
- *
- * @param {mixed} val
- * @return {bool}
- */
-
-module.exports = isArray || function (val) {
-  return !! val && '[object Array]' == str.call(val);
-};
-
-},{}],41:[function(require,module,exports){
-(function (process){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-// resolves . and .. elements in a path array with directory names there
-// must be no slashes, empty elements, or device names (c:\) in the array
-// (so also no leading and trailing slashes - it does not distinguish
-// relative and absolute paths)
-function normalizeArray(parts, allowAboveRoot) {
-  // if the path tries to go above the root, `up` ends up > 0
-  var up = 0;
-  for (var i = parts.length - 1; i >= 0; i--) {
-    var last = parts[i];
-    if (last === '.') {
-      parts.splice(i, 1);
-    } else if (last === '..') {
-      parts.splice(i, 1);
-      up++;
-    } else if (up) {
-      parts.splice(i, 1);
-      up--;
-    }
-  }
-
-  // if the path is allowed to go above the root, restore leading ..s
-  if (allowAboveRoot) {
-    for (; up--; up) {
-      parts.unshift('..');
-    }
-  }
-
-  return parts;
-}
-
-// Split a filename into [root, dir, basename, ext], unix version
-// 'root' is just a slash, or nothing.
-var splitPathRe =
-    /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
-var splitPath = function(filename) {
-  return splitPathRe.exec(filename).slice(1);
-};
-
-// path.resolve([from ...], to)
-// posix version
-exports.resolve = function() {
-  var resolvedPath = '',
-      resolvedAbsolute = false;
-
-  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
-    var path = (i >= 0) ? arguments[i] : process.cwd();
-
-    // Skip empty and invalid entries
-    if (typeof path !== 'string') {
-      throw new TypeError('Arguments to path.resolve must be strings');
-    } else if (!path) {
-      continue;
-    }
-
-    resolvedPath = path + '/' + resolvedPath;
-    resolvedAbsolute = path.charAt(0) === '/';
-  }
-
-  // At this point the path should be resolved to a full absolute path, but
-  // handle relative paths to be safe (might happen when process.cwd() fails)
-
-  // Normalize the path
-  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
-    return !!p;
-  }), !resolvedAbsolute).join('/');
-
-  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
-};
-
-// path.normalize(path)
-// posix version
-exports.normalize = function(path) {
-  var isAbsolute = exports.isAbsolute(path),
-      trailingSlash = substr(path, -1) === '/';
-
-  // Normalize the path
-  path = normalizeArray(filter(path.split('/'), function(p) {
-    return !!p;
-  }), !isAbsolute).join('/');
-
-  if (!path && !isAbsolute) {
-    path = '.';
-  }
-  if (path && trailingSlash) {
-    path += '/';
-  }
-
-  return (isAbsolute ? '/' : '') + path;
-};
-
-// posix version
-exports.isAbsolute = function(path) {
-  return path.charAt(0) === '/';
-};
-
-// posix version
-exports.join = function() {
-  var paths = Array.prototype.slice.call(arguments, 0);
-  return exports.normalize(filter(paths, function(p, index) {
-    if (typeof p !== 'string') {
-      throw new TypeError('Arguments to path.join must be strings');
-    }
-    return p;
-  }).join('/'));
-};
-
-
-// path.relative(from, to)
-// posix version
-exports.relative = function(from, to) {
-  from = exports.resolve(from).substr(1);
-  to = exports.resolve(to).substr(1);
-
-  function trim(arr) {
-    var start = 0;
-    for (; start < arr.length; start++) {
-      if (arr[start] !== '') break;
-    }
-
-    var end = arr.length - 1;
-    for (; end >= 0; end--) {
-      if (arr[end] !== '') break;
-    }
-
-    if (start > end) return [];
-    return arr.slice(start, end - start + 1);
-  }
-
-  var fromParts = trim(from.split('/'));
-  var toParts = trim(to.split('/'));
-
-  var length = Math.min(fromParts.length, toParts.length);
-  var samePartsLength = length;
-  for (var i = 0; i < length; i++) {
-    if (fromParts[i] !== toParts[i]) {
-      samePartsLength = i;
-      break;
-    }
-  }
-
-  var outputParts = [];
-  for (var i = samePartsLength; i < fromParts.length; i++) {
-    outputParts.push('..');
-  }
-
-  outputParts = outputParts.concat(toParts.slice(samePartsLength));
-
-  return outputParts.join('/');
-};
-
-exports.sep = '/';
-exports.delimiter = ':';
-
-exports.dirname = function(path) {
-  var result = splitPath(path),
-      root = result[0],
-      dir = result[1];
-
-  if (!root && !dir) {
-    // No dirname whatsoever
-    return '.';
-  }
-
-  if (dir) {
-    // It has a dirname, strip trailing slash
-    dir = dir.substr(0, dir.length - 1);
-  }
-
-  return root + dir;
-};
-
-
-exports.basename = function(path, ext) {
-  var f = splitPath(path)[2];
-  // TODO: make this comparison case-insensitive on windows?
-  if (ext && f.substr(-1 * ext.length) === ext) {
-    f = f.substr(0, f.length - ext.length);
-  }
-  return f;
-};
-
-
-exports.extname = function(path) {
-  return splitPath(path)[3];
-};
-
-function filter (xs, f) {
-    if (xs.filter) return xs.filter(f);
-    var res = [];
-    for (var i = 0; i < xs.length; i++) {
-        if (f(xs[i], i, xs)) res.push(xs[i]);
-    }
-    return res;
-}
-
-// String.prototype.substr - negative index don't work in IE8
-var substr = 'ab'.substr(-1) === 'b'
-    ? function (str, start, len) { return str.substr(start, len) }
-    : function (str, start, len) {
-        if (start < 0) start = str.length + start;
-        return str.substr(start, len);
-    }
-;
-
-}).call(this,require('_process'))
-},{"_process":42}],42:[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canMutationObserver = typeof window !== 'undefined'
-    && window.MutationObserver;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
-
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
-    }
-
-    var queue = [];
-
-    if (canMutationObserver) {
-        var hiddenDiv = document.createElement("div");
-        var observer = new MutationObserver(function () {
-            var queueList = queue.slice();
-            queue.length = 0;
-            queueList.forEach(function (fn) {
-                fn();
-            });
-        });
-
-        observer.observe(hiddenDiv, { attributes: true });
-
-        return function nextTick(fn) {
-            if (!queue.length) {
-                hiddenDiv.setAttribute('yes', 'no');
-            }
-            queue.push(fn);
-        };
-    }
-
-    if (canPost) {
-        window.addEventListener('message', function (ev) {
-            var source = ev.source;
-            if ((source === window || source === null) && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
-        };
-    }
-
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
-    };
-})();
-
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-
-function noop() {}
-
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-};
-
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-
-},{}],43:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],44:[function(require,module,exports){
-module.exports = function isBuffer(arg) {
-  return arg && typeof arg === 'object'
-    && typeof arg.copy === 'function'
-    && typeof arg.fill === 'function'
-    && typeof arg.readUInt8 === 'function';
-}
-},{}],45:[function(require,module,exports){
-(function (process,global){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (!isString(f)) {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
-
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (x === '%%') return '%';
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j':
-        try {
-          return JSON.stringify(args[i++]);
-        } catch (_) {
-          return '[Circular]';
-        }
-      default:
-        return x;
-    }
-  });
-  for (var x = args[i]; i < len; x = args[++i]) {
-    if (isNull(x) || !isObject(x)) {
-      str += ' ' + x;
-    } else {
-      str += ' ' + inspect(x);
-    }
-  }
-  return str;
-};
-
-
-// Mark that a method should not be used.
-// Returns a modified function which warns once by default.
-// If --no-deprecation is set, then it is a no-op.
-exports.deprecate = function(fn, msg) {
-  // Allow for deprecating things in the process of starting up.
-  if (isUndefined(global.process)) {
-    return function() {
-      return exports.deprecate(fn, msg).apply(this, arguments);
-    };
-  }
-
-  if (process.noDeprecation === true) {
-    return fn;
-  }
-
-  var warned = false;
-  function deprecated() {
-    if (!warned) {
-      if (process.throwDeprecation) {
-        throw new Error(msg);
-      } else if (process.traceDeprecation) {
-        console.trace(msg);
-      } else {
-        console.error(msg);
-      }
-      warned = true;
-    }
-    return fn.apply(this, arguments);
-  }
-
-  return deprecated;
-};
-
-
-var debugs = {};
-var debugEnviron;
-exports.debuglog = function(set) {
-  if (isUndefined(debugEnviron))
-    debugEnviron = process.env.NODE_DEBUG || '';
-  set = set.toUpperCase();
-  if (!debugs[set]) {
-    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
-      var pid = process.pid;
-      debugs[set] = function() {
-        var msg = exports.format.apply(exports, arguments);
-        console.error('%s %d: %s', set, pid, msg);
-      };
-    } else {
-      debugs[set] = function() {};
-    }
-  }
-  return debugs[set];
-};
-
-
-/**
- * Echos the value of a value. Trys to print the value out
- * in the best way possible given the different types.
- *
- * @param {Object} obj The object to print out.
- * @param {Object} opts Optional options object that alters the output.
- */
-/* legacy: obj, showHidden, depth, colors*/
-function inspect(obj, opts) {
-  // default options
-  var ctx = {
-    seen: [],
-    stylize: stylizeNoColor
-  };
-  // legacy...
-  if (arguments.length >= 3) ctx.depth = arguments[2];
-  if (arguments.length >= 4) ctx.colors = arguments[3];
-  if (isBoolean(opts)) {
-    // legacy...
-    ctx.showHidden = opts;
-  } else if (opts) {
-    // got an "options" object
-    exports._extend(ctx, opts);
-  }
-  // set default options
-  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
-  if (isUndefined(ctx.depth)) ctx.depth = 2;
-  if (isUndefined(ctx.colors)) ctx.colors = false;
-  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
-  if (ctx.colors) ctx.stylize = stylizeWithColor;
-  return formatValue(ctx, obj, ctx.depth);
-}
-exports.inspect = inspect;
-
-
-// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-inspect.colors = {
-  'bold' : [1, 22],
-  'italic' : [3, 23],
-  'underline' : [4, 24],
-  'inverse' : [7, 27],
-  'white' : [37, 39],
-  'grey' : [90, 39],
-  'black' : [30, 39],
-  'blue' : [34, 39],
-  'cyan' : [36, 39],
-  'green' : [32, 39],
-  'magenta' : [35, 39],
-  'red' : [31, 39],
-  'yellow' : [33, 39]
-};
-
-// Don't use 'blue' not visible on cmd.exe
-inspect.styles = {
-  'special': 'cyan',
-  'number': 'yellow',
-  'boolean': 'yellow',
-  'undefined': 'grey',
-  'null': 'bold',
-  'string': 'green',
-  'date': 'magenta',
-  // "name": intentionally not styling
-  'regexp': 'red'
-};
-
-
-function stylizeWithColor(str, styleType) {
-  var style = inspect.styles[styleType];
-
-  if (style) {
-    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
-           '\u001b[' + inspect.colors[style][1] + 'm';
-  } else {
-    return str;
-  }
-}
-
-
-function stylizeNoColor(str, styleType) {
-  return str;
-}
-
-
-function arrayToHash(array) {
-  var hash = {};
-
-  array.forEach(function(val, idx) {
-    hash[val] = true;
-  });
-
-  return hash;
-}
-
-
-function formatValue(ctx, value, recurseTimes) {
-  // Provide a hook for user-specified inspect functions.
-  // Check that value is an object with an inspect function on it
-  if (ctx.customInspect &&
-      value &&
-      isFunction(value.inspect) &&
-      // Filter out the util module, it's inspect function is special
-      value.inspect !== exports.inspect &&
-      // Also filter out any prototype objects using the circular check.
-      !(value.constructor && value.constructor.prototype === value)) {
-    var ret = value.inspect(recurseTimes, ctx);
-    if (!isString(ret)) {
-      ret = formatValue(ctx, ret, recurseTimes);
-    }
-    return ret;
-  }
-
-  // Primitive types cannot have properties
-  var primitive = formatPrimitive(ctx, value);
-  if (primitive) {
-    return primitive;
-  }
-
-  // Look up the keys of the object.
-  var keys = Object.keys(value);
-  var visibleKeys = arrayToHash(keys);
-
-  if (ctx.showHidden) {
-    keys = Object.getOwnPropertyNames(value);
-  }
-
-  // IE doesn't make error fields non-enumerable
-  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
-  if (isError(value)
-      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
-    return formatError(value);
-  }
-
-  // Some type of object without properties can be shortcutted.
-  if (keys.length === 0) {
-    if (isFunction(value)) {
-      var name = value.name ? ': ' + value.name : '';
-      return ctx.stylize('[Function' + name + ']', 'special');
-    }
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    }
-    if (isDate(value)) {
-      return ctx.stylize(Date.prototype.toString.call(value), 'date');
-    }
-    if (isError(value)) {
-      return formatError(value);
-    }
-  }
-
-  var base = '', array = false, braces = ['{', '}'];
-
-  // Make Array say that they are Array
-  if (isArray(value)) {
-    array = true;
-    braces = ['[', ']'];
-  }
-
-  // Make functions say that they are functions
-  if (isFunction(value)) {
-    var n = value.name ? ': ' + value.name : '';
-    base = ' [Function' + n + ']';
-  }
-
-  // Make RegExps say that they are RegExps
-  if (isRegExp(value)) {
-    base = ' ' + RegExp.prototype.toString.call(value);
-  }
-
-  // Make dates with properties first say the date
-  if (isDate(value)) {
-    base = ' ' + Date.prototype.toUTCString.call(value);
-  }
-
-  // Make error with message first say the error
-  if (isError(value)) {
-    base = ' ' + formatError(value);
-  }
-
-  if (keys.length === 0 && (!array || value.length == 0)) {
-    return braces[0] + base + braces[1];
-  }
-
-  if (recurseTimes < 0) {
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    } else {
-      return ctx.stylize('[Object]', 'special');
-    }
-  }
-
-  ctx.seen.push(value);
-
-  var output;
-  if (array) {
-    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
-  } else {
-    output = keys.map(function(key) {
-      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
-    });
-  }
-
-  ctx.seen.pop();
-
-  return reduceToSingleString(output, base, braces);
-}
-
-
-function formatPrimitive(ctx, value) {
-  if (isUndefined(value))
-    return ctx.stylize('undefined', 'undefined');
-  if (isString(value)) {
-    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                             .replace(/'/g, "\\'")
-                                             .replace(/\\"/g, '"') + '\'';
-    return ctx.stylize(simple, 'string');
-  }
-  if (isNumber(value))
-    return ctx.stylize('' + value, 'number');
-  if (isBoolean(value))
-    return ctx.stylize('' + value, 'boolean');
-  // For some reason typeof null is "object", so special case here.
-  if (isNull(value))
-    return ctx.stylize('null', 'null');
-}
-
-
-function formatError(value) {
-  return '[' + Error.prototype.toString.call(value) + ']';
-}
-
-
-function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
-  var output = [];
-  for (var i = 0, l = value.length; i < l; ++i) {
-    if (hasOwnProperty(value, String(i))) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          String(i), true));
-    } else {
-      output.push('');
-    }
-  }
-  keys.forEach(function(key) {
-    if (!key.match(/^\d+$/)) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          key, true));
-    }
-  });
-  return output;
-}
-
-
-function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
-  var name, str, desc;
-  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
-  if (desc.get) {
-    if (desc.set) {
-      str = ctx.stylize('[Getter/Setter]', 'special');
-    } else {
-      str = ctx.stylize('[Getter]', 'special');
-    }
-  } else {
-    if (desc.set) {
-      str = ctx.stylize('[Setter]', 'special');
-    }
-  }
-  if (!hasOwnProperty(visibleKeys, key)) {
-    name = '[' + key + ']';
-  }
-  if (!str) {
-    if (ctx.seen.indexOf(desc.value) < 0) {
-      if (isNull(recurseTimes)) {
-        str = formatValue(ctx, desc.value, null);
-      } else {
-        str = formatValue(ctx, desc.value, recurseTimes - 1);
-      }
-      if (str.indexOf('\n') > -1) {
-        if (array) {
-          str = str.split('\n').map(function(line) {
-            return '  ' + line;
-          }).join('\n').substr(2);
-        } else {
-          str = '\n' + str.split('\n').map(function(line) {
-            return '   ' + line;
-          }).join('\n');
-        }
-      }
-    } else {
-      str = ctx.stylize('[Circular]', 'special');
-    }
-  }
-  if (isUndefined(name)) {
-    if (array && key.match(/^\d+$/)) {
-      return str;
-    }
-    name = JSON.stringify('' + key);
-    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-      name = name.substr(1, name.length - 2);
-      name = ctx.stylize(name, 'name');
-    } else {
-      name = name.replace(/'/g, "\\'")
-                 .replace(/\\"/g, '"')
-                 .replace(/(^"|"$)/g, "'");
-      name = ctx.stylize(name, 'string');
-    }
-  }
-
-  return name + ': ' + str;
-}
-
-
-function reduceToSingleString(output, base, braces) {
-  var numLinesEst = 0;
-  var length = output.reduce(function(prev, cur) {
-    numLinesEst++;
-    if (cur.indexOf('\n') >= 0) numLinesEst++;
-    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
-  }, 0);
-
-  if (length > 60) {
-    return braces[0] +
-           (base === '' ? '' : base + '\n ') +
-           ' ' +
-           output.join(',\n  ') +
-           ' ' +
-           braces[1];
-  }
-
-  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-}
-
-
-// NOTE: These type checking functions intentionally don't use `instanceof`
-// because it is fragile and can be easily faked with `Object.create()`.
-function isArray(ar) {
-  return Array.isArray(ar);
-}
-exports.isArray = isArray;
-
-function isBoolean(arg) {
-  return typeof arg === 'boolean';
-}
-exports.isBoolean = isBoolean;
-
-function isNull(arg) {
-  return arg === null;
-}
-exports.isNull = isNull;
-
-function isNullOrUndefined(arg) {
-  return arg == null;
-}
-exports.isNullOrUndefined = isNullOrUndefined;
-
-function isNumber(arg) {
-  return typeof arg === 'number';
-}
-exports.isNumber = isNumber;
-
-function isString(arg) {
-  return typeof arg === 'string';
-}
-exports.isString = isString;
-
-function isSymbol(arg) {
-  return typeof arg === 'symbol';
-}
-exports.isSymbol = isSymbol;
-
-function isUndefined(arg) {
-  return arg === void 0;
-}
-exports.isUndefined = isUndefined;
-
-function isRegExp(re) {
-  return isObject(re) && objectToString(re) === '[object RegExp]';
-}
-exports.isRegExp = isRegExp;
-
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null;
-}
-exports.isObject = isObject;
-
-function isDate(d) {
-  return isObject(d) && objectToString(d) === '[object Date]';
-}
-exports.isDate = isDate;
-
-function isError(e) {
-  return isObject(e) &&
-      (objectToString(e) === '[object Error]' || e instanceof Error);
-}
-exports.isError = isError;
-
-function isFunction(arg) {
-  return typeof arg === 'function';
-}
-exports.isFunction = isFunction;
-
-function isPrimitive(arg) {
-  return arg === null ||
-         typeof arg === 'boolean' ||
-         typeof arg === 'number' ||
-         typeof arg === 'string' ||
-         typeof arg === 'symbol' ||  // ES6 symbol
-         typeof arg === 'undefined';
-}
-exports.isPrimitive = isPrimitive;
-
-exports.isBuffer = require('./support/isBuffer');
-
-function objectToString(o) {
-  return Object.prototype.toString.call(o);
-}
-
-
-function pad(n) {
-  return n < 10 ? '0' + n.toString(10) : n.toString(10);
-}
-
-
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-              'Oct', 'Nov', 'Dec'];
-
-// 26 Feb 16:19:34
-function timestamp() {
-  var d = new Date();
-  var time = [pad(d.getHours()),
-              pad(d.getMinutes()),
-              pad(d.getSeconds())].join(':');
-  return [d.getDate(), months[d.getMonth()], time].join(' ');
-}
-
-
-// log is just a thin wrapper to console.log that prepends a timestamp
-exports.log = function() {
-  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
-};
-
-
-/**
- * Inherit the prototype methods from one constructor into another.
- *
- * The Function.prototype.inherits from lang.js rewritten as a standalone
- * function (not on Function.prototype). NOTE: If this file is to be loaded
- * during bootstrapping this function needs to be rewritten using some native
- * functions as prototype setup using normal JavaScript does not work as
- * expected during bootstrapping (see mirror.js in r114903).
- *
- * @param {function} ctor Constructor function which needs to inherit the
- *     prototype.
- * @param {function} superCtor Constructor function to inherit prototype from.
- */
-exports.inherits = require('inherits');
-
-exports._extend = function(origin, add) {
-  // Don't do anything if add isn't an object
-  if (!add || !isObject(add)) return origin;
-
-  var keys = Object.keys(add);
-  var i = keys.length;
-  while (i--) {
-    origin[keys[i]] = add[keys[i]];
-  }
-  return origin;
-};
-
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-}
-
-}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":44,"_process":42,"inherits":43}],46:[function(require,module,exports){
+},{"base64-js":36,"ieee754":83,"is-array":84}],39:[function(require,module,exports){
 (function (tree) {
 
 tree.functions = {
@@ -9603,7 +8601,7 @@ function clamp(val) {
 
 })(require('./tree'));
 
-},{"./tree":52}],47:[function(require,module,exports){
+},{"./tree":45}],40:[function(require,module,exports){
 (function (process,__dirname){
 var util = require('util'),
     fs = require('fs'),
@@ -9660,7 +8658,7 @@ var carto = {
         if (typeof(extract[2]) === 'string') {
             error.push(stylize((ctx.line + 1) + ' ' + extract[2], 'grey'));
         }
-        error = options.indent + error.join('\n' + options.indent) + '\033[0m\n';
+        error = options.indent + error.join('\n' + options.indent) + '\x1B[0m\n';
 
         message = options.indent + message + stylize(ctx.message, 'red');
         if (ctx.filename) (message += stylize(' in ', 'red') + ctx.filename);
@@ -9718,12 +8716,12 @@ function stylize(str, style) {
         'red' : [31, 39],
         'grey' : [90, 39]
     };
-    return '\033[' + styles[style][0] + 'm' + str +
-           '\033[' + styles[style][1] + 'm';
+    return '\x1B[' + styles[style][0] + 'm' + str +
+           '\x1B[' + styles[style][1] + 'm';
 }
 
 }).call(this,require('_process'),"/node_modules/carto/lib/carto")
-},{"../../package.json":82,"./functions":46,"./parser":48,"./renderer":49,"./renderer_js":50,"./torque-reference":51,"./tree":52,"./tree/call":53,"./tree/color":54,"./tree/comment":55,"./tree/definition":56,"./tree/dimension":57,"./tree/element":58,"./tree/expression":59,"./tree/field":60,"./tree/filter":61,"./tree/filterset":62,"./tree/fontset":63,"./tree/frame_offset":64,"./tree/imagefilter":65,"./tree/invalid":66,"./tree/keyword":67,"./tree/layer":68,"./tree/literal":69,"./tree/operation":70,"./tree/quoted":71,"./tree/reference":72,"./tree/rule":73,"./tree/ruleset":74,"./tree/selector":75,"./tree/style":76,"./tree/url":77,"./tree/value":78,"./tree/variable":79,"./tree/zoom":80,"_process":42,"fs":35,"path":41,"util":45}],48:[function(require,module,exports){
+},{"../../package.json":74,"./functions":39,"./parser":41,"./renderer":42,"./renderer_js":43,"./torque-reference":44,"./tree":45,"./tree/call":46,"./tree/color":47,"./tree/comment":48,"./tree/definition":49,"./tree/dimension":50,"./tree/element":51,"./tree/expression":52,"./tree/field":53,"./tree/filter":54,"./tree/filterset":55,"./tree/fontset":56,"./tree/frame_offset":57,"./tree/imagefilter":58,"./tree/invalid":59,"./tree/keyword":60,"./tree/layer":61,"./tree/literal":62,"./tree/operation":63,"./tree/quoted":64,"./tree/reference":65,"./tree/rule":66,"./tree/ruleset":67,"./tree/selector":68,"./tree/style":69,"./tree/url":70,"./tree/value":71,"./tree/variable":72,"./tree/zoom":73,"_process":118,"fs":37,"path":88,"util":166}],41:[function(require,module,exports){
 (function (global){
 var carto = exports,
     tree = require('./tree'),
@@ -10522,7 +9520,7 @@ carto.Parser = function Parser(env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./tree":52,"underscore":166}],49:[function(require,module,exports){
+},{"./tree":45,"underscore":163}],42:[function(require,module,exports){
 (function (global){
 var _ = global._ || require('underscore');
 var carto = require('./index');
@@ -10928,7 +9926,7 @@ module.exports.inheritDefinitions = inheritDefinitions;
 module.exports.sortStyles = sortStyles;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./index":47,"underscore":166}],50:[function(require,module,exports){
+},{"./index":40,"underscore":163}],43:[function(require,module,exports){
 (function (global){
 (function(carto) {
 var tree = require('./tree');
@@ -10989,7 +9987,7 @@ CartoCSS.Layer.prototype = {
   },
 
   /**
-   * return the symbolizers that need to be rendered with 
+   * return the symbolizers that need to be rendered with
    * this style. The order is the rendering order.
    * @returns a list with 3 possible values 'line', 'marker', 'polygon'
    */
@@ -11031,7 +10029,7 @@ CartoCSS.Layer.prototype = {
 
   //
   // given a geoemtry type returns the transformed one acording the CartoCSS
-  // For points there are two kind of types: point and sprite, the first one 
+  // For points there are two kind of types: point and sprite, the first one
   // is a circle, second one is an image sprite
   //
   // the other geometry types are the same than geojson (polygon, linestring...)
@@ -11134,12 +10132,15 @@ CartoCSS.prototype = {
         var layer = layers[key] = (layers[key] || {
           symbolizers: []
         });
+
         for(var u = 0; u<def.rules.length; u++){
-            if(def.rules[u].name === "marker-file" || def.rules[u].name === "point-file"){
-                var value = def.rules[u].value.value[0].value[0].value.value;
-                this.imageURLs.push(value);
+          var rule = def.rules[u];
+            if(rule.name === "marker-file" || rule.name === "point-file"){
+              var value = rule.value.value[0].value[0].value.value;
+              this.imageURLs.push(value);
             }
-        } 
+        }
+
         layer.frames = [];
         layer.zoom = tree.Zoom.all;
         var props = def.toJS(parse_env);
@@ -11158,6 +10159,8 @@ CartoCSS.prototype = {
           // serach the max index to know rendering order
           lyr.index = _.max(props[v].map(function(a) { return a.index; }).concat(lyr.index));
           lyr.constant = !_.any(props[v].map(function(a) { return !a.constant; }));
+          // True when the property is filtered.
+          lyr.filtered = props[v][0].filtered;
         }
       }
 
@@ -11167,6 +10170,14 @@ CartoCSS.prototype = {
       var done = {};
       for(var i = 0; i < defs.length; ++i) {
         var def = defs[i];
+
+        if (this.options.strict) {
+          def.toXML(parse_env, {});
+          if (parse_env.errors.message) {
+            throw new Error(parse_env.errors.message);
+          }
+        }
+
         var k = defKey(def);
         var layer = layers[k];
         if(!done[k]) {
@@ -11203,12 +10214,13 @@ CartoCSS.prototype = {
 carto.RendererJS = function (options) {
     this.options = options || {};
     this.options.mapnik_version = this.options.mapnik_version || 'latest';
+    this.reference = this.options.reference || require('./torque-reference').version.latest;
+    this.options.strict = this.options.hasOwnProperty('strict') ? this.options.strict : false;
 };
 
 // Prepare a javascript object which contains the layers
 carto.RendererJS.prototype.render = function render(cartocss, callback) {
-    var reference = require('./torque-reference');
-    tree.Reference.setData(reference.version.latest);
+    tree.Reference.setData(this.reference);
     return new CartoCSS(cartocss, this.options);
 }
 
@@ -11220,7 +10232,7 @@ if(typeof(module) !== 'undefined') {
 })(require('../carto'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../carto":47,"./torque-reference":51,"./tree":52,"underscore":166}],51:[function(require,module,exports){
+},{"../carto":40,"./torque-reference":44,"./tree":45,"underscore":163}],44:[function(require,module,exports){
 var _mapnik_reference_latest = {
     "version": "2.1.1",
     "style": {
@@ -13152,7 +12164,7 @@ module.exports = {
   }
 };
 
-},{}],52:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 /**
  * TODO: document this. What does this do?
  */
@@ -13165,7 +12177,7 @@ if(typeof(module) !== "undefined") {
   };
 }
 
-},{}],53:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -13281,7 +12293,7 @@ tree.Call.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":52,"underscore":166}],54:[function(require,module,exports){
+},{"../tree":45,"underscore":163}],47:[function(require,module,exports){
 (function(tree) {
 // RGB Colors - #ff0014, #eee
 // can be initialized with a 3 or 6 char string or a 3 or 4 element
@@ -13378,7 +12390,7 @@ tree.Color.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],55:[function(require,module,exports){
+},{"../tree":45}],48:[function(require,module,exports){
 (function(tree) {
 
 tree.Comment = function Comment(value, silent) {
@@ -13395,7 +12407,7 @@ tree.Comment.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],56:[function(require,module,exports){
+},{"../tree":45}],49:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var assert = require('assert'),
@@ -13609,48 +12621,37 @@ tree.Definition.prototype.toXML = function(env, existing) {
 
 tree.Definition.prototype.toJS = function(env) {
   var shaderAttrs = {};
-
-  // merge conditions from filters with zoom condition of the
-  // definition
-  var zoom = "(" + this.zoom + " & (1 << ctx.zoom))";
   var frame_offset = this.frame_offset;
-  var _if = this.filters.toJS(env);
-  var filters = [zoom];
-  if(_if) filters.push(_if);
-  if(frame_offset) filters.push('ctx["frame-offset"] === ' + frame_offset);
-  _if = filters.join(" && ");
-  _.each(this.rules, function(rule) {
-      if(rule instanceof tree.Rule) {
-        shaderAttrs[rule.name] = shaderAttrs[rule.name] || [];
+  var zoomFilter = "(" + this.zoom + " & (1 << ctx.zoom))";
+  var filters = [zoomFilter];
+  var originalFilters = this.filters.toJS(env);
+  // Ignore default zoom for filtering (https://github.com/CartoDB/carto/issues/40)
+  var zoomFiltered = this.zoom !== tree.Zoom.all;
+  
+  if (originalFilters) {
+      filters.push(originalFilters);
+  }
 
-        var r = {
-          index: rule.index,
-          symbolizer: rule.symbolizer
-        };
+  if (frame_offset) {
+      filters.push('ctx["frame-offset"] === ' + frame_offset);
+  }
 
-        if (_if) {
-          r.js = "if(" + _if + "){" + rule.value.toJS(env) + "}"
-        } else {
-          r.js = rule.value.toJS(env);
-        }
+  _.each(this.rules, function (rule) {
+      var exportedRule = {};
 
-        r.constant = rule.value.ev(env).is !== 'field';
-        r.filtered = !!_if;
-
-        shaderAttrs[rule.name].push(r);
-      } else {
-        throw new Error("Ruleset not supported");
-        //if (rule instanceof tree.Ruleset) {
-          //var sh = rule.toJS(env);
-          //for(var v in sh) {
-            //shaderAttrs[v] = shaderAttrs[v] || [];
-            //for(var attr in sh[v]) {
-              //shaderAttrs[v].push(sh[v][attr]);
-            //}
-          //}
-        //}
+      if (!rule instanceof tree.Rule) {
+          throw new Error("Ruleset not supported");
       }
+
+      exportedRule.index = rule.index;
+      exportedRule.symbolizer = rule.symbolizer;
+      exportedRule.js = "if(" + filters.join(" && ") + "){" + rule.value.toJS(env) + "}";
+      exportedRule.constant = rule.value.ev(env).is !== 'field';
+      exportedRule.filtered = zoomFiltered || (originalFilters !== '');
+      shaderAttrs[rule.name] = shaderAttrs[rule.name] || [];
+      shaderAttrs[rule.name].push(exportedRule);
   });
+
   return shaderAttrs;
 };
 
@@ -13658,7 +12659,7 @@ tree.Definition.prototype.toJS = function(env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":52,"assert":36,"underscore":166}],57:[function(require,module,exports){
+},{"../tree":45,"assert":35,"underscore":163}],50:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -13761,7 +12762,7 @@ tree.Dimension.prototype = {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":52,"underscore":166}],58:[function(require,module,exports){
+},{"../tree":45,"underscore":163}],51:[function(require,module,exports){
 (function(tree) {
 
 // An element is an id or class selector
@@ -13793,7 +12794,7 @@ tree.Element.prototype.toString = function() { return this.value; };
 
 })(require('../tree'));
 
-},{"../tree":52}],59:[function(require,module,exports){
+},{"../tree":45}],52:[function(require,module,exports){
 (function(tree) {
 
 tree.Expression = function Expression(value) {
@@ -13821,7 +12822,7 @@ tree.Expression.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],60:[function(require,module,exports){
+},{"../tree":45}],53:[function(require,module,exports){
 (function(tree) {
 
 tree.Field = function Field(content) {
@@ -13840,7 +12841,7 @@ tree.Field.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],61:[function(require,module,exports){
+},{"../tree":45}],54:[function(require,module,exports){
 (function(tree) {
 
 tree.Filter = function Filter(key, op, val, index, filename) {
@@ -13910,7 +12911,7 @@ tree.Filter.prototype.toString = function() {
 
 })(require('../tree'));
 
-},{"../tree":52}],62:[function(require,module,exports){
+},{"../tree":45}],55:[function(require,module,exports){
 (function (global){
 var tree = require('../tree');
 var _ = global._ || require('underscore');
@@ -14184,7 +13185,7 @@ tree.Filterset.prototype.add = function(filter, env) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":52,"underscore":166}],63:[function(require,module,exports){
+},{"../tree":45,"underscore":163}],56:[function(require,module,exports){
 (function(tree) {
 
 tree._getFontSet = function(env, fonts) {
@@ -14217,7 +13218,7 @@ tree.FontSet.prototype.toXML = function(env) {
 
 })(require('../tree'));
 
-},{"../tree":52}],64:[function(require,module,exports){
+},{"../tree":45}],57:[function(require,module,exports){
 var tree = require('../tree');
 
 // Storage for Frame offset value
@@ -14246,7 +13247,7 @@ tree.FrameOffset.max = 32;
 tree.FrameOffset.none = 0;
 
 
-},{"../tree":52}],65:[function(require,module,exports){
+},{"../tree":45}],58:[function(require,module,exports){
 (function(tree) {
 
 tree.ImageFilter = function ImageFilter(filter, args) {
@@ -14270,7 +13271,7 @@ tree.ImageFilter.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],66:[function(require,module,exports){
+},{"../tree":45}],59:[function(require,module,exports){
 (function (tree) {
 tree.Invalid = function Invalid(chunk, index, message) {
     this.chunk = chunk;
@@ -14294,7 +13295,7 @@ tree.Invalid.prototype.ev = function(env) {
 };
 })(require('../tree'));
 
-},{"../tree":52}],67:[function(require,module,exports){
+},{"../tree":45}],60:[function(require,module,exports){
 (function(tree) {
 
 tree.Keyword = function Keyword(value) {
@@ -14313,7 +13314,7 @@ tree.Keyword.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],68:[function(require,module,exports){
+},{"../tree":45}],61:[function(require,module,exports){
 (function(tree) {
 
 tree.LayerXML = function(obj, styles) {
@@ -14352,7 +13353,7 @@ tree.LayerXML = function(obj, styles) {
 
 })(require('../tree'));
 
-},{"../tree":52}],69:[function(require,module,exports){
+},{"../tree":45}],62:[function(require,module,exports){
 // A literal is a literal string for Mapnik - the
 // result of the combination of a `tree.Field` with any
 // other type.
@@ -14374,7 +13375,7 @@ tree.Literal.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],70:[function(require,module,exports){
+},{"../tree":45}],63:[function(require,module,exports){
 // An operation is an expression with an op in between two operands,
 // like 2 + 1.
 (function(tree) {
@@ -14473,7 +13474,7 @@ tree.operate = function(op, a, b) {
 
 })(require('../tree'));
 
-},{"../tree":52}],71:[function(require,module,exports){
+},{"../tree":45}],64:[function(require,module,exports){
 (function(tree) {
 
 tree.Quoted = function Quoted(content) {
@@ -14505,7 +13506,7 @@ tree.Quoted.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],72:[function(require,module,exports){
+},{"../tree":45}],65:[function(require,module,exports){
 (function (global){
 // Carto pulls in a reference from the `mapnik-reference`
 // module. This file builds indexes from that file for its various
@@ -14728,7 +13729,7 @@ tree.Reference = ref;
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":52,"mapnik-reference":81,"underscore":166}],73:[function(require,module,exports){
+},{"../tree":45,"mapnik-reference":86,"underscore":163}],66:[function(require,module,exports){
 (function(tree) {
 // a rule is a single property and value combination, or variable
 // name and value combination, like
@@ -14850,7 +13851,7 @@ tree.Rule.prototype.ev = function(context) {
 
 })(require('../tree'));
 
-},{"../tree":52}],74:[function(require,module,exports){
+},{"../tree":45}],67:[function(require,module,exports){
 (function(tree) {
 
 tree.Ruleset = function Ruleset(selectors, rules) {
@@ -15029,7 +14030,7 @@ tree.Ruleset.prototype = {
 };
 })(require('../tree'));
 
-},{"../tree":52}],75:[function(require,module,exports){
+},{"../tree":45}],68:[function(require,module,exports){
 (function(tree) {
 
 tree.Selector = function Selector(filters, zoom, frame_offset, elements, attachment, conditions, index) {
@@ -15058,7 +14059,7 @@ tree.Selector.prototype.specificity = function() {
 
 })(require('../tree'));
 
-},{"../tree":52}],76:[function(require,module,exports){
+},{"../tree":45}],69:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -15130,7 +14131,7 @@ tree.StyleXML = function(name, attachment, definitions, env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":52,"underscore":166}],77:[function(require,module,exports){
+},{"../tree":45,"underscore":163}],70:[function(require,module,exports){
 (function(tree) {
 
 tree.URL = function URL(val, paths) {
@@ -15150,7 +14151,7 @@ tree.URL.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],78:[function(require,module,exports){
+},{"../tree":45}],71:[function(require,module,exports){
 (function(tree) {
 
 tree.Value = function Value(value) {
@@ -15187,6 +14188,12 @@ tree.Value.prototype = {
       var v = val.toString();
       if(val.is === "color" || val.is === 'uri' || val.is === 'string' || val.is === 'keyword') {
         v = "'" + v + "'";
+      } else if (Array.isArray(this.value) && this.value.length > 1) {
+        // This covers something like `line-dasharray: 5, 10;`
+        // where the return _value has more than one element.
+        // Without this the generated code will look like:
+        // _value = 5, 10; which will ignore the 10.
+        v = '[' + this.value.join(',') + ']';
       } else if (val.is === 'field') {
         // replace [variable] by ctx['variable']
         v = v.replace(/\[([^\]]*)\]/g, function(matched) {
@@ -15205,7 +14212,7 @@ tree.Value.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],79:[function(require,module,exports){
+},{"../tree":45}],72:[function(require,module,exports){
 (function(tree) {
 
 tree.Variable = function Variable(name, index, filename) {
@@ -15248,7 +14255,7 @@ tree.Variable.prototype = {
 
 })(require('../tree'));
 
-},{"../tree":52}],80:[function(require,module,exports){
+},{"../tree":45}],73:[function(require,module,exports){
 var tree = require('../tree');
 
 // Storage for zoom ranges. Only supports continuous ranges,
@@ -15368,54 +14375,72 @@ tree.Zoom.prototype.toString = function() {
     return str;
 };
 
-},{"../tree":52}],81:[function(require,module,exports){
-(function (__dirname){
-var fs = require('fs'),
-    path = require('path'),
-    existsSync = require('fs').existsSync || require('path').existsSync;
-
-// Load all stated versions into the module exports
-module.exports.version = {};
-
-var refs = [
- '2.0.0',
- '2.0.1',
- '2.0.2',
- '2.1.0',
- '2.1.1',
- '2.2.0',
- '2.3.0',
- '3.0.0'
-];
-
-refs.map(function(version) {
-    module.exports.version[version] = require(path.join(__dirname, version, 'reference.json'));
-    var ds_path = path.join(__dirname, version, 'datasources.json');
-    if (existsSync(ds_path)) {
-        module.exports.version[version].datasources = require(ds_path).datasources;
-    }
-});
-
-}).call(this,"/node_modules/carto/node_modules/mapnik-reference")
-},{"fs":35,"path":41}],82:[function(require,module,exports){
+},{"../tree":45}],74:[function(require,module,exports){
 module.exports={
-  "name": "carto",
-  "version": "0.15.1-cdb3",
-  "description": "CartoCSS Stylesheet Compiler",
-  "url": "https://github.com/cartodb/carto",
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/cartodb/carto.git"
+  "_args": [
+    [
+      {
+        "raw": "carto@github:cartodb/carto#master",
+        "scope": null,
+        "escapedName": "carto",
+        "name": "carto",
+        "rawSpec": "github:cartodb/carto#master",
+        "spec": "github:cartodb/carto#master",
+        "type": "hosted",
+        "hosted": {
+          "type": "github",
+          "ssh": "git@github.com:cartodb/carto.git#master",
+          "sshUrl": "git+ssh://git@github.com/cartodb/carto.git#master",
+          "httpsUrl": "git+https://github.com/cartodb/carto.git#master",
+          "gitUrl": "git://github.com/cartodb/carto.git#master",
+          "shortcut": "github:cartodb/carto#master",
+          "directUrl": "https://raw.githubusercontent.com/cartodb/carto/master/package.json"
+        }
+      },
+      "/Users/ruben/Projects/Carto/torque"
+    ]
+  ],
+  "_from": "cartodb/carto#master",
+  "_id": "carto@0.15.1-cdb4",
+  "_inCache": true,
+  "_location": "/carto",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "carto@github:cartodb/carto#master",
+    "scope": null,
+    "escapedName": "carto",
+    "name": "carto",
+    "rawSpec": "github:cartodb/carto#master",
+    "spec": "github:cartodb/carto#master",
+    "type": "hosted",
+    "hosted": {
+      "type": "github",
+      "ssh": "git@github.com:cartodb/carto.git#master",
+      "sshUrl": "git+ssh://git@github.com/cartodb/carto.git#master",
+      "httpsUrl": "git+https://github.com/cartodb/carto.git#master",
+      "gitUrl": "git://github.com/cartodb/carto.git#master",
+      "shortcut": "github:cartodb/carto#master",
+      "directUrl": "https://raw.githubusercontent.com/cartodb/carto/master/package.json"
+    }
   },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "git://github.com/cartodb/carto.git#cbe66020f98647429d2bb04b7cf73dcf194f2abf",
+  "_shasum": "81502a07a925021884ef159715147788290f7910",
+  "_shrinkwrap": null,
+  "_spec": "carto@github:cartodb/carto#master",
+  "_where": "/Users/ruben/Projects/Carto/torque",
   "author": {
     "name": "CartoDB",
     "url": "http://cartodb.com/"
   },
-  "keywords": [
-    "maps",
-    "css",
-    "stylesheets"
-  ],
+  "bin": {
+    "carto": "./bin/carto"
+  },
+  "bugs": {
+    "url": "https://github.com/cartodb/carto/issues"
+  },
   "contributors": [
     {
       "name": "Tom MacWright",
@@ -15437,54 +14462,2260 @@ module.exports={
       "email": "jsantana@cartodb.com"
     }
   ],
+  "dependencies": {
+    "mapnik-reference": "~6.0.2",
+    "optimist": "~0.6.0",
+    "underscore": "1.8.3"
+  },
+  "description": "CartoCSS Stylesheet Compiler",
+  "devDependencies": {
+    "browserify": "~7.0.0",
+    "coveralls": "~2.10.1",
+    "istanbul": "~0.2.14",
+    "jshint": "0.2.x",
+    "mocha": "1.12.x",
+    "sax": "0.1.x",
+    "uglify-js": "1.3.3"
+  },
+  "engines": {
+    "node": ">=0.4.x"
+  },
+  "gitHead": "cbe66020f98647429d2bb04b7cf73dcf194f2abf",
+  "homepage": "https://github.com/cartodb/carto#readme",
+  "keywords": [
+    "maps",
+    "css",
+    "stylesheets"
+  ],
   "licenses": [
     {
       "type": "Apache"
     }
   ],
-  "bin": {
-    "carto": "./bin/carto"
-  },
+  "main": "./lib/carto/index",
   "man": [
     "./man/carto.1"
   ],
-  "main": "./lib/carto/index",
-  "engines": {
-    "node": ">=0.4.x"
-  },
-  "dependencies": {
-    "underscore": "1.8.3",
-    "mapnik-reference": "~6.0.2",
-    "optimist": "~0.6.0"
-  },
-  "devDependencies": {
-    "mocha": "1.12.x",
-    "jshint": "0.2.x",
-    "sax": "0.1.x",
-    "istanbul": "~0.2.14",
-    "coveralls": "~2.10.1",
-    "browserify": "~7.0.0",
-    "uglify-js": "1.3.3"
-  },
-  "scripts": {
-    "pretest": "npm install",
-    "test": "mocha -R spec",
-    "coverage": "istanbul cover ./node_modules/.bin/_mocha && coveralls < ./coverage/lcov.info"
-  },
-  "gitHead": "945f5efb74fd1af1f5e1f69f409f9567f94fb5a7",
+  "name": "carto",
+  "optionalDependencies": {},
   "readme": "# CartoCSS\n\n[![Build Status](https://travis-ci.org/CartoDB/carto.png?branch=master)](https://travis-ci.org/CartoDB/carto)\n\nIs as stylesheet renderer for javascript, It's an evolution of the Mapnik renderer from Mapbox.\nPlease, see original [Mapbox repo](http://github.com/mapbox/carto) for more information and credits\n\n## Quick Start\n\n```javascript\n// shader is a CartoCSS object\n\nvar cartocss = [\n    '#layer {',\n    ' marker-width: [property]',\n    ' marker-fill: red',\n    '}'\n].join('')\nvar shader = new carto.RendererJS().render(cartocss);\nvar layers = shader.getLayers()\nfor (var i = 0; i < layers.length; ++i) {\n    var layer = layers[i];\n    console.log(\"layer name: \", layer.fullName())\n    console.log(\"- frames: \", layer.frames())\n    console.log(\"- attachment: \", layer.attachment())\n\n    var layerShader = layer.getStyle({ property: 1 }, { zoom: 10 })\n    console.log(layerShader['marker-width']) // 1\n    console.log(layerShader['marker-fill']) // #FF0000\n}\n\n```\n\n# API\n\n## RendererJS\n\n### render(cartocss)\n\n## CartoCSS\n\ncompiled cartocss object\n\n### getLayers\n\nreturn the layers, an array of ``CartoCSS.Layer`` object\n\n### getDefault\n\nreturn the default layer (``CartoCSS.Layer``), usually the Map layer\n\n\n### findLayer(where)\n\nfind a layer using where object.\n\n```\nshader.findLayer({ name: 'test' })\n```\n\n## CartoCSS.Layer\n\n### getStyle(props, context)\n\nreturn the evaluated style:\n    - props: object containing properties needed to render the style. If the cartocss style uses\n      some variables they should be passed in this object\n    - context: rendering context variables like ``zoom`` or animation ``frame``\n\n\n\n\n\n\n\n\n\n\n## Reference Documentation\n\n* [mapbox.com/carto](http://mapbox.com/carto/)\n\n\n",
   "readmeFilename": "README.md",
-  "bugs": {
-    "url": "https://github.com/cartodb/carto/issues"
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/cartodb/carto.git"
   },
-  "homepage": "https://github.com/cartodb/carto#readme",
-  "_id": "carto@0.15.1-cdb3",
-  "_shasum": "e4e274f41b3d89c82f25aa9a663e26c50835d68e",
-  "_from": "cartodb/carto#master",
-  "_resolved": "git://github.com/cartodb/carto.git#945f5efb74fd1af1f5e1f69f409f9567f94fb5a7"
+  "scripts": {
+    "coverage": "istanbul cover ./node_modules/.bin/_mocha && coveralls < ./coverage/lcov.info",
+    "pretest": "npm install",
+    "tdd": "env HIDE_LOGS=true mocha -w -R spec",
+    "test": "mocha -R spec"
+  },
+  "url": "https://github.com/cartodb/carto",
+  "version": "0.15.1-cdb4"
 }
 
-},{}],83:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
+!function() {
+
+var cartocolor = {
+    "Burg": {
+        "2": [
+            "#ffc6c4",
+            "#672044"
+        ],
+        "3": [
+            "#ffc6c4",
+            "#cc607d",
+            "#672044"
+        ],
+        "4": [
+            "#ffc6c4",
+            "#e38191",
+            "#ad466c",
+            "#672044"
+        ],
+        "5": [
+            "#ffc6c4",
+            "#ee919b",
+            "#cc607d",
+            "#9e3963",
+            "#672044"
+        ],
+        "6": [
+            "#ffc6c4",
+            "#f29ca3",
+            "#da7489",
+            "#b95073",
+            "#93345d",
+            "#672044"
+        ],
+        "7": [
+            "#ffc6c4",
+            "#f4a3a8",
+            "#e38191",
+            "#cc607d",
+            "#ad466c",
+            "#8b3058",
+            "#672044"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "BurgYl": {
+        "2": [
+            "#fbe6c5",
+            "#70284a"
+        ],
+        "3": [
+            "#fbe6c5",
+            "#dc7176",
+            "#70284a"
+        ],
+        "4": [
+            "#fbe6c5",
+            "#ee8a82",
+            "#c8586c",
+            "#70284a"
+        ],
+        "5": [
+            "#fbe6c5",
+            "#f2a28a",
+            "#dc7176",
+            "#b24b65",
+            "#70284a"
+        ],
+        "6": [
+            "#fbe6c5",
+            "#f4b191",
+            "#e7807d",
+            "#d06270",
+            "#a44360",
+            "#70284a"
+        ],
+        "7": [
+            "#fbe6c5",
+            "#f5ba98",
+            "#ee8a82",
+            "#dc7176",
+            "#c8586c",
+            "#9c3f5d",
+            "#70284a"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "RedOr": {
+        "2": [
+            "#f6d2a9",
+            "#b13f64"
+        ],
+        "3": [
+            "#f6d2a9",
+            "#ea8171",
+            "#b13f64"
+        ],
+        "4": [
+            "#f6d2a9",
+            "#f19c7c",
+            "#dd686c",
+            "#b13f64"
+        ],
+        "5": [
+            "#f6d2a9",
+            "#f3aa84",
+            "#ea8171",
+            "#d55d6a",
+            "#b13f64"
+        ],
+        "6": [
+            "#f6d2a9",
+            "#f4b28a",
+            "#ef9177",
+            "#e3726d",
+            "#cf5669",
+            "#b13f64"
+        ],
+        "7": [
+            "#f6d2a9",
+            "#f5b78e",
+            "#f19c7c",
+            "#ea8171",
+            "#dd686c",
+            "#ca5268",
+            "#b13f64"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "OrYel": {
+        "2": [
+            "#ecda9a",
+            "#ee4d5a"
+        ],
+        "3": [
+            "#ecda9a",
+            "#f7945d",
+            "#ee4d5a"
+        ],
+        "4": [
+            "#ecda9a",
+            "#f3ad6a",
+            "#f97b57",
+            "#ee4d5a"
+        ],
+        "5": [
+            "#ecda9a",
+            "#f1b973",
+            "#f7945d",
+            "#f86f56",
+            "#ee4d5a"
+        ],
+        "6": [
+            "#ecda9a",
+            "#f0c079",
+            "#f5a363",
+            "#f98558",
+            "#f76856",
+            "#ee4d5a"
+        ],
+        "7": [
+            "#ecda9a",
+            "#efc47e",
+            "#f3ad6a",
+            "#f7945d",
+            "#f97b57",
+            "#f66356",
+            "#ee4d5a"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "Peach": {
+        "2": [
+            "#fde0c5",
+            "#eb4a40"
+        ],
+        "3": [
+            "#fde0c5",
+            "#f59e72",
+            "#eb4a40"
+        ],
+        "4": [
+            "#fde0c5",
+            "#f8b58b",
+            "#f2855d",
+            "#eb4a40"
+        ],
+        "5": [
+            "#fde0c5",
+            "#f9c098",
+            "#f59e72",
+            "#f17854",
+            "#eb4a40"
+        ],
+        "6": [
+            "#fde0c5",
+            "#fac7a1",
+            "#f7ac80",
+            "#f38f65",
+            "#f0704f",
+            "#eb4a40"
+        ],
+        "7": [
+            "#fde0c5",
+            "#facba6",
+            "#f8b58b",
+            "#f59e72",
+            "#f2855d",
+            "#ef6a4c",
+            "#eb4a40"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "PinkYl": {
+        "2": [
+            "#fef6b5",
+            "#e15383"
+        ],
+        "3": [
+            "#fef6b5",
+            "#ffa679",
+            "#e15383"
+        ],
+        "4": [
+            "#fef6b5",
+            "#ffc285",
+            "#fa8a76",
+            "#e15383"
+        ],
+        "5": [
+            "#fef6b5",
+            "#ffd08e",
+            "#ffa679",
+            "#f67b77",
+            "#e15383"
+        ],
+        "6": [
+            "#fef6b5",
+            "#ffd795",
+            "#ffb77f",
+            "#fd9576",
+            "#f37378",
+            "#e15383"
+        ],
+        "7": [
+            "#fef6b5",
+            "#ffdd9a",
+            "#ffc285",
+            "#ffa679",
+            "#fa8a76",
+            "#f16d7a",
+            "#e15383"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "Mint": {
+        "2": [
+            "#e4f1e1",
+            "#0d585f"
+        ],
+        "3": [
+            "#e4f1e1",
+            "#63a6a0",
+            "#0d585f"
+        ],
+        "4": [
+            "#e4f1e1",
+            "#89c0b6",
+            "#448c8a",
+            "#0d585f"
+        ],
+        "5": [
+            "#E4F1E1",
+            "#9CCDC1",
+            "#63A6A0",
+            "#337F7F",
+            "#0D585F"
+        ],
+        "6": [
+            "#e4f1e1",
+            "#abd4c7",
+            "#7ab5ad",
+            "#509693",
+            "#2c7778",
+            "#0d585f"
+        ],
+        "7": [
+            "#e4f1e1",
+            "#b4d9cc",
+            "#89c0b6",
+            "#63a6a0",
+            "#448c8a",
+            "#287274",
+            "#0d585f"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "BluGrn": {
+        "2": [
+            "#c4e6c3",
+            "#1d4f60"
+        ],
+        "3": [
+            "#c4e6c3",
+            "#4da284",
+            "#1d4f60"
+        ],
+        "4": [
+            "#c4e6c3",
+            "#6dbc90",
+            "#36877a",
+            "#1d4f60"
+        ],
+        "5": [
+            "#c4e6c3",
+            "#80c799",
+            "#4da284",
+            "#2d7974",
+            "#1d4f60"
+        ],
+        "6": [
+            "#c4e6c3",
+            "#8dce9f",
+            "#5fb28b",
+            "#3e927e",
+            "#297071",
+            "#1d4f60"
+        ],
+        "7": [
+            "#c4e6c3",
+            "#96d2a4",
+            "#6dbc90",
+            "#4da284",
+            "#36877a",
+            "#266b6e",
+            "#1d4f60"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "DarkMint": {
+        "2": [
+            "#d2fbd4",
+            "#123f5a"
+        ],
+        "3": [
+            "#d2fbd4",
+            "#559c9e",
+            "#123f5a"
+        ],
+        "4": [
+            "#d2fbd4",
+            "#7bbcb0",
+            "#3a7c89",
+            "#123f5a"
+        ],
+        "5": [
+            "#d2fbd4",
+            "#8eccb9",
+            "#559c9e",
+            "#2b6c7f",
+            "#123f5a"
+        ],
+        "6": [
+            "#d2fbd4",
+            "#9cd5be",
+            "#6cafa9",
+            "#458892",
+            "#266377",
+            "#123f5a"
+        ],
+        "7": [
+            "#d2fbd4",
+            "#a5dbc2",
+            "#7bbcb0",
+            "#559c9e",
+            "#3a7c89",
+            "#235d72",
+            "#123f5a"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "Emrld": {
+        "2": [
+            "#d3f2a3",
+            "#074050"
+        ],
+        "3": [
+            "#d3f2a3",
+            "#4c9b82",
+            "#074050"
+        ],
+        "4": [
+            "#d3f2a3",
+            "#6cc08b",
+            "#217a79",
+            "#074050"
+        ],
+        "5": [
+            "#d3f2a3",
+            "#82d091",
+            "#4c9b82",
+            "#19696f",
+            "#074050"
+        ],
+        "6": [
+            "#d3f2a3",
+            "#8fda94",
+            "#60b187",
+            "#35877d",
+            "#145f69",
+            "#074050"
+        ],
+        "7": [
+            "#d3f2a3",
+            "#97e196",
+            "#6cc08b",
+            "#4c9b82",
+            "#217a79",
+            "#105965",
+            "#074050"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "ag_GrnYl": {
+        "2": [
+            "#245668",
+            "#EDEF5D"
+        ],
+        "3": [
+            "#245668",
+            "#39AB7E",
+            "#EDEF5D"
+        ],
+        "4": [
+            "#245668",
+            "#0D8F81",
+            "#6EC574",
+            "#EDEF5D"
+        ],
+        "5": [
+            "#245668",
+            "#04817E",
+            "#39AB7E",
+            "#8BD16D",
+            "#EDEF5D"
+        ],
+        "6": [
+            "#245668",
+            "#09787C",
+            "#1D9A81",
+            "#58BB79",
+            "#9DD869",
+            "#EDEF5D"
+        ],
+        "7": [
+            "#245668",
+            "#0F7279",
+            "#0D8F81",
+            "#39AB7E",
+            "#6EC574",
+            "#A9DC67",
+            "#EDEF5D"
+        ],
+        "tags": [
+            "aggregation"
+        ]
+    },
+    "BluYl": {
+        "2": [
+            "#f7feae",
+            "#045275"
+        ],
+        "3": [
+            "#f7feae",
+            "#46aea0",
+            "#045275"
+        ],
+        "4": [
+            "#f7feae",
+            "#7ccba2",
+            "#089099",
+            "#045275"
+        ],
+        "5": [
+            "#f7feae",
+            "#9bd8a4",
+            "#46aea0",
+            "#058092",
+            "#045275"
+        ],
+        "6": [
+            "#f7feae",
+            "#ace1a4",
+            "#68bfa1",
+            "#2a9c9c",
+            "#02778e",
+            "#045275"
+        ],
+        "7": [
+            "#f7feae",
+            "#b7e6a5",
+            "#7ccba2",
+            "#46aea0",
+            "#089099",
+            "#00718b",
+            "#045275"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "Teal": {
+        "2": [
+            "#d1eeea",
+            "#2a5674"
+        ],
+        "3": [
+            "#d1eeea",
+            "#68abb8",
+            "#2a5674"
+        ],
+        "4": [
+            "#d1eeea",
+            "#85c4c9",
+            "#4f90a6",
+            "#2a5674"
+        ],
+        "5": [
+            "#d1eeea",
+            "#96d0d1",
+            "#68abb8",
+            "#45829b",
+            "#2a5674"
+        ],
+        "6": [
+            "#d1eeea",
+            "#a1d7d6",
+            "#79bbc3",
+            "#599bae",
+            "#3f7994",
+            "#2a5674"
+        ],
+        "7": [
+            "#d1eeea",
+            "#a8dbd9",
+            "#85c4c9",
+            "#68abb8",
+            "#4f90a6",
+            "#3b738f",
+            "#2a5674"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "TealGrn": {
+        "2": [
+            "#b0f2bc",
+            "#257d98"
+        ],
+        "3": [
+            "#b0f2bc",
+            "#4cc8a3",
+            "#257d98"
+        ],
+        "4": [
+            "#b0f2bc",
+            "#67dba5",
+            "#38b2a3",
+            "#257d98"
+        ],
+        "5": [
+            "#b0f2bc",
+            "#77e2a8",
+            "#4cc8a3",
+            "#31a6a2",
+            "#257d98"
+        ],
+        "6": [
+            "#b0f2bc",
+            "#82e6aa",
+            "#5bd4a4",
+            "#3fbba3",
+            "#2e9ea1",
+            "#257d98"
+        ],
+        "7": [
+            "#b0f2bc",
+            "#89e8ac",
+            "#67dba5",
+            "#4cc8a3",
+            "#38b2a3",
+            "#2c98a0",
+            "#257d98"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "Purp": {
+        "2": [
+            "#f3e0f7",
+            "#63589f"
+        ],
+        "3": [
+            "#f3e0f7",
+            "#b998dd",
+            "#63589f"
+        ],
+        "4": [
+            "#f3e0f7",
+            "#d1afe8",
+            "#9f82ce",
+            "#63589f"
+        ],
+        "5": [
+            "#f3e0f7",
+            "#dbbaed",
+            "#b998dd",
+            "#9178c4",
+            "#63589f"
+        ],
+        "6": [
+            "#f3e0f7",
+            "#e0c2ef",
+            "#c8a5e4",
+            "#aa8bd4",
+            "#8871be",
+            "#63589f"
+        ],
+        "7": [
+            "#f3e0f7",
+            "#e4c7f1",
+            "#d1afe8",
+            "#b998dd",
+            "#9f82ce",
+            "#826dba",
+            "#63589f"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "PurpOr": {
+        "3": [
+            "#f9ddda",
+            "#ce78b3",
+            "#573b88"
+        ],
+        "4": [
+            "#f9ddda",
+            "#e597b9",
+            "#ad5fad",
+            "#573b88"
+        ],
+        "5": [
+            "#f9ddda",
+            "#eda8bd",
+            "#ce78b3",
+            "#9955a8",
+            "#573b88"
+        ],
+        "6": [
+            "#f9ddda",
+            "#f0b2c1",
+            "#dd8ab6",
+            "#bb69b0",
+            "#8c4fa4",
+            "#573b88"
+        ],
+        "7": [
+            "#f9ddda",
+            "#f2b9c4",
+            "#e597b9",
+            "#ce78b3",
+            "#ad5fad",
+            "#834ba0",
+            "#573b88"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "Sunset": {
+        "2": [
+            "#f3e79b",
+            "#5c53a5"
+        ],
+        "3": [
+            "#f3e79b",
+            "#eb7f86",
+            "#5c53a5"
+        ],
+        "4": [
+            "#f3e79b",
+            "#f8a07e",
+            "#ce6693",
+            "#5c53a5"
+        ],
+        "5": [
+            "#f3e79b",
+            "#fab27f",
+            "#eb7f86",
+            "#b95e9a",
+            "#5c53a5"
+        ],
+        "6": [
+            "#f3e79b",
+            "#fabc82",
+            "#f59280",
+            "#dc6f8e",
+            "#ab5b9e",
+            "#5c53a5"
+        ],
+        "7": [
+            "#f3e79b",
+            "#fac484",
+            "#f8a07e",
+            "#eb7f86",
+            "#ce6693",
+            "#a059a0",
+            "#5c53a5"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "Magenta": {
+        "2": [
+            "#f3cbd3",
+            "#6c2167"
+        ],
+        "3": [
+            "#f3cbd3",
+            "#ca699d",
+            "#6c2167"
+        ],
+        "4": [
+            "#f3cbd3",
+            "#dd88ac",
+            "#b14d8e",
+            "#6c2167"
+        ],
+        "5": [
+            "#f3cbd3",
+            "#e498b4",
+            "#ca699d",
+            "#a24186",
+            "#6c2167"
+        ],
+        "6": [
+            "#f3cbd3",
+            "#e7a2b9",
+            "#d67ba5",
+            "#bc5894",
+            "#983a81",
+            "#6c2167"
+        ],
+        "7": [
+            "#f3cbd3",
+            "#eaa9bd",
+            "#dd88ac",
+            "#ca699d",
+            "#b14d8e",
+            "#91357d",
+            "#6c2167"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "SunsetDark": {
+        "2": [
+            "#fcde9c",
+            "#7c1d6f"
+        ],
+        "3": [
+            "#fcde9c",
+            "#e34f6f",
+            "#7c1d6f"
+        ],
+        "4": [
+            "#fcde9c",
+            "#f0746e",
+            "#dc3977",
+            "#7c1d6f"
+        ],
+        "5": [
+            "#fcde9c",
+            "#f58670",
+            "#e34f6f",
+            "#d72d7c",
+            "#7c1d6f"
+        ],
+        "6": [
+            "#fcde9c",
+            "#f89872",
+            "#ec666d",
+            "#df4273",
+            "#c5287b",
+            "#7c1d6f"
+        ],
+        "7": [
+            "#fcde9c",
+            "#faa476",
+            "#f0746e",
+            "#e34f6f",
+            "#dc3977",
+            "#b9257a",
+            "#7c1d6f"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "ag_Sunset": {
+        "2": [
+            "#4b2991",
+            "#edd9a3"
+        ],
+        "3": [
+            "#4b2991",
+            "#ea4f88",
+            "#edd9a3"
+        ],
+        "4": [
+            "#4b2991",
+            "#c0369d",
+            "#fa7876",
+            "#edd9a3"
+        ],
+        "5": [
+            "#4b2991",
+            "#a52fa2",
+            "#ea4f88",
+            "#fa9074",
+            "#edd9a3"
+        ],
+        "6": [
+            "#4b2991",
+            "#932da3",
+            "#d43f96",
+            "#f7667c",
+            "#f89f77",
+            "#edd9a3"
+        ],
+        "7": [
+            "#4b2991",
+            "#872ca2",
+            "#c0369d",
+            "#ea4f88",
+            "#fa7876",
+            "#f6a97a",
+            "#edd9a3"
+        ],
+        "tags": [
+            "aggregation"
+        ]
+    },
+    "BrwnYl": {
+        "2": [
+            "#ede5cf",
+            "#541f3f"
+        ],
+        "3": [
+            "#ede5cf",
+            "#c1766f",
+            "#541f3f"
+        ],
+        "4": [
+            "#ede5cf",
+            "#d39c83",
+            "#a65461",
+            "#541f3f"
+        ],
+        "5": [
+            "#ede5cf",
+            "#daaf91",
+            "#c1766f",
+            "#95455a",
+            "#541f3f"
+        ],
+        "6": [
+            "#ede5cf",
+            "#ddba9b",
+            "#cd8c7a",
+            "#b26166",
+            "#8a3c56",
+            "#541f3f"
+        ],
+        "7": [
+            "#ede5cf",
+            "#e0c2a2",
+            "#d39c83",
+            "#c1766f",
+            "#a65461",
+            "#813753",
+            "#541f3f"
+        ],
+        "tags": [
+            "quantitative"
+        ]
+    },
+    "ArmyRose": {
+        "2": [
+            "#929b4f",
+            "#db8195"
+        ],
+        "3": [
+            "#a3ad62",
+            "#fdfbe4",
+            "#df91a3"
+        ],
+        "4": [
+            "#929b4f",
+            "#d9dbaf",
+            "#f3d1ca",
+            "#db8195"
+        ],
+        "5": [
+            "#879043",
+            "#c1c68c",
+            "#fdfbe4",
+            "#ebb4b8",
+            "#d8758b"
+        ],
+        "6": [
+            "#7f883b",
+            "#b0b874",
+            "#e3e4be",
+            "#f6ddd1",
+            "#e4a0ac",
+            "#d66d85"
+        ],
+        "7": [
+            "#798234",
+            "#a3ad62",
+            "#d0d3a2",
+            "#fdfbe4",
+            "#f0c6c3",
+            "#df91a3",
+            "#d46780"
+        ],
+        "tags": [
+            "diverging"
+        ]
+    },
+    "Fall": {
+        "2": [
+            "#3d5941",
+            "#ca562c"
+        ],
+        "3": [
+            "#3d5941",
+            "#f6edbd",
+            "#ca562c"
+        ],
+        "4": [
+            "#3d5941",
+            "#b5b991",
+            "#edbb8a",
+            "#ca562c"
+        ],
+        "5": [
+            "#3d5941",
+            "#96a07c",
+            "#f6edbd",
+            "#e6a272",
+            "#ca562c"
+        ],
+        "6": [
+            "#3d5941",
+            "#839170",
+            "#cecea2",
+            "#f1cf9e",
+            "#e19464",
+            "#ca562c"
+        ],
+        "7": [
+            "#3d5941",
+            "#778868",
+            "#b5b991",
+            "#f6edbd",
+            "#edbb8a",
+            "#de8a5a",
+            "#ca562c"
+        ],
+        "tags": [
+            "diverging"
+        ]
+    },
+    "Geyser": {
+        "2": [
+            "#008080",
+            "#ca562c"
+        ],
+        "3": [
+            "#008080",
+            "#f6edbd",
+            "#ca562c"
+        ],
+        "4": [
+            "#008080",
+            "#b4c8a8",
+            "#edbb8a",
+            "#ca562c"
+        ],
+        "5": [
+            "#008080",
+            "#92b69e",
+            "#f6edbd",
+            "#e6a272",
+            "#ca562c"
+        ],
+        "6": [
+            "#008080",
+            "#7eab98",
+            "#ced7b1",
+            "#f1cf9e",
+            "#e19464",
+            "#ca562c"
+        ],
+        "7": [
+            "#008080",
+            "#70a494",
+            "#b4c8a8",
+            "#f6edbd",
+            "#edbb8a",
+            "#de8a5a",
+            "#ca562c"
+        ],
+        "tags": [
+            "diverging"
+        ]
+    },
+    "Temps": {
+        "2": [
+            "#009392",
+            "#cf597e"
+        ],
+        "3": [
+            "#009392",
+            "#e9e29c",
+            "#cf597e"
+        ],
+        "4": [
+            "#009392",
+            "#9ccb86",
+            "#eeb479",
+            "#cf597e"
+        ],
+        "5": [
+            "#009392",
+            "#71be83",
+            "#e9e29c",
+            "#ed9c72",
+            "#cf597e"
+        ],
+        "6": [
+            "#009392",
+            "#52b684",
+            "#bcd48c",
+            "#edc783",
+            "#eb8d71",
+            "#cf597e"
+        ],
+        "7": [
+            "#009392",
+            "#39b185",
+            "#9ccb86",
+            "#e9e29c",
+            "#eeb479",
+            "#e88471",
+            "#cf597e"
+        ],
+        "tags": [
+            "diverging"
+        ]
+    },
+    "TealRose": {
+        "2": [
+            "#009392",
+            "#d0587e"
+        ],
+        "3": [
+            "#009392",
+            "#f1eac8",
+            "#d0587e"
+        ],
+        "4": [
+            "#009392",
+            "#91b8aa",
+            "#f1eac8",
+            "#dfa0a0",
+            "#d0587e"
+        ],
+        "5": [
+            "#009392",
+            "#91b8aa",
+            "#f1eac8",
+            "#dfa0a0",
+            "#d0587e"
+        ],
+        "6": [
+            "#009392",
+            "#72aaa1",
+            "#b1c7b3",
+            "#e5b9ad",
+            "#d98994",
+            "#d0587e"
+        ],
+        "7": [
+            "#009392",
+            "#72aaa1",
+            "#b1c7b3",
+            "#f1eac8",
+            "#e5b9ad",
+            "#d98994",
+            "#d0587e"
+        ],
+        "tags": [
+            "diverging"
+        ]
+    },
+    "Tropic": {
+        "2": [
+            "#009B9E",
+            "#C75DAB"
+        ],
+        "3": [
+            "#009B9E",
+            "#F1F1F1",
+            "#C75DAB"
+        ],
+        "4": [
+            "#009B9E",
+            "#A7D3D4",
+            "#E4C1D9",
+            "#C75DAB"
+        ],
+        "5": [
+            "#009B9E",
+            "#7CC5C6",
+            "#F1F1F1",
+            "#DDA9CD",
+            "#C75DAB"
+        ],
+        "6": [
+            "#009B9E",
+            "#5DBCBE",
+            "#C6DFDF",
+            "#E9D4E2",
+            "#D99BC6",
+            "#C75DAB"
+        ],
+        "7": [
+            "#009B9E",
+            "#42B7B9",
+            "#A7D3D4",
+            "#F1F1F1",
+            "#E4C1D9",
+            "#D691C1",
+            "#C75DAB"
+        ],
+        "tags": [
+            "diverging"
+        ]
+    },
+    "Earth": {
+        "2": [
+            "#A16928",
+            "#2887a1"
+        ],
+        "3": [
+            "#A16928",
+            "#edeac2",
+            "#2887a1"
+        ],
+        "4": [
+            "#A16928",
+            "#d6bd8d",
+            "#b5c8b8",
+            "#2887a1"
+        ],
+        "5": [
+            "#A16928",
+            "#caa873",
+            "#edeac2",
+            "#98b7b2",
+            "#2887a1"
+        ],
+        "6": [
+            "#A16928",
+            "#c29b64",
+            "#e0cfa2",
+            "#cbd5bc",
+            "#85adaf",
+            "#2887a1"
+        ],
+        "7": [
+            "#A16928",
+            "#bd925a",
+            "#d6bd8d",
+            "#edeac2",
+            "#b5c8b8",
+            "#79a7ac",
+            "#2887a1"
+        ],
+        "tags": [
+            "diverging"
+        ]
+    },
+    "Antique": {
+        "2": [
+            "#855C75",
+            "#D9AF6B",
+            "#7C7C7C"
+        ],
+        "3": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#7C7C7C"
+        ],
+        "4": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#7C7C7C"
+        ],
+        "5": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#526A83",
+            "#7C7C7C"
+        ],
+        "6": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#526A83",
+            "#625377",
+            "#7C7C7C"
+        ],
+        "7": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#526A83",
+            "#625377",
+            "#68855C",
+            "#7C7C7C"
+        ],
+        "8": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#526A83",
+            "#625377",
+            "#68855C",
+            "#9C9C5E",
+            "#7C7C7C"
+        ],
+        "9": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#526A83",
+            "#625377",
+            "#68855C",
+            "#9C9C5E",
+            "#A06177",
+            "#7C7C7C"
+        ],
+        "10": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#526A83",
+            "#625377",
+            "#68855C",
+            "#9C9C5E",
+            "#A06177",
+            "#8C785D",
+            "#7C7C7C"
+        ],
+        "11": [
+            "#855C75",
+            "#D9AF6B",
+            "#AF6458",
+            "#736F4C",
+            "#526A83",
+            "#625377",
+            "#68855C",
+            "#9C9C5E",
+            "#A06177",
+            "#8C785D",
+            "#467378",
+            "#7C7C7C"
+        ],
+        "tags": [
+            "qualitative"
+        ]
+    },
+    "Bold": {
+        "2": [
+            "#7F3C8D",
+            "#11A579",
+            "#A5AA99"
+        ],
+        "3": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#A5AA99"
+        ],
+        "4": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#A5AA99"
+        ],
+        "5": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#E73F74",
+            "#A5AA99"
+        ],
+        "6": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#E73F74",
+            "#80BA5A",
+            "#A5AA99"
+        ],
+        "7": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#E73F74",
+            "#80BA5A",
+            "#E68310",
+            "#A5AA99"
+        ],
+        "8": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#E73F74",
+            "#80BA5A",
+            "#E68310",
+            "#008695",
+            "#A5AA99"
+        ],
+        "9": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#E73F74",
+            "#80BA5A",
+            "#E68310",
+            "#008695",
+            "#CF1C90",
+            "#A5AA99"
+        ],
+        "10": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#E73F74",
+            "#80BA5A",
+            "#E68310",
+            "#008695",
+            "#CF1C90",
+            "#f97b72",
+            "#A5AA99"
+        ],
+        "11": [
+            "#7F3C8D",
+            "#11A579",
+            "#3969AC",
+            "#F2B701",
+            "#E73F74",
+            "#80BA5A",
+            "#E68310",
+            "#008695",
+            "#CF1C90",
+            "#f97b72",
+            "#4b4b8f",
+            "#A5AA99"
+        ],
+        "tags": [
+            "qualitative"
+        ]
+    },
+    "Pastel": {
+        "2": [
+            "#66C5CC",
+            "#F6CF71",
+            "#B3B3B3"
+        ],
+        "3": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#B3B3B3"
+        ],
+        "4": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#B3B3B3"
+        ],
+        "5": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#87C55F",
+            "#B3B3B3"
+        ],
+        "6": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#87C55F",
+            "#9EB9F3",
+            "#B3B3B3"
+        ],
+        "7": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#87C55F",
+            "#9EB9F3",
+            "#FE88B1",
+            "#B3B3B3"
+        ],
+        "8": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#87C55F",
+            "#9EB9F3",
+            "#FE88B1",
+            "#C9DB74",
+            "#B3B3B3"
+        ],
+        "9": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#87C55F",
+            "#9EB9F3",
+            "#FE88B1",
+            "#C9DB74",
+            "#8BE0A4",
+            "#B3B3B3"
+        ],
+        "10": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#87C55F",
+            "#9EB9F3",
+            "#FE88B1",
+            "#C9DB74",
+            "#8BE0A4",
+            "#B497E7",
+            "#B3B3B3"
+        ],
+        "11": [
+            "#66C5CC",
+            "#F6CF71",
+            "#F89C74",
+            "#DCB0F2",
+            "#87C55F",
+            "#9EB9F3",
+            "#FE88B1",
+            "#C9DB74",
+            "#8BE0A4",
+            "#B497E7",
+            "#D3B484",
+            "#B3B3B3"
+        ],
+        "tags": [
+            "qualitative"
+        ]
+    },
+    "Prism": {
+        "2": [
+            "#5F4690",
+            "#1D6996",
+            "#666666"
+        ],
+        "3": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#666666"
+        ],
+        "4": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#666666"
+        ],
+        "5": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#666666"
+        ],
+        "6": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#666666"
+        ],
+        "7": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#E17C05",
+            "#666666"
+        ],
+        "8": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#E17C05",
+            "#CC503E",
+            "#666666"
+        ],
+        "9": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#E17C05",
+            "#CC503E",
+            "#94346E",
+            "#666666"
+        ],
+        "10": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#E17C05",
+            "#CC503E",
+            "#94346E",
+            "#6F4070",
+            "#666666"
+        ],
+        "11": [
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#E17C05",
+            "#CC503E",
+            "#94346E",
+            "#6F4070",
+            "#994E95",
+            "#666666"
+        ],
+        "tags": [
+            "qualitative"
+        ]
+    },
+    "Safe": {
+        "2": [
+            "#88CCEE",
+            "#CC6677",
+            "#888888"
+        ],
+        "3": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#888888"
+        ],
+        "4": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#888888"
+        ],
+        "5": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#332288",
+            "#888888"
+        ],
+        "6": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#332288",
+            "#AA4499",
+            "#888888"
+        ],
+        "7": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#332288",
+            "#AA4499",
+            "#44AA99",
+            "#888888"
+        ],
+        "8": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#332288",
+            "#AA4499",
+            "#44AA99",
+            "#999933",
+            "#888888"
+        ],
+        "9": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#332288",
+            "#AA4499",
+            "#44AA99",
+            "#999933",
+            "#882255",
+            "#888888"
+        ],
+        "10": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#332288",
+            "#AA4499",
+            "#44AA99",
+            "#999933",
+            "#882255",
+            "#661100",
+            "#888888"
+        ],
+        "11": [
+            "#88CCEE",
+            "#CC6677",
+            "#DDCC77",
+            "#117733",
+            "#332288",
+            "#AA4499",
+            "#44AA99",
+            "#999933",
+            "#882255",
+            "#661100",
+            "#6699CC",
+            "#888888"
+        ],
+        "tags": [
+            "qualitative",
+            "colorblind"
+        ]
+    },
+    "Vivid": {
+        "2": [
+            "#E58606",
+            "#5D69B1",
+            "#A5AA99"
+        ],
+        "3": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#A5AA99"
+        ],
+        "4": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#A5AA99"
+        ],
+        "5": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#CC61B0",
+            "#A5AA99"
+        ],
+        "6": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#CC61B0",
+            "#24796C",
+            "#A5AA99"
+        ],
+        "7": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#CC61B0",
+            "#24796C",
+            "#DAA51B",
+            "#A5AA99"
+        ],
+        "8": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#CC61B0",
+            "#24796C",
+            "#DAA51B",
+            "#2F8AC4",
+            "#A5AA99"
+        ],
+        "9": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#CC61B0",
+            "#24796C",
+            "#DAA51B",
+            "#2F8AC4",
+            "#764E9F",
+            "#A5AA99"
+        ],
+        "10": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#CC61B0",
+            "#24796C",
+            "#DAA51B",
+            "#2F8AC4",
+            "#764E9F",
+            "#ED645A",
+            "#A5AA99"
+        ],
+        "11": [
+            "#E58606",
+            "#5D69B1",
+            "#52BCA3",
+            "#99C945",
+            "#CC61B0",
+            "#24796C",
+            "#DAA51B",
+            "#2F8AC4",
+            "#764E9F",
+            "#ED645A",
+            "#CC3A8E",
+            "#A5AA99"
+        ],
+        "tags": [
+            "qualitative"
+        ]
+    }
+};
+
+var colorbrewer_tags = {
+  "Blues": { "tags": ["quantitative"] },
+  "BrBG": { "tags": ["diverging"] },
+  "Greys": { "tags": ["quantitative"] },
+  "PiYG": { "tags": ["diverging"] },
+  "PRGn": { "tags": ["diverging"] },
+  "Purples": { "tags": ["quantitative"] },
+  "RdYlGn": { "tags": ["diverging"] },
+  "Spectral": { "tags": ["diverging"] },
+  "YlOrBr": { "tags": ["quantitative"] },
+  "YlGn": { "tags": ["quantitative"] },
+  "YlGnBu": { "tags": ["quantitative"] },
+  "YlOrRd": { "tags": ["quantitative"] }
+}
+
+var colorbrewer = require('colorbrewer');
+
+// augment colorbrewer with tags
+for (var r in colorbrewer) {
+  var ramps = colorbrewer[r];
+  var augmentedRamps = {};
+  for (var i in ramps) {
+    augmentedRamps[i] = ramps[i];
+  }
+
+  if (r in colorbrewer_tags) {
+    augmentedRamps.tags = colorbrewer_tags[r].tags;
+  }
+
+  cartocolor['cb_' + r] = augmentedRamps;
+}
+
+if (typeof define === "function" && define.amd) {
+    define(cartocolor);
+} else if (typeof module === "object" && module.exports) {
+    module.exports = cartocolor;
+} else {
+    this.colorbrewer = cartocolor;
+}
+
+}();
+
+},{"colorbrewer":78}],76:[function(require,module,exports){
+module.exports = require('./cartocolor');
+
+},{"./cartocolor":75}],77:[function(require,module,exports){
+// This product includes color specifications and designs developed by Cynthia Brewer (http://colorbrewer.org/).
+// JavaScript specs as packaged in the D3 library (d3js.org). Please see license at http://colorbrewer.org/export/LICENSE.txt
+!function() {
+
+var colorbrewer = {YlGn: {
+3: ["#f7fcb9","#addd8e","#31a354"],
+4: ["#ffffcc","#c2e699","#78c679","#238443"],
+5: ["#ffffcc","#c2e699","#78c679","#31a354","#006837"],
+6: ["#ffffcc","#d9f0a3","#addd8e","#78c679","#31a354","#006837"],
+7: ["#ffffcc","#d9f0a3","#addd8e","#78c679","#41ab5d","#238443","#005a32"],
+8: ["#ffffe5","#f7fcb9","#d9f0a3","#addd8e","#78c679","#41ab5d","#238443","#005a32"],
+9: ["#ffffe5","#f7fcb9","#d9f0a3","#addd8e","#78c679","#41ab5d","#238443","#006837","#004529"]
+},YlGnBu: {
+3: ["#edf8b1","#7fcdbb","#2c7fb8"],
+4: ["#ffffcc","#a1dab4","#41b6c4","#225ea8"],
+5: ["#ffffcc","#a1dab4","#41b6c4","#2c7fb8","#253494"],
+6: ["#ffffcc","#c7e9b4","#7fcdbb","#41b6c4","#2c7fb8","#253494"],
+7: ["#ffffcc","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#0c2c84"],
+8: ["#ffffd9","#edf8b1","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#0c2c84"],
+9: ["#ffffd9","#edf8b1","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#253494","#081d58"]
+},GnBu: {
+3: ["#e0f3db","#a8ddb5","#43a2ca"],
+4: ["#f0f9e8","#bae4bc","#7bccc4","#2b8cbe"],
+5: ["#f0f9e8","#bae4bc","#7bccc4","#43a2ca","#0868ac"],
+6: ["#f0f9e8","#ccebc5","#a8ddb5","#7bccc4","#43a2ca","#0868ac"],
+7: ["#f0f9e8","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#08589e"],
+8: ["#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#08589e"],
+9: ["#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"]
+},BuGn: {
+3: ["#e5f5f9","#99d8c9","#2ca25f"],
+4: ["#edf8fb","#b2e2e2","#66c2a4","#238b45"],
+5: ["#edf8fb","#b2e2e2","#66c2a4","#2ca25f","#006d2c"],
+6: ["#edf8fb","#ccece6","#99d8c9","#66c2a4","#2ca25f","#006d2c"],
+7: ["#edf8fb","#ccece6","#99d8c9","#66c2a4","#41ae76","#238b45","#005824"],
+8: ["#f7fcfd","#e5f5f9","#ccece6","#99d8c9","#66c2a4","#41ae76","#238b45","#005824"],
+9: ["#f7fcfd","#e5f5f9","#ccece6","#99d8c9","#66c2a4","#41ae76","#238b45","#006d2c","#00441b"]
+},PuBuGn: {
+3: ["#ece2f0","#a6bddb","#1c9099"],
+4: ["#f6eff7","#bdc9e1","#67a9cf","#02818a"],
+5: ["#f6eff7","#bdc9e1","#67a9cf","#1c9099","#016c59"],
+6: ["#f6eff7","#d0d1e6","#a6bddb","#67a9cf","#1c9099","#016c59"],
+7: ["#f6eff7","#d0d1e6","#a6bddb","#67a9cf","#3690c0","#02818a","#016450"],
+8: ["#fff7fb","#ece2f0","#d0d1e6","#a6bddb","#67a9cf","#3690c0","#02818a","#016450"],
+9: ["#fff7fb","#ece2f0","#d0d1e6","#a6bddb","#67a9cf","#3690c0","#02818a","#016c59","#014636"]
+},PuBu: {
+3: ["#ece7f2","#a6bddb","#2b8cbe"],
+4: ["#f1eef6","#bdc9e1","#74a9cf","#0570b0"],
+5: ["#f1eef6","#bdc9e1","#74a9cf","#2b8cbe","#045a8d"],
+6: ["#f1eef6","#d0d1e6","#a6bddb","#74a9cf","#2b8cbe","#045a8d"],
+7: ["#f1eef6","#d0d1e6","#a6bddb","#74a9cf","#3690c0","#0570b0","#034e7b"],
+8: ["#fff7fb","#ece7f2","#d0d1e6","#a6bddb","#74a9cf","#3690c0","#0570b0","#034e7b"],
+9: ["#fff7fb","#ece7f2","#d0d1e6","#a6bddb","#74a9cf","#3690c0","#0570b0","#045a8d","#023858"]
+},BuPu: {
+3: ["#e0ecf4","#9ebcda","#8856a7"],
+4: ["#edf8fb","#b3cde3","#8c96c6","#88419d"],
+5: ["#edf8fb","#b3cde3","#8c96c6","#8856a7","#810f7c"],
+6: ["#edf8fb","#bfd3e6","#9ebcda","#8c96c6","#8856a7","#810f7c"],
+7: ["#edf8fb","#bfd3e6","#9ebcda","#8c96c6","#8c6bb1","#88419d","#6e016b"],
+8: ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8c6bb1","#88419d","#6e016b"],
+9: ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8c6bb1","#88419d","#810f7c","#4d004b"]
+},RdPu: {
+3: ["#fde0dd","#fa9fb5","#c51b8a"],
+4: ["#feebe2","#fbb4b9","#f768a1","#ae017e"],
+5: ["#feebe2","#fbb4b9","#f768a1","#c51b8a","#7a0177"],
+6: ["#feebe2","#fcc5c0","#fa9fb5","#f768a1","#c51b8a","#7a0177"],
+7: ["#feebe2","#fcc5c0","#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177"],
+8: ["#fff7f3","#fde0dd","#fcc5c0","#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177"],
+9: ["#fff7f3","#fde0dd","#fcc5c0","#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177","#49006a"]
+},PuRd: {
+3: ["#e7e1ef","#c994c7","#dd1c77"],
+4: ["#f1eef6","#d7b5d8","#df65b0","#ce1256"],
+5: ["#f1eef6","#d7b5d8","#df65b0","#dd1c77","#980043"],
+6: ["#f1eef6","#d4b9da","#c994c7","#df65b0","#dd1c77","#980043"],
+7: ["#f1eef6","#d4b9da","#c994c7","#df65b0","#e7298a","#ce1256","#91003f"],
+8: ["#f7f4f9","#e7e1ef","#d4b9da","#c994c7","#df65b0","#e7298a","#ce1256","#91003f"],
+9: ["#f7f4f9","#e7e1ef","#d4b9da","#c994c7","#df65b0","#e7298a","#ce1256","#980043","#67001f"]
+},OrRd: {
+3: ["#fee8c8","#fdbb84","#e34a33"],
+4: ["#fef0d9","#fdcc8a","#fc8d59","#d7301f"],
+5: ["#fef0d9","#fdcc8a","#fc8d59","#e34a33","#b30000"],
+6: ["#fef0d9","#fdd49e","#fdbb84","#fc8d59","#e34a33","#b30000"],
+7: ["#fef0d9","#fdd49e","#fdbb84","#fc8d59","#ef6548","#d7301f","#990000"],
+8: ["#fff7ec","#fee8c8","#fdd49e","#fdbb84","#fc8d59","#ef6548","#d7301f","#990000"],
+9: ["#fff7ec","#fee8c8","#fdd49e","#fdbb84","#fc8d59","#ef6548","#d7301f","#b30000","#7f0000"]
+},YlOrRd: {
+3: ["#ffeda0","#feb24c","#f03b20"],
+4: ["#ffffb2","#fecc5c","#fd8d3c","#e31a1c"],
+5: ["#ffffb2","#fecc5c","#fd8d3c","#f03b20","#bd0026"],
+6: ["#ffffb2","#fed976","#feb24c","#fd8d3c","#f03b20","#bd0026"],
+7: ["#ffffb2","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#b10026"],
+8: ["#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#b10026"],
+9: ["#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#bd0026","#800026"]
+},YlOrBr: {
+3: ["#fff7bc","#fec44f","#d95f0e"],
+4: ["#ffffd4","#fed98e","#fe9929","#cc4c02"],
+5: ["#ffffd4","#fed98e","#fe9929","#d95f0e","#993404"],
+6: ["#ffffd4","#fee391","#fec44f","#fe9929","#d95f0e","#993404"],
+7: ["#ffffd4","#fee391","#fec44f","#fe9929","#ec7014","#cc4c02","#8c2d04"],
+8: ["#ffffe5","#fff7bc","#fee391","#fec44f","#fe9929","#ec7014","#cc4c02","#8c2d04"],
+9: ["#ffffe5","#fff7bc","#fee391","#fec44f","#fe9929","#ec7014","#cc4c02","#993404","#662506"]
+},Purples: {
+3: ["#efedf5","#bcbddc","#756bb1"],
+4: ["#f2f0f7","#cbc9e2","#9e9ac8","#6a51a3"],
+5: ["#f2f0f7","#cbc9e2","#9e9ac8","#756bb1","#54278f"],
+6: ["#f2f0f7","#dadaeb","#bcbddc","#9e9ac8","#756bb1","#54278f"],
+7: ["#f2f0f7","#dadaeb","#bcbddc","#9e9ac8","#807dba","#6a51a3","#4a1486"],
+8: ["#fcfbfd","#efedf5","#dadaeb","#bcbddc","#9e9ac8","#807dba","#6a51a3","#4a1486"],
+9: ["#fcfbfd","#efedf5","#dadaeb","#bcbddc","#9e9ac8","#807dba","#6a51a3","#54278f","#3f007d"]
+},Blues: {
+3: ["#deebf7","#9ecae1","#3182bd"],
+4: ["#eff3ff","#bdd7e7","#6baed6","#2171b5"],
+5: ["#eff3ff","#bdd7e7","#6baed6","#3182bd","#08519c"],
+6: ["#eff3ff","#c6dbef","#9ecae1","#6baed6","#3182bd","#08519c"],
+7: ["#eff3ff","#c6dbef","#9ecae1","#6baed6","#4292c6","#2171b5","#084594"],
+8: ["#f7fbff","#deebf7","#c6dbef","#9ecae1","#6baed6","#4292c6","#2171b5","#084594"],
+9: ["#f7fbff","#deebf7","#c6dbef","#9ecae1","#6baed6","#4292c6","#2171b5","#08519c","#08306b"]
+},Greens: {
+3: ["#e5f5e0","#a1d99b","#31a354"],
+4: ["#edf8e9","#bae4b3","#74c476","#238b45"],
+5: ["#edf8e9","#bae4b3","#74c476","#31a354","#006d2c"],
+6: ["#edf8e9","#c7e9c0","#a1d99b","#74c476","#31a354","#006d2c"],
+7: ["#edf8e9","#c7e9c0","#a1d99b","#74c476","#41ab5d","#238b45","#005a32"],
+8: ["#f7fcf5","#e5f5e0","#c7e9c0","#a1d99b","#74c476","#41ab5d","#238b45","#005a32"],
+9: ["#f7fcf5","#e5f5e0","#c7e9c0","#a1d99b","#74c476","#41ab5d","#238b45","#006d2c","#00441b"]
+},Oranges: {
+3: ["#fee6ce","#fdae6b","#e6550d"],
+4: ["#feedde","#fdbe85","#fd8d3c","#d94701"],
+5: ["#feedde","#fdbe85","#fd8d3c","#e6550d","#a63603"],
+6: ["#feedde","#fdd0a2","#fdae6b","#fd8d3c","#e6550d","#a63603"],
+7: ["#feedde","#fdd0a2","#fdae6b","#fd8d3c","#f16913","#d94801","#8c2d04"],
+8: ["#fff5eb","#fee6ce","#fdd0a2","#fdae6b","#fd8d3c","#f16913","#d94801","#8c2d04"],
+9: ["#fff5eb","#fee6ce","#fdd0a2","#fdae6b","#fd8d3c","#f16913","#d94801","#a63603","#7f2704"]
+},Reds: {
+3: ["#fee0d2","#fc9272","#de2d26"],
+4: ["#fee5d9","#fcae91","#fb6a4a","#cb181d"],
+5: ["#fee5d9","#fcae91","#fb6a4a","#de2d26","#a50f15"],
+6: ["#fee5d9","#fcbba1","#fc9272","#fb6a4a","#de2d26","#a50f15"],
+7: ["#fee5d9","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#99000d"],
+8: ["#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#99000d"],
+9: ["#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#a50f15","#67000d"]
+},Greys: {
+3: ["#f0f0f0","#bdbdbd","#636363"],
+4: ["#f7f7f7","#cccccc","#969696","#525252"],
+5: ["#f7f7f7","#cccccc","#969696","#636363","#252525"],
+6: ["#f7f7f7","#d9d9d9","#bdbdbd","#969696","#636363","#252525"],
+7: ["#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"],
+8: ["#ffffff","#f0f0f0","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"],
+9: ["#ffffff","#f0f0f0","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525","#000000"]
+},PuOr: {
+3: ["#f1a340","#f7f7f7","#998ec3"],
+4: ["#e66101","#fdb863","#b2abd2","#5e3c99"],
+5: ["#e66101","#fdb863","#f7f7f7","#b2abd2","#5e3c99"],
+6: ["#b35806","#f1a340","#fee0b6","#d8daeb","#998ec3","#542788"],
+7: ["#b35806","#f1a340","#fee0b6","#f7f7f7","#d8daeb","#998ec3","#542788"],
+8: ["#b35806","#e08214","#fdb863","#fee0b6","#d8daeb","#b2abd2","#8073ac","#542788"],
+9: ["#b35806","#e08214","#fdb863","#fee0b6","#f7f7f7","#d8daeb","#b2abd2","#8073ac","#542788"],
+10: ["#7f3b08","#b35806","#e08214","#fdb863","#fee0b6","#d8daeb","#b2abd2","#8073ac","#542788","#2d004b"],
+11: ["#7f3b08","#b35806","#e08214","#fdb863","#fee0b6","#f7f7f7","#d8daeb","#b2abd2","#8073ac","#542788","#2d004b"]
+},BrBG: {
+3: ["#d8b365","#f5f5f5","#5ab4ac"],
+4: ["#a6611a","#dfc27d","#80cdc1","#018571"],
+5: ["#a6611a","#dfc27d","#f5f5f5","#80cdc1","#018571"],
+6: ["#8c510a","#d8b365","#f6e8c3","#c7eae5","#5ab4ac","#01665e"],
+7: ["#8c510a","#d8b365","#f6e8c3","#f5f5f5","#c7eae5","#5ab4ac","#01665e"],
+8: ["#8c510a","#bf812d","#dfc27d","#f6e8c3","#c7eae5","#80cdc1","#35978f","#01665e"],
+9: ["#8c510a","#bf812d","#dfc27d","#f6e8c3","#f5f5f5","#c7eae5","#80cdc1","#35978f","#01665e"],
+10: ["#543005","#8c510a","#bf812d","#dfc27d","#f6e8c3","#c7eae5","#80cdc1","#35978f","#01665e","#003c30"],
+11: ["#543005","#8c510a","#bf812d","#dfc27d","#f6e8c3","#f5f5f5","#c7eae5","#80cdc1","#35978f","#01665e","#003c30"]
+},PRGn: {
+3: ["#af8dc3","#f7f7f7","#7fbf7b"],
+4: ["#7b3294","#c2a5cf","#a6dba0","#008837"],
+5: ["#7b3294","#c2a5cf","#f7f7f7","#a6dba0","#008837"],
+6: ["#762a83","#af8dc3","#e7d4e8","#d9f0d3","#7fbf7b","#1b7837"],
+7: ["#762a83","#af8dc3","#e7d4e8","#f7f7f7","#d9f0d3","#7fbf7b","#1b7837"],
+8: ["#762a83","#9970ab","#c2a5cf","#e7d4e8","#d9f0d3","#a6dba0","#5aae61","#1b7837"],
+9: ["#762a83","#9970ab","#c2a5cf","#e7d4e8","#f7f7f7","#d9f0d3","#a6dba0","#5aae61","#1b7837"],
+10: ["#40004b","#762a83","#9970ab","#c2a5cf","#e7d4e8","#d9f0d3","#a6dba0","#5aae61","#1b7837","#00441b"],
+11: ["#40004b","#762a83","#9970ab","#c2a5cf","#e7d4e8","#f7f7f7","#d9f0d3","#a6dba0","#5aae61","#1b7837","#00441b"]
+},PiYG: {
+3: ["#e9a3c9","#f7f7f7","#a1d76a"],
+4: ["#d01c8b","#f1b6da","#b8e186","#4dac26"],
+5: ["#d01c8b","#f1b6da","#f7f7f7","#b8e186","#4dac26"],
+6: ["#c51b7d","#e9a3c9","#fde0ef","#e6f5d0","#a1d76a","#4d9221"],
+7: ["#c51b7d","#e9a3c9","#fde0ef","#f7f7f7","#e6f5d0","#a1d76a","#4d9221"],
+8: ["#c51b7d","#de77ae","#f1b6da","#fde0ef","#e6f5d0","#b8e186","#7fbc41","#4d9221"],
+9: ["#c51b7d","#de77ae","#f1b6da","#fde0ef","#f7f7f7","#e6f5d0","#b8e186","#7fbc41","#4d9221"],
+10: ["#8e0152","#c51b7d","#de77ae","#f1b6da","#fde0ef","#e6f5d0","#b8e186","#7fbc41","#4d9221","#276419"],
+11: ["#8e0152","#c51b7d","#de77ae","#f1b6da","#fde0ef","#f7f7f7","#e6f5d0","#b8e186","#7fbc41","#4d9221","#276419"]
+},RdBu: {
+3: ["#ef8a62","#f7f7f7","#67a9cf"],
+4: ["#ca0020","#f4a582","#92c5de","#0571b0"],
+5: ["#ca0020","#f4a582","#f7f7f7","#92c5de","#0571b0"],
+6: ["#b2182b","#ef8a62","#fddbc7","#d1e5f0","#67a9cf","#2166ac"],
+7: ["#b2182b","#ef8a62","#fddbc7","#f7f7f7","#d1e5f0","#67a9cf","#2166ac"],
+8: ["#b2182b","#d6604d","#f4a582","#fddbc7","#d1e5f0","#92c5de","#4393c3","#2166ac"],
+9: ["#b2182b","#d6604d","#f4a582","#fddbc7","#f7f7f7","#d1e5f0","#92c5de","#4393c3","#2166ac"],
+10: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#d1e5f0","#92c5de","#4393c3","#2166ac","#053061"],
+11: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#f7f7f7","#d1e5f0","#92c5de","#4393c3","#2166ac","#053061"]
+},RdGy: {
+3: ["#ef8a62","#ffffff","#999999"],
+4: ["#ca0020","#f4a582","#bababa","#404040"],
+5: ["#ca0020","#f4a582","#ffffff","#bababa","#404040"],
+6: ["#b2182b","#ef8a62","#fddbc7","#e0e0e0","#999999","#4d4d4d"],
+7: ["#b2182b","#ef8a62","#fddbc7","#ffffff","#e0e0e0","#999999","#4d4d4d"],
+8: ["#b2182b","#d6604d","#f4a582","#fddbc7","#e0e0e0","#bababa","#878787","#4d4d4d"],
+9: ["#b2182b","#d6604d","#f4a582","#fddbc7","#ffffff","#e0e0e0","#bababa","#878787","#4d4d4d"],
+10: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#e0e0e0","#bababa","#878787","#4d4d4d","#1a1a1a"],
+11: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#ffffff","#e0e0e0","#bababa","#878787","#4d4d4d","#1a1a1a"]
+},RdYlBu: {
+3: ["#fc8d59","#ffffbf","#91bfdb"],
+4: ["#d7191c","#fdae61","#abd9e9","#2c7bb6"],
+5: ["#d7191c","#fdae61","#ffffbf","#abd9e9","#2c7bb6"],
+6: ["#d73027","#fc8d59","#fee090","#e0f3f8","#91bfdb","#4575b4"],
+7: ["#d73027","#fc8d59","#fee090","#ffffbf","#e0f3f8","#91bfdb","#4575b4"],
+8: ["#d73027","#f46d43","#fdae61","#fee090","#e0f3f8","#abd9e9","#74add1","#4575b4"],
+9: ["#d73027","#f46d43","#fdae61","#fee090","#ffffbf","#e0f3f8","#abd9e9","#74add1","#4575b4"],
+10: ["#a50026","#d73027","#f46d43","#fdae61","#fee090","#e0f3f8","#abd9e9","#74add1","#4575b4","#313695"],
+11: ["#a50026","#d73027","#f46d43","#fdae61","#fee090","#ffffbf","#e0f3f8","#abd9e9","#74add1","#4575b4","#313695"]
+},Spectral: {
+3: ["#fc8d59","#ffffbf","#99d594"],
+4: ["#d7191c","#fdae61","#abdda4","#2b83ba"],
+5: ["#d7191c","#fdae61","#ffffbf","#abdda4","#2b83ba"],
+6: ["#d53e4f","#fc8d59","#fee08b","#e6f598","#99d594","#3288bd"],
+7: ["#d53e4f","#fc8d59","#fee08b","#ffffbf","#e6f598","#99d594","#3288bd"],
+8: ["#d53e4f","#f46d43","#fdae61","#fee08b","#e6f598","#abdda4","#66c2a5","#3288bd"],
+9: ["#d53e4f","#f46d43","#fdae61","#fee08b","#ffffbf","#e6f598","#abdda4","#66c2a5","#3288bd"],
+10: ["#9e0142","#d53e4f","#f46d43","#fdae61","#fee08b","#e6f598","#abdda4","#66c2a5","#3288bd","#5e4fa2"],
+11: ["#9e0142","#d53e4f","#f46d43","#fdae61","#fee08b","#ffffbf","#e6f598","#abdda4","#66c2a5","#3288bd","#5e4fa2"]
+},RdYlGn: {
+3: ["#fc8d59","#ffffbf","#91cf60"],
+4: ["#d7191c","#fdae61","#a6d96a","#1a9641"],
+5: ["#d7191c","#fdae61","#ffffbf","#a6d96a","#1a9641"],
+6: ["#d73027","#fc8d59","#fee08b","#d9ef8b","#91cf60","#1a9850"],
+7: ["#d73027","#fc8d59","#fee08b","#ffffbf","#d9ef8b","#91cf60","#1a9850"],
+8: ["#d73027","#f46d43","#fdae61","#fee08b","#d9ef8b","#a6d96a","#66bd63","#1a9850"],
+9: ["#d73027","#f46d43","#fdae61","#fee08b","#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850"],
+10: ["#a50026","#d73027","#f46d43","#fdae61","#fee08b","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"],
+11: ["#a50026","#d73027","#f46d43","#fdae61","#fee08b","#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"]
+},Accent: {
+3: ["#7fc97f","#beaed4","#fdc086"],
+4: ["#7fc97f","#beaed4","#fdc086","#ffff99"],
+5: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0"],
+6: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0","#f0027f"],
+7: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0","#f0027f","#bf5b17"],
+8: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0","#f0027f","#bf5b17","#666666"]
+},Dark2: {
+3: ["#1b9e77","#d95f02","#7570b3"],
+4: ["#1b9e77","#d95f02","#7570b3","#e7298a"],
+5: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e"],
+6: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02"],
+7: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02","#a6761d"],
+8: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02","#a6761d","#666666"]
+},Paired: {
+3: ["#a6cee3","#1f78b4","#b2df8a"],
+4: ["#a6cee3","#1f78b4","#b2df8a","#33a02c"],
+5: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99"],
+6: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c"],
+7: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f"],
+8: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00"],
+9: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6"],
+10: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"],
+11: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a","#ffff99"],
+12: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a","#ffff99","#b15928"]
+},Pastel1: {
+3: ["#fbb4ae","#b3cde3","#ccebc5"],
+4: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4"],
+5: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6"],
+6: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc"],
+7: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc","#e5d8bd"],
+8: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc","#e5d8bd","#fddaec"],
+9: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc","#e5d8bd","#fddaec","#f2f2f2"]
+},Pastel2: {
+3: ["#b3e2cd","#fdcdac","#cbd5e8"],
+4: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4"],
+5: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9"],
+6: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9","#fff2ae"],
+7: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9","#fff2ae","#f1e2cc"],
+8: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9","#fff2ae","#f1e2cc","#cccccc"]
+},Set1: {
+3: ["#e41a1c","#377eb8","#4daf4a"],
+4: ["#e41a1c","#377eb8","#4daf4a","#984ea3"],
+5: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00"],
+6: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33"],
+7: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628"],
+8: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628","#f781bf"],
+9: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628","#f781bf","#999999"]
+},Set2: {
+3: ["#66c2a5","#fc8d62","#8da0cb"],
+4: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3"],
+5: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854"],
+6: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f"],
+7: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f","#e5c494"],
+8: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f","#e5c494","#b3b3b3"]
+},Set3: {
+3: ["#8dd3c7","#ffffb3","#bebada"],
+4: ["#8dd3c7","#ffffb3","#bebada","#fb8072"],
+5: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3"],
+6: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462"],
+7: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69"],
+8: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5"],
+9: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9"],
+10: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd"],
+11: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5"],
+12: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5","#ffed6f"]
+}};
+
+if (typeof define === "function" && define.amd) {
+    define(colorbrewer);
+} else if (typeof module === "object" && module.exports) {
+    module.exports = colorbrewer;
+} else {
+    this.colorbrewer = colorbrewer;
+}
+
+}();
+
+},{}],78:[function(require,module,exports){
+module.exports = require('./colorbrewer.js');
+
+},{"./colorbrewer.js":77}],79:[function(require,module,exports){
 !function() {
   var d3 = {
     version: "3.5.17"
@@ -25039,2208 +26270,7 @@ module.exports={
   });
   if (typeof define === "function" && define.amd) this.d3 = d3, define(d3); else if (typeof module === "object" && module.exports) module.exports = d3; else this.d3 = d3;
 }();
-},{}],84:[function(require,module,exports){
-!function() {
-
-var cartocolor = {
-    "Burg": {
-        "2": [
-            "#ffc6c4",
-            "#672044"
-        ],
-        "3": [
-            "#ffc6c4",
-            "#cc607d",
-            "#672044"
-        ],
-        "4": [
-            "#ffc6c4",
-            "#e38191",
-            "#ad466c",
-            "#672044"
-        ],
-        "5": [
-            "#ffc6c4",
-            "#ee919b",
-            "#cc607d",
-            "#9e3963",
-            "#672044"
-        ],
-        "6": [
-            "#ffc6c4",
-            "#f29ca3",
-            "#da7489",
-            "#b95073",
-            "#93345d",
-            "#672044"
-        ],
-        "7": [
-            "#ffc6c4",
-            "#f4a3a8",
-            "#e38191",
-            "#cc607d",
-            "#ad466c",
-            "#8b3058",
-            "#672044"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "BurgYl": {
-        "2": [
-            "#fbe6c5",
-            "#70284a"
-        ],
-        "3": [
-            "#fbe6c5",
-            "#dc7176",
-            "#70284a"
-        ],
-        "4": [
-            "#fbe6c5",
-            "#ee8a82",
-            "#c8586c",
-            "#70284a"
-        ],
-        "5": [
-            "#fbe6c5",
-            "#f2a28a",
-            "#dc7176",
-            "#b24b65",
-            "#70284a"
-        ],
-        "6": [
-            "#fbe6c5",
-            "#f4b191",
-            "#e7807d",
-            "#d06270",
-            "#a44360",
-            "#70284a"
-        ],
-        "7": [
-            "#fbe6c5",
-            "#f5ba98",
-            "#ee8a82",
-            "#dc7176",
-            "#c8586c",
-            "#9c3f5d",
-            "#70284a"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "RedOr": {
-        "2": [
-            "#f6d2a9",
-            "#b13f64"
-        ],
-        "3": [
-            "#f6d2a9",
-            "#ea8171",
-            "#b13f64"
-        ],
-        "4": [
-            "#f6d2a9",
-            "#f19c7c",
-            "#dd686c",
-            "#b13f64"
-        ],
-        "5": [
-            "#f6d2a9",
-            "#f3aa84",
-            "#ea8171",
-            "#d55d6a",
-            "#b13f64"
-        ],
-        "6": [
-            "#f6d2a9",
-            "#f4b28a",
-            "#ef9177",
-            "#e3726d",
-            "#cf5669",
-            "#b13f64"
-        ],
-        "7": [
-            "#f6d2a9",
-            "#f5b78e",
-            "#f19c7c",
-            "#ea8171",
-            "#dd686c",
-            "#ca5268",
-            "#b13f64"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "OrYel": {
-        "2": [
-            "#ecda9a",
-            "#ee4d5a"
-        ],
-        "3": [
-            "#ecda9a",
-            "#f7945d",
-            "#ee4d5a"
-        ],
-        "4": [
-            "#ecda9a",
-            "#f3ad6a",
-            "#f97b57",
-            "#ee4d5a"
-        ],
-        "5": [
-            "#ecda9a",
-            "#f1b973",
-            "#f7945d",
-            "#f86f56",
-            "#ee4d5a"
-        ],
-        "6": [
-            "#ecda9a",
-            "#f0c079",
-            "#f5a363",
-            "#f98558",
-            "#f76856",
-            "#ee4d5a"
-        ],
-        "7": [
-            "#ecda9a",
-            "#efc47e",
-            "#f3ad6a",
-            "#f7945d",
-            "#f97b57",
-            "#f66356",
-            "#ee4d5a"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "Peach": {
-        "2": [
-            "#fde0c5",
-            "#eb4a40"
-        ],
-        "3": [
-            "#fde0c5",
-            "#f59e72",
-            "#eb4a40"
-        ],
-        "4": [
-            "#fde0c5",
-            "#f8b58b",
-            "#f2855d",
-            "#eb4a40"
-        ],
-        "5": [
-            "#fde0c5",
-            "#f9c098",
-            "#f59e72",
-            "#f17854",
-            "#eb4a40"
-        ],
-        "6": [
-            "#fde0c5",
-            "#fac7a1",
-            "#f7ac80",
-            "#f38f65",
-            "#f0704f",
-            "#eb4a40"
-        ],
-        "7": [
-            "#fde0c5",
-            "#facba6",
-            "#f8b58b",
-            "#f59e72",
-            "#f2855d",
-            "#ef6a4c",
-            "#eb4a40"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "PinkYl": {
-        "2": [
-            "#fef6b5",
-            "#e15383"
-        ],
-        "3": [
-            "#fef6b5",
-            "#ffa679",
-            "#e15383"
-        ],
-        "4": [
-            "#fef6b5",
-            "#ffc285",
-            "#fa8a76",
-            "#e15383"
-        ],
-        "5": [
-            "#fef6b5",
-            "#ffd08e",
-            "#ffa679",
-            "#f67b77",
-            "#e15383"
-        ],
-        "6": [
-            "#fef6b5",
-            "#ffd795",
-            "#ffb77f",
-            "#fd9576",
-            "#f37378",
-            "#e15383"
-        ],
-        "7": [
-            "#fef6b5",
-            "#ffdd9a",
-            "#ffc285",
-            "#ffa679",
-            "#fa8a76",
-            "#f16d7a",
-            "#e15383"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "Mint": {
-        "2": [
-            "#e4f1e1",
-            "#0d585f"
-        ],
-        "3": [
-            "#e4f1e1",
-            "#63a6a0",
-            "#0d585f"
-        ],
-        "4": [
-            "#e4f1e1",
-            "#89c0b6",
-            "#448c8a",
-            "#0d585f"
-        ],
-        "5": [
-            "#E4F1E1",
-            "#9CCDC1",
-            "#63A6A0",
-            "#337F7F",
-            "#0D585F"
-        ],
-        "6": [
-            "#e4f1e1",
-            "#abd4c7",
-            "#7ab5ad",
-            "#509693",
-            "#2c7778",
-            "#0d585f"
-        ],
-        "7": [
-            "#e4f1e1",
-            "#b4d9cc",
-            "#89c0b6",
-            "#63a6a0",
-            "#448c8a",
-            "#287274",
-            "#0d585f"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "BluGrn": {
-        "2": [
-            "#c4e6c3",
-            "#1d4f60"
-        ],
-        "3": [
-            "#c4e6c3",
-            "#4da284",
-            "#1d4f60"
-        ],
-        "4": [
-            "#c4e6c3",
-            "#6dbc90",
-            "#36877a",
-            "#1d4f60"
-        ],
-        "5": [
-            "#c4e6c3",
-            "#80c799",
-            "#4da284",
-            "#2d7974",
-            "#1d4f60"
-        ],
-        "6": [
-            "#c4e6c3",
-            "#8dce9f",
-            "#5fb28b",
-            "#3e927e",
-            "#297071",
-            "#1d4f60"
-        ],
-        "7": [
-            "#c4e6c3",
-            "#96d2a4",
-            "#6dbc90",
-            "#4da284",
-            "#36877a",
-            "#266b6e",
-            "#1d4f60"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "DarkMint": {
-        "2": [
-            "#d2fbd4",
-            "#123f5a"
-        ],
-        "3": [
-            "#d2fbd4",
-            "#559c9e",
-            "#123f5a"
-        ],
-        "4": [
-            "#d2fbd4",
-            "#7bbcb0",
-            "#3a7c89",
-            "#123f5a"
-        ],
-        "5": [
-            "#d2fbd4",
-            "#8eccb9",
-            "#559c9e",
-            "#2b6c7f",
-            "#123f5a"
-        ],
-        "6": [
-            "#d2fbd4",
-            "#9cd5be",
-            "#6cafa9",
-            "#458892",
-            "#266377",
-            "#123f5a"
-        ],
-        "7": [
-            "#d2fbd4",
-            "#a5dbc2",
-            "#7bbcb0",
-            "#559c9e",
-            "#3a7c89",
-            "#235d72",
-            "#123f5a"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "Emrld": {
-        "2": [
-            "#d3f2a3",
-            "#074050"
-        ],
-        "3": [
-            "#d3f2a3",
-            "#4c9b82",
-            "#074050"
-        ],
-        "4": [
-            "#d3f2a3",
-            "#6cc08b",
-            "#217a79",
-            "#074050"
-        ],
-        "5": [
-            "#d3f2a3",
-            "#82d091",
-            "#4c9b82",
-            "#19696f",
-            "#074050"
-        ],
-        "6": [
-            "#d3f2a3",
-            "#8fda94",
-            "#60b187",
-            "#35877d",
-            "#145f69",
-            "#074050"
-        ],
-        "7": [
-            "#d3f2a3",
-            "#97e196",
-            "#6cc08b",
-            "#4c9b82",
-            "#217a79",
-            "#105965",
-            "#074050"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "ag_GrnYl": {
-        "2": [
-            "#245668",
-            "#EDEF5D"
-        ],
-        "3": [
-            "#245668",
-            "#39AB7E",
-            "#EDEF5D"
-        ],
-        "4": [
-            "#245668",
-            "#0D8F81",
-            "#6EC574",
-            "#EDEF5D"
-        ],
-        "5": [
-            "#245668",
-            "#04817E",
-            "#39AB7E",
-            "#8BD16D",
-            "#EDEF5D"
-        ],
-        "6": [
-            "#245668",
-            "#09787C",
-            "#1D9A81",
-            "#58BB79",
-            "#9DD869",
-            "#EDEF5D"
-        ],
-        "7": [
-            "#245668",
-            "#0F7279",
-            "#0D8F81",
-            "#39AB7E",
-            "#6EC574",
-            "#A9DC67",
-            "#EDEF5D"
-        ],
-        "tags": [
-            "aggregation"
-        ]
-    },
-    "BluYl": {
-        "2": [
-            "#f7feae",
-            "#045275"
-        ],
-        "3": [
-            "#f7feae",
-            "#46aea0",
-            "#045275"
-        ],
-        "4": [
-            "#f7feae",
-            "#7ccba2",
-            "#089099",
-            "#045275"
-        ],
-        "5": [
-            "#f7feae",
-            "#9bd8a4",
-            "#46aea0",
-            "#058092",
-            "#045275"
-        ],
-        "6": [
-            "#f7feae",
-            "#ace1a4",
-            "#68bfa1",
-            "#2a9c9c",
-            "#02778e",
-            "#045275"
-        ],
-        "7": [
-            "#f7feae",
-            "#b7e6a5",
-            "#7ccba2",
-            "#46aea0",
-            "#089099",
-            "#00718b",
-            "#045275"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "Teal": {
-        "2": [
-            "#d1eeea",
-            "#2a5674"
-        ],
-        "3": [
-            "#d1eeea",
-            "#68abb8",
-            "#2a5674"
-        ],
-        "4": [
-            "#d1eeea",
-            "#85c4c9",
-            "#4f90a6",
-            "#2a5674"
-        ],
-        "5": [
-            "#d1eeea",
-            "#96d0d1",
-            "#68abb8",
-            "#45829b",
-            "#2a5674"
-        ],
-        "6": [
-            "#d1eeea",
-            "#a1d7d6",
-            "#79bbc3",
-            "#599bae",
-            "#3f7994",
-            "#2a5674"
-        ],
-        "7": [
-            "#d1eeea",
-            "#a8dbd9",
-            "#85c4c9",
-            "#68abb8",
-            "#4f90a6",
-            "#3b738f",
-            "#2a5674"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "TealGrn": {
-        "2": [
-            "#b0f2bc",
-            "#257d98"
-        ],
-        "3": [
-            "#b0f2bc",
-            "#4cc8a3",
-            "#257d98"
-        ],
-        "4": [
-            "#b0f2bc",
-            "#67dba5",
-            "#38b2a3",
-            "#257d98"
-        ],
-        "5": [
-            "#b0f2bc",
-            "#77e2a8",
-            "#4cc8a3",
-            "#31a6a2",
-            "#257d98"
-        ],
-        "6": [
-            "#b0f2bc",
-            "#82e6aa",
-            "#5bd4a4",
-            "#3fbba3",
-            "#2e9ea1",
-            "#257d98"
-        ],
-        "7": [
-            "#b0f2bc",
-            "#89e8ac",
-            "#67dba5",
-            "#4cc8a3",
-            "#38b2a3",
-            "#2c98a0",
-            "#257d98"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "Purp": {
-        "2": [
-            "#f3e0f7",
-            "#63589f"
-        ],
-        "3": [
-            "#f3e0f7",
-            "#b998dd",
-            "#63589f"
-        ],
-        "4": [
-            "#f3e0f7",
-            "#d1afe8",
-            "#9f82ce",
-            "#63589f"
-        ],
-        "5": [
-            "#f3e0f7",
-            "#dbbaed",
-            "#b998dd",
-            "#9178c4",
-            "#63589f"
-        ],
-        "6": [
-            "#f3e0f7",
-            "#e0c2ef",
-            "#c8a5e4",
-            "#aa8bd4",
-            "#8871be",
-            "#63589f"
-        ],
-        "7": [
-            "#f3e0f7",
-            "#e4c7f1",
-            "#d1afe8",
-            "#b998dd",
-            "#9f82ce",
-            "#826dba",
-            "#63589f"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "PurpOr": {
-        "3": [
-            "#f9ddda",
-            "#ce78b3",
-            "#573b88"
-        ],
-        "4": [
-            "#f9ddda",
-            "#e597b9",
-            "#ad5fad",
-            "#573b88"
-        ],
-        "5": [
-            "#f9ddda",
-            "#eda8bd",
-            "#ce78b3",
-            "#9955a8",
-            "#573b88"
-        ],
-        "6": [
-            "#f9ddda",
-            "#f0b2c1",
-            "#dd8ab6",
-            "#bb69b0",
-            "#8c4fa4",
-            "#573b88"
-        ],
-        "7": [
-            "#f9ddda",
-            "#f2b9c4",
-            "#e597b9",
-            "#ce78b3",
-            "#ad5fad",
-            "#834ba0",
-            "#573b88"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "Sunset": {
-        "2": [
-            "#f3e79b",
-            "#5c53a5"
-        ],
-        "3": [
-            "#f3e79b",
-            "#eb7f86",
-            "#5c53a5"
-        ],
-        "4": [
-            "#f3e79b",
-            "#f8a07e",
-            "#ce6693",
-            "#5c53a5"
-        ],
-        "5": [
-            "#f3e79b",
-            "#fab27f",
-            "#eb7f86",
-            "#b95e9a",
-            "#5c53a5"
-        ],
-        "6": [
-            "#f3e79b",
-            "#fabc82",
-            "#f59280",
-            "#dc6f8e",
-            "#ab5b9e",
-            "#5c53a5"
-        ],
-        "7": [
-            "#f3e79b",
-            "#fac484",
-            "#f8a07e",
-            "#eb7f86",
-            "#ce6693",
-            "#a059a0",
-            "#5c53a5"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "Magenta": {
-        "2": [
-            "#f3cbd3",
-            "#6c2167"
-        ],
-        "3": [
-            "#f3cbd3",
-            "#ca699d",
-            "#6c2167"
-        ],
-        "4": [
-            "#f3cbd3",
-            "#dd88ac",
-            "#b14d8e",
-            "#6c2167"
-        ],
-        "5": [
-            "#f3cbd3",
-            "#e498b4",
-            "#ca699d",
-            "#a24186",
-            "#6c2167"
-        ],
-        "6": [
-            "#f3cbd3",
-            "#e7a2b9",
-            "#d67ba5",
-            "#bc5894",
-            "#983a81",
-            "#6c2167"
-        ],
-        "7": [
-            "#f3cbd3",
-            "#eaa9bd",
-            "#dd88ac",
-            "#ca699d",
-            "#b14d8e",
-            "#91357d",
-            "#6c2167"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "SunsetDark": {
-        "2": [
-            "#fcde9c",
-            "#7c1d6f"
-        ],
-        "3": [
-            "#fcde9c",
-            "#e34f6f",
-            "#7c1d6f"
-        ],
-        "4": [
-            "#fcde9c",
-            "#f0746e",
-            "#dc3977",
-            "#7c1d6f"
-        ],
-        "5": [
-            "#fcde9c",
-            "#f58670",
-            "#e34f6f",
-            "#d72d7c",
-            "#7c1d6f"
-        ],
-        "6": [
-            "#fcde9c",
-            "#f89872",
-            "#ec666d",
-            "#df4273",
-            "#c5287b",
-            "#7c1d6f"
-        ],
-        "7": [
-            "#fcde9c",
-            "#faa476",
-            "#f0746e",
-            "#e34f6f",
-            "#dc3977",
-            "#b9257a",
-            "#7c1d6f"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "ag_Sunset": {
-        "2": [
-            "#4b2991",
-            "#edd9a3"
-        ],
-        "3": [
-            "#4b2991",
-            "#ea4f88",
-            "#edd9a3"
-        ],
-        "4": [
-            "#4b2991",
-            "#c0369d",
-            "#fa7876",
-            "#edd9a3"
-        ],
-        "5": [
-            "#4b2991",
-            "#a52fa2",
-            "#ea4f88",
-            "#fa9074",
-            "#edd9a3"
-        ],
-        "6": [
-            "#4b2991",
-            "#932da3",
-            "#d43f96",
-            "#f7667c",
-            "#f89f77",
-            "#edd9a3"
-        ],
-        "7": [
-            "#4b2991",
-            "#872ca2",
-            "#c0369d",
-            "#ea4f88",
-            "#fa7876",
-            "#f6a97a",
-            "#edd9a3"
-        ],
-        "tags": [
-            "aggregation"
-        ]
-    },
-    "BrwnYl": {
-        "2": [
-            "#ede5cf",
-            "#541f3f"
-        ],
-        "3": [
-            "#ede5cf",
-            "#c1766f",
-            "#541f3f"
-        ],
-        "4": [
-            "#ede5cf",
-            "#d39c83",
-            "#a65461",
-            "#541f3f"
-        ],
-        "5": [
-            "#ede5cf",
-            "#daaf91",
-            "#c1766f",
-            "#95455a",
-            "#541f3f"
-        ],
-        "6": [
-            "#ede5cf",
-            "#ddba9b",
-            "#cd8c7a",
-            "#b26166",
-            "#8a3c56",
-            "#541f3f"
-        ],
-        "7": [
-            "#ede5cf",
-            "#e0c2a2",
-            "#d39c83",
-            "#c1766f",
-            "#a65461",
-            "#813753",
-            "#541f3f"
-        ],
-        "tags": [
-            "quantitative"
-        ]
-    },
-    "ArmyRose": {
-        "2": [
-            "#929b4f",
-            "#db8195"
-        ],
-        "3": [
-            "#a3ad62",
-            "#fdfbe4",
-            "#df91a3"
-        ],
-        "4": [
-            "#929b4f",
-            "#d9dbaf",
-            "#f3d1ca",
-            "#db8195"
-        ],
-        "5": [
-            "#879043",
-            "#c1c68c",
-            "#fdfbe4",
-            "#ebb4b8",
-            "#d8758b"
-        ],
-        "6": [
-            "#7f883b",
-            "#b0b874",
-            "#e3e4be",
-            "#f6ddd1",
-            "#e4a0ac",
-            "#d66d85"
-        ],
-        "7": [
-            "#798234",
-            "#a3ad62",
-            "#d0d3a2",
-            "#fdfbe4",
-            "#f0c6c3",
-            "#df91a3",
-            "#d46780"
-        ],
-        "tags": [
-            "diverging"
-        ]
-    },
-    "Fall": {
-        "2": [
-            "#3d5941",
-            "#ca562c"
-        ],
-        "3": [
-            "#3d5941",
-            "#f6edbd",
-            "#ca562c"
-        ],
-        "4": [
-            "#3d5941",
-            "#b5b991",
-            "#edbb8a",
-            "#ca562c"
-        ],
-        "5": [
-            "#3d5941",
-            "#96a07c",
-            "#f6edbd",
-            "#e6a272",
-            "#ca562c"
-        ],
-        "6": [
-            "#3d5941",
-            "#839170",
-            "#cecea2",
-            "#f1cf9e",
-            "#e19464",
-            "#ca562c"
-        ],
-        "7": [
-            "#3d5941",
-            "#778868",
-            "#b5b991",
-            "#f6edbd",
-            "#edbb8a",
-            "#de8a5a",
-            "#ca562c"
-        ],
-        "tags": [
-            "diverging"
-        ]
-    },
-    "Geyser": {
-        "2": [
-            "#008080",
-            "#ca562c"
-        ],
-        "3": [
-            "#008080",
-            "#f6edbd",
-            "#ca562c"
-        ],
-        "4": [
-            "#008080",
-            "#b4c8a8",
-            "#edbb8a",
-            "#ca562c"
-        ],
-        "5": [
-            "#008080",
-            "#92b69e",
-            "#f6edbd",
-            "#e6a272",
-            "#ca562c"
-        ],
-        "6": [
-            "#008080",
-            "#7eab98",
-            "#ced7b1",
-            "#f1cf9e",
-            "#e19464",
-            "#ca562c"
-        ],
-        "7": [
-            "#008080",
-            "#70a494",
-            "#b4c8a8",
-            "#f6edbd",
-            "#edbb8a",
-            "#de8a5a",
-            "#ca562c"
-        ],
-        "tags": [
-            "diverging"
-        ]
-    },
-    "Temps": {
-        "2": [
-            "#009392",
-            "#cf597e"
-        ],
-        "3": [
-            "#009392",
-            "#e9e29c",
-            "#cf597e"
-        ],
-        "4": [
-            "#009392",
-            "#9ccb86",
-            "#eeb479",
-            "#cf597e"
-        ],
-        "5": [
-            "#009392",
-            "#71be83",
-            "#e9e29c",
-            "#ed9c72",
-            "#cf597e"
-        ],
-        "6": [
-            "#009392",
-            "#52b684",
-            "#bcd48c",
-            "#edc783",
-            "#eb8d71",
-            "#cf597e"
-        ],
-        "7": [
-            "#009392",
-            "#39b185",
-            "#9ccb86",
-            "#e9e29c",
-            "#eeb479",
-            "#e88471",
-            "#cf597e"
-        ],
-        "tags": [
-            "diverging"
-        ]
-    },
-    "TealRose": {
-        "2": [
-            "#009392",
-            "#d0587e"
-        ],
-        "3": [
-            "#009392",
-            "#f1eac8",
-            "#d0587e"
-        ],
-        "4": [
-            "#009392",
-            "#91b8aa",
-            "#f1eac8",
-            "#dfa0a0",
-            "#d0587e"
-        ],
-        "5": [
-            "#009392",
-            "#91b8aa",
-            "#f1eac8",
-            "#dfa0a0",
-            "#d0587e"
-        ],
-        "6": [
-            "#009392",
-            "#72aaa1",
-            "#b1c7b3",
-            "#e5b9ad",
-            "#d98994",
-            "#d0587e"
-        ],
-        "7": [
-            "#009392",
-            "#72aaa1",
-            "#b1c7b3",
-            "#f1eac8",
-            "#e5b9ad",
-            "#d98994",
-            "#d0587e"
-        ],
-        "tags": [
-            "diverging"
-        ]
-    },
-    "Tropic": {
-        "2": [
-            "#009B9E",
-            "#C75DAB"
-        ],
-        "3": [
-            "#009B9E",
-            "#F1F1F1",
-            "#C75DAB"
-        ],
-        "4": [
-            "#009B9E",
-            "#A7D3D4",
-            "#E4C1D9",
-            "#C75DAB"
-        ],
-        "5": [
-            "#009B9E",
-            "#7CC5C6",
-            "#F1F1F1",
-            "#DDA9CD",
-            "#C75DAB"
-        ],
-        "6": [
-            "#009B9E",
-            "#5DBCBE",
-            "#C6DFDF",
-            "#E9D4E2",
-            "#D99BC6",
-            "#C75DAB"
-        ],
-        "7": [
-            "#009B9E",
-            "#42B7B9",
-            "#A7D3D4",
-            "#F1F1F1",
-            "#E4C1D9",
-            "#D691C1",
-            "#C75DAB"
-        ],
-        "tags": [
-            "diverging"
-        ]
-    },
-    "Earth": {
-        "2": [
-            "#A16928",
-            "#2887a1"
-        ],
-        "3": [
-            "#A16928",
-            "#edeac2",
-            "#2887a1"
-        ],
-        "4": [
-            "#A16928",
-            "#d6bd8d",
-            "#b5c8b8",
-            "#2887a1"
-        ],
-        "5": [
-            "#A16928",
-            "#caa873",
-            "#edeac2",
-            "#98b7b2",
-            "#2887a1"
-        ],
-        "6": [
-            "#A16928",
-            "#c29b64",
-            "#e0cfa2",
-            "#cbd5bc",
-            "#85adaf",
-            "#2887a1"
-        ],
-        "7": [
-            "#A16928",
-            "#bd925a",
-            "#d6bd8d",
-            "#edeac2",
-            "#b5c8b8",
-            "#79a7ac",
-            "#2887a1"
-        ],
-        "tags": [
-            "diverging"
-        ]
-    },
-    "Antique": {
-        "2": [
-            "#855C75",
-            "#D9AF6B",
-            "#7C7C7C"
-        ],
-        "3": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#7C7C7C"
-        ],
-        "4": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#7C7C7C"
-        ],
-        "5": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#526A83",
-            "#7C7C7C"
-        ],
-        "6": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#526A83",
-            "#625377",
-            "#7C7C7C"
-        ],
-        "7": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#526A83",
-            "#625377",
-            "#68855C",
-            "#7C7C7C"
-        ],
-        "8": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#526A83",
-            "#625377",
-            "#68855C",
-            "#9C9C5E",
-            "#7C7C7C"
-        ],
-        "9": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#526A83",
-            "#625377",
-            "#68855C",
-            "#9C9C5E",
-            "#A06177",
-            "#7C7C7C"
-        ],
-        "10": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#526A83",
-            "#625377",
-            "#68855C",
-            "#9C9C5E",
-            "#A06177",
-            "#8C785D",
-            "#7C7C7C"
-        ],
-        "11": [
-            "#855C75",
-            "#D9AF6B",
-            "#AF6458",
-            "#736F4C",
-            "#526A83",
-            "#625377",
-            "#68855C",
-            "#9C9C5E",
-            "#A06177",
-            "#8C785D",
-            "#467378",
-            "#7C7C7C"
-        ],
-        "tags": [
-            "qualitative"
-        ]
-    },
-    "Bold": {
-        "2": [
-            "#7F3C8D",
-            "#11A579",
-            "#A5AA99"
-        ],
-        "3": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#A5AA99"
-        ],
-        "4": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#A5AA99"
-        ],
-        "5": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#E73F74",
-            "#A5AA99"
-        ],
-        "6": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#E73F74",
-            "#80BA5A",
-            "#A5AA99"
-        ],
-        "7": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#E73F74",
-            "#80BA5A",
-            "#E68310",
-            "#A5AA99"
-        ],
-        "8": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#E73F74",
-            "#80BA5A",
-            "#E68310",
-            "#008695",
-            "#A5AA99"
-        ],
-        "9": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#E73F74",
-            "#80BA5A",
-            "#E68310",
-            "#008695",
-            "#CF1C90",
-            "#A5AA99"
-        ],
-        "10": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#E73F74",
-            "#80BA5A",
-            "#E68310",
-            "#008695",
-            "#CF1C90",
-            "#f97b72",
-            "#A5AA99"
-        ],
-        "11": [
-            "#7F3C8D",
-            "#11A579",
-            "#3969AC",
-            "#F2B701",
-            "#E73F74",
-            "#80BA5A",
-            "#E68310",
-            "#008695",
-            "#CF1C90",
-            "#f97b72",
-            "#4b4b8f",
-            "#A5AA99"
-        ],
-        "tags": [
-            "qualitative"
-        ]
-    },
-    "Pastel": {
-        "2": [
-            "#66C5CC",
-            "#F6CF71",
-            "#B3B3B3"
-        ],
-        "3": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#B3B3B3"
-        ],
-        "4": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#B3B3B3"
-        ],
-        "5": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#87C55F",
-            "#B3B3B3"
-        ],
-        "6": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#87C55F",
-            "#9EB9F3",
-            "#B3B3B3"
-        ],
-        "7": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#87C55F",
-            "#9EB9F3",
-            "#FE88B1",
-            "#B3B3B3"
-        ],
-        "8": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#87C55F",
-            "#9EB9F3",
-            "#FE88B1",
-            "#C9DB74",
-            "#B3B3B3"
-        ],
-        "9": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#87C55F",
-            "#9EB9F3",
-            "#FE88B1",
-            "#C9DB74",
-            "#8BE0A4",
-            "#B3B3B3"
-        ],
-        "10": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#87C55F",
-            "#9EB9F3",
-            "#FE88B1",
-            "#C9DB74",
-            "#8BE0A4",
-            "#B497E7",
-            "#B3B3B3"
-        ],
-        "11": [
-            "#66C5CC",
-            "#F6CF71",
-            "#F89C74",
-            "#DCB0F2",
-            "#87C55F",
-            "#9EB9F3",
-            "#FE88B1",
-            "#C9DB74",
-            "#8BE0A4",
-            "#B497E7",
-            "#D3B484",
-            "#B3B3B3"
-        ],
-        "tags": [
-            "qualitative"
-        ]
-    },
-    "Prism": {
-        "2": [
-            "#5F4690",
-            "#1D6996",
-            "#666666"
-        ],
-        "3": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#666666"
-        ],
-        "4": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#666666"
-        ],
-        "5": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#73AF48",
-            "#666666"
-        ],
-        "6": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#73AF48",
-            "#EDAD08",
-            "#666666"
-        ],
-        "7": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#73AF48",
-            "#EDAD08",
-            "#E17C05",
-            "#666666"
-        ],
-        "8": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#73AF48",
-            "#EDAD08",
-            "#E17C05",
-            "#CC503E",
-            "#666666"
-        ],
-        "9": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#73AF48",
-            "#EDAD08",
-            "#E17C05",
-            "#CC503E",
-            "#94346E",
-            "#666666"
-        ],
-        "10": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#73AF48",
-            "#EDAD08",
-            "#E17C05",
-            "#CC503E",
-            "#94346E",
-            "#6F4070",
-            "#666666"
-        ],
-        "11": [
-            "#5F4690",
-            "#1D6996",
-            "#38A6A5",
-            "#0F8554",
-            "#73AF48",
-            "#EDAD08",
-            "#E17C05",
-            "#CC503E",
-            "#94346E",
-            "#6F4070",
-            "#994E95",
-            "#666666"
-        ],
-        "tags": [
-            "qualitative"
-        ]
-    },
-    "Safe": {
-        "2": [
-            "#88CCEE",
-            "#CC6677",
-            "#888888"
-        ],
-        "3": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#888888"
-        ],
-        "4": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#888888"
-        ],
-        "5": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#332288",
-            "#888888"
-        ],
-        "6": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#332288",
-            "#AA4499",
-            "#888888"
-        ],
-        "7": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#332288",
-            "#AA4499",
-            "#44AA99",
-            "#888888"
-        ],
-        "8": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#332288",
-            "#AA4499",
-            "#44AA99",
-            "#999933",
-            "#888888"
-        ],
-        "9": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#332288",
-            "#AA4499",
-            "#44AA99",
-            "#999933",
-            "#882255",
-            "#888888"
-        ],
-        "10": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#332288",
-            "#AA4499",
-            "#44AA99",
-            "#999933",
-            "#882255",
-            "#661100",
-            "#888888"
-        ],
-        "11": [
-            "#88CCEE",
-            "#CC6677",
-            "#DDCC77",
-            "#117733",
-            "#332288",
-            "#AA4499",
-            "#44AA99",
-            "#999933",
-            "#882255",
-            "#661100",
-            "#6699CC",
-            "#888888"
-        ],
-        "tags": [
-            "qualitative",
-            "colorblind"
-        ]
-    },
-    "Vivid": {
-        "2": [
-            "#E58606",
-            "#5D69B1",
-            "#A5AA99"
-        ],
-        "3": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#A5AA99"
-        ],
-        "4": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#A5AA99"
-        ],
-        "5": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#CC61B0",
-            "#A5AA99"
-        ],
-        "6": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#CC61B0",
-            "#24796C",
-            "#A5AA99"
-        ],
-        "7": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#CC61B0",
-            "#24796C",
-            "#DAA51B",
-            "#A5AA99"
-        ],
-        "8": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#CC61B0",
-            "#24796C",
-            "#DAA51B",
-            "#2F8AC4",
-            "#A5AA99"
-        ],
-        "9": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#CC61B0",
-            "#24796C",
-            "#DAA51B",
-            "#2F8AC4",
-            "#764E9F",
-            "#A5AA99"
-        ],
-        "10": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#CC61B0",
-            "#24796C",
-            "#DAA51B",
-            "#2F8AC4",
-            "#764E9F",
-            "#ED645A",
-            "#A5AA99"
-        ],
-        "11": [
-            "#E58606",
-            "#5D69B1",
-            "#52BCA3",
-            "#99C945",
-            "#CC61B0",
-            "#24796C",
-            "#DAA51B",
-            "#2F8AC4",
-            "#764E9F",
-            "#ED645A",
-            "#CC3A8E",
-            "#A5AA99"
-        ],
-        "tags": [
-            "qualitative"
-        ]
-    }
-};
-
-var colorbrewer_tags = {
-  "Blues": { "tags": ["quantitative"] },
-  "BrBG": { "tags": ["diverging"] },
-  "Greys": { "tags": ["quantitative"] },
-  "PiYG": { "tags": ["diverging"] },
-  "PRGn": { "tags": ["diverging"] },
-  "Purples": { "tags": ["quantitative"] },
-  "RdYlGn": { "tags": ["diverging"] },
-  "Spectral": { "tags": ["diverging"] },
-  "YlOrBr": { "tags": ["quantitative"] },
-  "YlGn": { "tags": ["quantitative"] },
-  "YlGnBu": { "tags": ["quantitative"] },
-  "YlOrRd": { "tags": ["quantitative"] }
-}
-
-var colorbrewer = require('colorbrewer');
-
-// augment colorbrewer with tags
-for (var r in colorbrewer) {
-  var ramps = colorbrewer[r];
-  var augmentedRamps = {};
-  for (var i in ramps) {
-    augmentedRamps[i] = ramps[i];
-  }
-
-  if (r in colorbrewer_tags) {
-    augmentedRamps.tags = colorbrewer_tags[r].tags;
-  }
-
-  cartocolor['cb_' + r] = augmentedRamps;
-}
-
-if (typeof define === "function" && define.amd) {
-    define(cartocolor);
-} else if (typeof module === "object" && module.exports) {
-    module.exports = cartocolor;
-} else {
-    this.colorbrewer = cartocolor;
-}
-
-}();
-
-},{"colorbrewer":87}],85:[function(require,module,exports){
-module.exports = require('./cartocolor');
-
-},{"./cartocolor":84}],86:[function(require,module,exports){
-// This product includes color specifications and designs developed by Cynthia Brewer (http://colorbrewer.org/).
-// JavaScript specs as packaged in the D3 library (d3js.org). Please see license at http://colorbrewer.org/export/LICENSE.txt
-!function() {
-
-var colorbrewer = {YlGn: {
-3: ["#f7fcb9","#addd8e","#31a354"],
-4: ["#ffffcc","#c2e699","#78c679","#238443"],
-5: ["#ffffcc","#c2e699","#78c679","#31a354","#006837"],
-6: ["#ffffcc","#d9f0a3","#addd8e","#78c679","#31a354","#006837"],
-7: ["#ffffcc","#d9f0a3","#addd8e","#78c679","#41ab5d","#238443","#005a32"],
-8: ["#ffffe5","#f7fcb9","#d9f0a3","#addd8e","#78c679","#41ab5d","#238443","#005a32"],
-9: ["#ffffe5","#f7fcb9","#d9f0a3","#addd8e","#78c679","#41ab5d","#238443","#006837","#004529"]
-},YlGnBu: {
-3: ["#edf8b1","#7fcdbb","#2c7fb8"],
-4: ["#ffffcc","#a1dab4","#41b6c4","#225ea8"],
-5: ["#ffffcc","#a1dab4","#41b6c4","#2c7fb8","#253494"],
-6: ["#ffffcc","#c7e9b4","#7fcdbb","#41b6c4","#2c7fb8","#253494"],
-7: ["#ffffcc","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#0c2c84"],
-8: ["#ffffd9","#edf8b1","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#0c2c84"],
-9: ["#ffffd9","#edf8b1","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#253494","#081d58"]
-},GnBu: {
-3: ["#e0f3db","#a8ddb5","#43a2ca"],
-4: ["#f0f9e8","#bae4bc","#7bccc4","#2b8cbe"],
-5: ["#f0f9e8","#bae4bc","#7bccc4","#43a2ca","#0868ac"],
-6: ["#f0f9e8","#ccebc5","#a8ddb5","#7bccc4","#43a2ca","#0868ac"],
-7: ["#f0f9e8","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#08589e"],
-8: ["#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#08589e"],
-9: ["#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"]
-},BuGn: {
-3: ["#e5f5f9","#99d8c9","#2ca25f"],
-4: ["#edf8fb","#b2e2e2","#66c2a4","#238b45"],
-5: ["#edf8fb","#b2e2e2","#66c2a4","#2ca25f","#006d2c"],
-6: ["#edf8fb","#ccece6","#99d8c9","#66c2a4","#2ca25f","#006d2c"],
-7: ["#edf8fb","#ccece6","#99d8c9","#66c2a4","#41ae76","#238b45","#005824"],
-8: ["#f7fcfd","#e5f5f9","#ccece6","#99d8c9","#66c2a4","#41ae76","#238b45","#005824"],
-9: ["#f7fcfd","#e5f5f9","#ccece6","#99d8c9","#66c2a4","#41ae76","#238b45","#006d2c","#00441b"]
-},PuBuGn: {
-3: ["#ece2f0","#a6bddb","#1c9099"],
-4: ["#f6eff7","#bdc9e1","#67a9cf","#02818a"],
-5: ["#f6eff7","#bdc9e1","#67a9cf","#1c9099","#016c59"],
-6: ["#f6eff7","#d0d1e6","#a6bddb","#67a9cf","#1c9099","#016c59"],
-7: ["#f6eff7","#d0d1e6","#a6bddb","#67a9cf","#3690c0","#02818a","#016450"],
-8: ["#fff7fb","#ece2f0","#d0d1e6","#a6bddb","#67a9cf","#3690c0","#02818a","#016450"],
-9: ["#fff7fb","#ece2f0","#d0d1e6","#a6bddb","#67a9cf","#3690c0","#02818a","#016c59","#014636"]
-},PuBu: {
-3: ["#ece7f2","#a6bddb","#2b8cbe"],
-4: ["#f1eef6","#bdc9e1","#74a9cf","#0570b0"],
-5: ["#f1eef6","#bdc9e1","#74a9cf","#2b8cbe","#045a8d"],
-6: ["#f1eef6","#d0d1e6","#a6bddb","#74a9cf","#2b8cbe","#045a8d"],
-7: ["#f1eef6","#d0d1e6","#a6bddb","#74a9cf","#3690c0","#0570b0","#034e7b"],
-8: ["#fff7fb","#ece7f2","#d0d1e6","#a6bddb","#74a9cf","#3690c0","#0570b0","#034e7b"],
-9: ["#fff7fb","#ece7f2","#d0d1e6","#a6bddb","#74a9cf","#3690c0","#0570b0","#045a8d","#023858"]
-},BuPu: {
-3: ["#e0ecf4","#9ebcda","#8856a7"],
-4: ["#edf8fb","#b3cde3","#8c96c6","#88419d"],
-5: ["#edf8fb","#b3cde3","#8c96c6","#8856a7","#810f7c"],
-6: ["#edf8fb","#bfd3e6","#9ebcda","#8c96c6","#8856a7","#810f7c"],
-7: ["#edf8fb","#bfd3e6","#9ebcda","#8c96c6","#8c6bb1","#88419d","#6e016b"],
-8: ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8c6bb1","#88419d","#6e016b"],
-9: ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8c6bb1","#88419d","#810f7c","#4d004b"]
-},RdPu: {
-3: ["#fde0dd","#fa9fb5","#c51b8a"],
-4: ["#feebe2","#fbb4b9","#f768a1","#ae017e"],
-5: ["#feebe2","#fbb4b9","#f768a1","#c51b8a","#7a0177"],
-6: ["#feebe2","#fcc5c0","#fa9fb5","#f768a1","#c51b8a","#7a0177"],
-7: ["#feebe2","#fcc5c0","#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177"],
-8: ["#fff7f3","#fde0dd","#fcc5c0","#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177"],
-9: ["#fff7f3","#fde0dd","#fcc5c0","#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177","#49006a"]
-},PuRd: {
-3: ["#e7e1ef","#c994c7","#dd1c77"],
-4: ["#f1eef6","#d7b5d8","#df65b0","#ce1256"],
-5: ["#f1eef6","#d7b5d8","#df65b0","#dd1c77","#980043"],
-6: ["#f1eef6","#d4b9da","#c994c7","#df65b0","#dd1c77","#980043"],
-7: ["#f1eef6","#d4b9da","#c994c7","#df65b0","#e7298a","#ce1256","#91003f"],
-8: ["#f7f4f9","#e7e1ef","#d4b9da","#c994c7","#df65b0","#e7298a","#ce1256","#91003f"],
-9: ["#f7f4f9","#e7e1ef","#d4b9da","#c994c7","#df65b0","#e7298a","#ce1256","#980043","#67001f"]
-},OrRd: {
-3: ["#fee8c8","#fdbb84","#e34a33"],
-4: ["#fef0d9","#fdcc8a","#fc8d59","#d7301f"],
-5: ["#fef0d9","#fdcc8a","#fc8d59","#e34a33","#b30000"],
-6: ["#fef0d9","#fdd49e","#fdbb84","#fc8d59","#e34a33","#b30000"],
-7: ["#fef0d9","#fdd49e","#fdbb84","#fc8d59","#ef6548","#d7301f","#990000"],
-8: ["#fff7ec","#fee8c8","#fdd49e","#fdbb84","#fc8d59","#ef6548","#d7301f","#990000"],
-9: ["#fff7ec","#fee8c8","#fdd49e","#fdbb84","#fc8d59","#ef6548","#d7301f","#b30000","#7f0000"]
-},YlOrRd: {
-3: ["#ffeda0","#feb24c","#f03b20"],
-4: ["#ffffb2","#fecc5c","#fd8d3c","#e31a1c"],
-5: ["#ffffb2","#fecc5c","#fd8d3c","#f03b20","#bd0026"],
-6: ["#ffffb2","#fed976","#feb24c","#fd8d3c","#f03b20","#bd0026"],
-7: ["#ffffb2","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#b10026"],
-8: ["#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#b10026"],
-9: ["#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c","#fc4e2a","#e31a1c","#bd0026","#800026"]
-},YlOrBr: {
-3: ["#fff7bc","#fec44f","#d95f0e"],
-4: ["#ffffd4","#fed98e","#fe9929","#cc4c02"],
-5: ["#ffffd4","#fed98e","#fe9929","#d95f0e","#993404"],
-6: ["#ffffd4","#fee391","#fec44f","#fe9929","#d95f0e","#993404"],
-7: ["#ffffd4","#fee391","#fec44f","#fe9929","#ec7014","#cc4c02","#8c2d04"],
-8: ["#ffffe5","#fff7bc","#fee391","#fec44f","#fe9929","#ec7014","#cc4c02","#8c2d04"],
-9: ["#ffffe5","#fff7bc","#fee391","#fec44f","#fe9929","#ec7014","#cc4c02","#993404","#662506"]
-},Purples: {
-3: ["#efedf5","#bcbddc","#756bb1"],
-4: ["#f2f0f7","#cbc9e2","#9e9ac8","#6a51a3"],
-5: ["#f2f0f7","#cbc9e2","#9e9ac8","#756bb1","#54278f"],
-6: ["#f2f0f7","#dadaeb","#bcbddc","#9e9ac8","#756bb1","#54278f"],
-7: ["#f2f0f7","#dadaeb","#bcbddc","#9e9ac8","#807dba","#6a51a3","#4a1486"],
-8: ["#fcfbfd","#efedf5","#dadaeb","#bcbddc","#9e9ac8","#807dba","#6a51a3","#4a1486"],
-9: ["#fcfbfd","#efedf5","#dadaeb","#bcbddc","#9e9ac8","#807dba","#6a51a3","#54278f","#3f007d"]
-},Blues: {
-3: ["#deebf7","#9ecae1","#3182bd"],
-4: ["#eff3ff","#bdd7e7","#6baed6","#2171b5"],
-5: ["#eff3ff","#bdd7e7","#6baed6","#3182bd","#08519c"],
-6: ["#eff3ff","#c6dbef","#9ecae1","#6baed6","#3182bd","#08519c"],
-7: ["#eff3ff","#c6dbef","#9ecae1","#6baed6","#4292c6","#2171b5","#084594"],
-8: ["#f7fbff","#deebf7","#c6dbef","#9ecae1","#6baed6","#4292c6","#2171b5","#084594"],
-9: ["#f7fbff","#deebf7","#c6dbef","#9ecae1","#6baed6","#4292c6","#2171b5","#08519c","#08306b"]
-},Greens: {
-3: ["#e5f5e0","#a1d99b","#31a354"],
-4: ["#edf8e9","#bae4b3","#74c476","#238b45"],
-5: ["#edf8e9","#bae4b3","#74c476","#31a354","#006d2c"],
-6: ["#edf8e9","#c7e9c0","#a1d99b","#74c476","#31a354","#006d2c"],
-7: ["#edf8e9","#c7e9c0","#a1d99b","#74c476","#41ab5d","#238b45","#005a32"],
-8: ["#f7fcf5","#e5f5e0","#c7e9c0","#a1d99b","#74c476","#41ab5d","#238b45","#005a32"],
-9: ["#f7fcf5","#e5f5e0","#c7e9c0","#a1d99b","#74c476","#41ab5d","#238b45","#006d2c","#00441b"]
-},Oranges: {
-3: ["#fee6ce","#fdae6b","#e6550d"],
-4: ["#feedde","#fdbe85","#fd8d3c","#d94701"],
-5: ["#feedde","#fdbe85","#fd8d3c","#e6550d","#a63603"],
-6: ["#feedde","#fdd0a2","#fdae6b","#fd8d3c","#e6550d","#a63603"],
-7: ["#feedde","#fdd0a2","#fdae6b","#fd8d3c","#f16913","#d94801","#8c2d04"],
-8: ["#fff5eb","#fee6ce","#fdd0a2","#fdae6b","#fd8d3c","#f16913","#d94801","#8c2d04"],
-9: ["#fff5eb","#fee6ce","#fdd0a2","#fdae6b","#fd8d3c","#f16913","#d94801","#a63603","#7f2704"]
-},Reds: {
-3: ["#fee0d2","#fc9272","#de2d26"],
-4: ["#fee5d9","#fcae91","#fb6a4a","#cb181d"],
-5: ["#fee5d9","#fcae91","#fb6a4a","#de2d26","#a50f15"],
-6: ["#fee5d9","#fcbba1","#fc9272","#fb6a4a","#de2d26","#a50f15"],
-7: ["#fee5d9","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#99000d"],
-8: ["#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#99000d"],
-9: ["#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#a50f15","#67000d"]
-},Greys: {
-3: ["#f0f0f0","#bdbdbd","#636363"],
-4: ["#f7f7f7","#cccccc","#969696","#525252"],
-5: ["#f7f7f7","#cccccc","#969696","#636363","#252525"],
-6: ["#f7f7f7","#d9d9d9","#bdbdbd","#969696","#636363","#252525"],
-7: ["#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"],
-8: ["#ffffff","#f0f0f0","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"],
-9: ["#ffffff","#f0f0f0","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525","#000000"]
-},PuOr: {
-3: ["#f1a340","#f7f7f7","#998ec3"],
-4: ["#e66101","#fdb863","#b2abd2","#5e3c99"],
-5: ["#e66101","#fdb863","#f7f7f7","#b2abd2","#5e3c99"],
-6: ["#b35806","#f1a340","#fee0b6","#d8daeb","#998ec3","#542788"],
-7: ["#b35806","#f1a340","#fee0b6","#f7f7f7","#d8daeb","#998ec3","#542788"],
-8: ["#b35806","#e08214","#fdb863","#fee0b6","#d8daeb","#b2abd2","#8073ac","#542788"],
-9: ["#b35806","#e08214","#fdb863","#fee0b6","#f7f7f7","#d8daeb","#b2abd2","#8073ac","#542788"],
-10: ["#7f3b08","#b35806","#e08214","#fdb863","#fee0b6","#d8daeb","#b2abd2","#8073ac","#542788","#2d004b"],
-11: ["#7f3b08","#b35806","#e08214","#fdb863","#fee0b6","#f7f7f7","#d8daeb","#b2abd2","#8073ac","#542788","#2d004b"]
-},BrBG: {
-3: ["#d8b365","#f5f5f5","#5ab4ac"],
-4: ["#a6611a","#dfc27d","#80cdc1","#018571"],
-5: ["#a6611a","#dfc27d","#f5f5f5","#80cdc1","#018571"],
-6: ["#8c510a","#d8b365","#f6e8c3","#c7eae5","#5ab4ac","#01665e"],
-7: ["#8c510a","#d8b365","#f6e8c3","#f5f5f5","#c7eae5","#5ab4ac","#01665e"],
-8: ["#8c510a","#bf812d","#dfc27d","#f6e8c3","#c7eae5","#80cdc1","#35978f","#01665e"],
-9: ["#8c510a","#bf812d","#dfc27d","#f6e8c3","#f5f5f5","#c7eae5","#80cdc1","#35978f","#01665e"],
-10: ["#543005","#8c510a","#bf812d","#dfc27d","#f6e8c3","#c7eae5","#80cdc1","#35978f","#01665e","#003c30"],
-11: ["#543005","#8c510a","#bf812d","#dfc27d","#f6e8c3","#f5f5f5","#c7eae5","#80cdc1","#35978f","#01665e","#003c30"]
-},PRGn: {
-3: ["#af8dc3","#f7f7f7","#7fbf7b"],
-4: ["#7b3294","#c2a5cf","#a6dba0","#008837"],
-5: ["#7b3294","#c2a5cf","#f7f7f7","#a6dba0","#008837"],
-6: ["#762a83","#af8dc3","#e7d4e8","#d9f0d3","#7fbf7b","#1b7837"],
-7: ["#762a83","#af8dc3","#e7d4e8","#f7f7f7","#d9f0d3","#7fbf7b","#1b7837"],
-8: ["#762a83","#9970ab","#c2a5cf","#e7d4e8","#d9f0d3","#a6dba0","#5aae61","#1b7837"],
-9: ["#762a83","#9970ab","#c2a5cf","#e7d4e8","#f7f7f7","#d9f0d3","#a6dba0","#5aae61","#1b7837"],
-10: ["#40004b","#762a83","#9970ab","#c2a5cf","#e7d4e8","#d9f0d3","#a6dba0","#5aae61","#1b7837","#00441b"],
-11: ["#40004b","#762a83","#9970ab","#c2a5cf","#e7d4e8","#f7f7f7","#d9f0d3","#a6dba0","#5aae61","#1b7837","#00441b"]
-},PiYG: {
-3: ["#e9a3c9","#f7f7f7","#a1d76a"],
-4: ["#d01c8b","#f1b6da","#b8e186","#4dac26"],
-5: ["#d01c8b","#f1b6da","#f7f7f7","#b8e186","#4dac26"],
-6: ["#c51b7d","#e9a3c9","#fde0ef","#e6f5d0","#a1d76a","#4d9221"],
-7: ["#c51b7d","#e9a3c9","#fde0ef","#f7f7f7","#e6f5d0","#a1d76a","#4d9221"],
-8: ["#c51b7d","#de77ae","#f1b6da","#fde0ef","#e6f5d0","#b8e186","#7fbc41","#4d9221"],
-9: ["#c51b7d","#de77ae","#f1b6da","#fde0ef","#f7f7f7","#e6f5d0","#b8e186","#7fbc41","#4d9221"],
-10: ["#8e0152","#c51b7d","#de77ae","#f1b6da","#fde0ef","#e6f5d0","#b8e186","#7fbc41","#4d9221","#276419"],
-11: ["#8e0152","#c51b7d","#de77ae","#f1b6da","#fde0ef","#f7f7f7","#e6f5d0","#b8e186","#7fbc41","#4d9221","#276419"]
-},RdBu: {
-3: ["#ef8a62","#f7f7f7","#67a9cf"],
-4: ["#ca0020","#f4a582","#92c5de","#0571b0"],
-5: ["#ca0020","#f4a582","#f7f7f7","#92c5de","#0571b0"],
-6: ["#b2182b","#ef8a62","#fddbc7","#d1e5f0","#67a9cf","#2166ac"],
-7: ["#b2182b","#ef8a62","#fddbc7","#f7f7f7","#d1e5f0","#67a9cf","#2166ac"],
-8: ["#b2182b","#d6604d","#f4a582","#fddbc7","#d1e5f0","#92c5de","#4393c3","#2166ac"],
-9: ["#b2182b","#d6604d","#f4a582","#fddbc7","#f7f7f7","#d1e5f0","#92c5de","#4393c3","#2166ac"],
-10: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#d1e5f0","#92c5de","#4393c3","#2166ac","#053061"],
-11: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#f7f7f7","#d1e5f0","#92c5de","#4393c3","#2166ac","#053061"]
-},RdGy: {
-3: ["#ef8a62","#ffffff","#999999"],
-4: ["#ca0020","#f4a582","#bababa","#404040"],
-5: ["#ca0020","#f4a582","#ffffff","#bababa","#404040"],
-6: ["#b2182b","#ef8a62","#fddbc7","#e0e0e0","#999999","#4d4d4d"],
-7: ["#b2182b","#ef8a62","#fddbc7","#ffffff","#e0e0e0","#999999","#4d4d4d"],
-8: ["#b2182b","#d6604d","#f4a582","#fddbc7","#e0e0e0","#bababa","#878787","#4d4d4d"],
-9: ["#b2182b","#d6604d","#f4a582","#fddbc7","#ffffff","#e0e0e0","#bababa","#878787","#4d4d4d"],
-10: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#e0e0e0","#bababa","#878787","#4d4d4d","#1a1a1a"],
-11: ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#ffffff","#e0e0e0","#bababa","#878787","#4d4d4d","#1a1a1a"]
-},RdYlBu: {
-3: ["#fc8d59","#ffffbf","#91bfdb"],
-4: ["#d7191c","#fdae61","#abd9e9","#2c7bb6"],
-5: ["#d7191c","#fdae61","#ffffbf","#abd9e9","#2c7bb6"],
-6: ["#d73027","#fc8d59","#fee090","#e0f3f8","#91bfdb","#4575b4"],
-7: ["#d73027","#fc8d59","#fee090","#ffffbf","#e0f3f8","#91bfdb","#4575b4"],
-8: ["#d73027","#f46d43","#fdae61","#fee090","#e0f3f8","#abd9e9","#74add1","#4575b4"],
-9: ["#d73027","#f46d43","#fdae61","#fee090","#ffffbf","#e0f3f8","#abd9e9","#74add1","#4575b4"],
-10: ["#a50026","#d73027","#f46d43","#fdae61","#fee090","#e0f3f8","#abd9e9","#74add1","#4575b4","#313695"],
-11: ["#a50026","#d73027","#f46d43","#fdae61","#fee090","#ffffbf","#e0f3f8","#abd9e9","#74add1","#4575b4","#313695"]
-},Spectral: {
-3: ["#fc8d59","#ffffbf","#99d594"],
-4: ["#d7191c","#fdae61","#abdda4","#2b83ba"],
-5: ["#d7191c","#fdae61","#ffffbf","#abdda4","#2b83ba"],
-6: ["#d53e4f","#fc8d59","#fee08b","#e6f598","#99d594","#3288bd"],
-7: ["#d53e4f","#fc8d59","#fee08b","#ffffbf","#e6f598","#99d594","#3288bd"],
-8: ["#d53e4f","#f46d43","#fdae61","#fee08b","#e6f598","#abdda4","#66c2a5","#3288bd"],
-9: ["#d53e4f","#f46d43","#fdae61","#fee08b","#ffffbf","#e6f598","#abdda4","#66c2a5","#3288bd"],
-10: ["#9e0142","#d53e4f","#f46d43","#fdae61","#fee08b","#e6f598","#abdda4","#66c2a5","#3288bd","#5e4fa2"],
-11: ["#9e0142","#d53e4f","#f46d43","#fdae61","#fee08b","#ffffbf","#e6f598","#abdda4","#66c2a5","#3288bd","#5e4fa2"]
-},RdYlGn: {
-3: ["#fc8d59","#ffffbf","#91cf60"],
-4: ["#d7191c","#fdae61","#a6d96a","#1a9641"],
-5: ["#d7191c","#fdae61","#ffffbf","#a6d96a","#1a9641"],
-6: ["#d73027","#fc8d59","#fee08b","#d9ef8b","#91cf60","#1a9850"],
-7: ["#d73027","#fc8d59","#fee08b","#ffffbf","#d9ef8b","#91cf60","#1a9850"],
-8: ["#d73027","#f46d43","#fdae61","#fee08b","#d9ef8b","#a6d96a","#66bd63","#1a9850"],
-9: ["#d73027","#f46d43","#fdae61","#fee08b","#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850"],
-10: ["#a50026","#d73027","#f46d43","#fdae61","#fee08b","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"],
-11: ["#a50026","#d73027","#f46d43","#fdae61","#fee08b","#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"]
-},Accent: {
-3: ["#7fc97f","#beaed4","#fdc086"],
-4: ["#7fc97f","#beaed4","#fdc086","#ffff99"],
-5: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0"],
-6: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0","#f0027f"],
-7: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0","#f0027f","#bf5b17"],
-8: ["#7fc97f","#beaed4","#fdc086","#ffff99","#386cb0","#f0027f","#bf5b17","#666666"]
-},Dark2: {
-3: ["#1b9e77","#d95f02","#7570b3"],
-4: ["#1b9e77","#d95f02","#7570b3","#e7298a"],
-5: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e"],
-6: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02"],
-7: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02","#a6761d"],
-8: ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02","#a6761d","#666666"]
-},Paired: {
-3: ["#a6cee3","#1f78b4","#b2df8a"],
-4: ["#a6cee3","#1f78b4","#b2df8a","#33a02c"],
-5: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99"],
-6: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c"],
-7: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f"],
-8: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00"],
-9: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6"],
-10: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"],
-11: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a","#ffff99"],
-12: ["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a","#ffff99","#b15928"]
-},Pastel1: {
-3: ["#fbb4ae","#b3cde3","#ccebc5"],
-4: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4"],
-5: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6"],
-6: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc"],
-7: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc","#e5d8bd"],
-8: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc","#e5d8bd","#fddaec"],
-9: ["#fbb4ae","#b3cde3","#ccebc5","#decbe4","#fed9a6","#ffffcc","#e5d8bd","#fddaec","#f2f2f2"]
-},Pastel2: {
-3: ["#b3e2cd","#fdcdac","#cbd5e8"],
-4: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4"],
-5: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9"],
-6: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9","#fff2ae"],
-7: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9","#fff2ae","#f1e2cc"],
-8: ["#b3e2cd","#fdcdac","#cbd5e8","#f4cae4","#e6f5c9","#fff2ae","#f1e2cc","#cccccc"]
-},Set1: {
-3: ["#e41a1c","#377eb8","#4daf4a"],
-4: ["#e41a1c","#377eb8","#4daf4a","#984ea3"],
-5: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00"],
-6: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33"],
-7: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628"],
-8: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628","#f781bf"],
-9: ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628","#f781bf","#999999"]
-},Set2: {
-3: ["#66c2a5","#fc8d62","#8da0cb"],
-4: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3"],
-5: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854"],
-6: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f"],
-7: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f","#e5c494"],
-8: ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f","#e5c494","#b3b3b3"]
-},Set3: {
-3: ["#8dd3c7","#ffffb3","#bebada"],
-4: ["#8dd3c7","#ffffb3","#bebada","#fb8072"],
-5: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3"],
-6: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462"],
-7: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69"],
-8: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5"],
-9: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9"],
-10: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd"],
-11: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5"],
-12: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5","#ffed6f"]
-}};
-
-if (typeof define === "function" && define.amd) {
-    define(colorbrewer);
-} else if (typeof module === "object" && module.exports) {
-    module.exports = colorbrewer;
-} else {
-    this.colorbrewer = colorbrewer;
-}
-
-}();
-
-},{}],87:[function(require,module,exports){
-module.exports = require('./colorbrewer.js');
-
-},{"./colorbrewer.js":86}],88:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -27410,7 +26440,7 @@ function localstorage(){
   } catch (e) {}
 }
 
-},{"./debug":89}],89:[function(require,module,exports){
+},{"./debug":81}],81:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -27609,134 +26639,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":90}],90:[function(require,module,exports){
-/**
- * Helpers.
- */
-
-var s = 1000;
-var m = s * 60;
-var h = m * 60;
-var d = h * 24;
-var y = d * 365.25;
-
-/**
- * Parse or format the given `val`.
- *
- * Options:
- *
- *  - `long` verbose formatting [false]
- *
- * @param {String|Number} val
- * @param {Object} options
- * @return {String|Number}
- * @api public
- */
-
-module.exports = function(val, options){
-  options = options || {};
-  if ('string' == typeof val) return parse(val);
-  return options.long
-    ? long(val)
-    : short(val);
-};
-
-/**
- * Parse the given `str` and return milliseconds.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function parse(str) {
-  str = '' + str;
-  if (str.length > 10000) return;
-  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str);
-  if (!match) return;
-  var n = parseFloat(match[1]);
-  var type = (match[2] || 'ms').toLowerCase();
-  switch (type) {
-    case 'years':
-    case 'year':
-    case 'yrs':
-    case 'yr':
-    case 'y':
-      return n * y;
-    case 'days':
-    case 'day':
-    case 'd':
-      return n * d;
-    case 'hours':
-    case 'hour':
-    case 'hrs':
-    case 'hr':
-    case 'h':
-      return n * h;
-    case 'minutes':
-    case 'minute':
-    case 'mins':
-    case 'min':
-    case 'm':
-      return n * m;
-    case 'seconds':
-    case 'second':
-    case 'secs':
-    case 'sec':
-    case 's':
-      return n * s;
-    case 'milliseconds':
-    case 'millisecond':
-    case 'msecs':
-    case 'msec':
-    case 'ms':
-      return n;
-  }
-}
-
-/**
- * Short format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function short(ms) {
-  if (ms >= d) return Math.round(ms / d) + 'd';
-  if (ms >= h) return Math.round(ms / h) + 'h';
-  if (ms >= m) return Math.round(ms / m) + 'm';
-  if (ms >= s) return Math.round(ms / s) + 's';
-  return ms + 'ms';
-}
-
-/**
- * Long format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function long(ms) {
-  return plural(ms, d, 'day')
-    || plural(ms, h, 'hour')
-    || plural(ms, m, 'minute')
-    || plural(ms, s, 'second')
-    || ms + ' ms';
-}
-
-/**
- * Pluralization helper.
- */
-
-function plural(ms, n, name) {
-  if (ms < n) return;
-  if (ms < n * 1.5) return Math.floor(ms / n) + ' ' + name;
-  return Math.ceil(ms / n) + ' ' + name + 's';
-}
-
-},{}],91:[function(require,module,exports){
+},{"ms":87}],82:[function(require,module,exports){
 (function (process,global){
 /*!
  * @overview es6-promise - a tiny implementation of Promises/A+.
@@ -28694,7 +27597,708 @@ function plural(ms, n, name) {
 
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":42}],92:[function(require,module,exports){
+},{"_process":118}],83:[function(require,module,exports){
+exports.read = function (buffer, offset, isLE, mLen, nBytes) {
+  var e, m
+  var eLen = nBytes * 8 - mLen - 1
+  var eMax = (1 << eLen) - 1
+  var eBias = eMax >> 1
+  var nBits = -7
+  var i = isLE ? (nBytes - 1) : 0
+  var d = isLE ? -1 : 1
+  var s = buffer[offset + i]
+
+  i += d
+
+  e = s & ((1 << (-nBits)) - 1)
+  s >>= (-nBits)
+  nBits += eLen
+  for (; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8) {}
+
+  m = e & ((1 << (-nBits)) - 1)
+  e >>= (-nBits)
+  nBits += mLen
+  for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8) {}
+
+  if (e === 0) {
+    e = 1 - eBias
+  } else if (e === eMax) {
+    return m ? NaN : ((s ? -1 : 1) * Infinity)
+  } else {
+    m = m + Math.pow(2, mLen)
+    e = e - eBias
+  }
+  return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
+}
+
+exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
+  var e, m, c
+  var eLen = nBytes * 8 - mLen - 1
+  var eMax = (1 << eLen) - 1
+  var eBias = eMax >> 1
+  var rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0)
+  var i = isLE ? 0 : (nBytes - 1)
+  var d = isLE ? 1 : -1
+  var s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0
+
+  value = Math.abs(value)
+
+  if (isNaN(value) || value === Infinity) {
+    m = isNaN(value) ? 1 : 0
+    e = eMax
+  } else {
+    e = Math.floor(Math.log(value) / Math.LN2)
+    if (value * (c = Math.pow(2, -e)) < 1) {
+      e--
+      c *= 2
+    }
+    if (e + eBias >= 1) {
+      value += rt / c
+    } else {
+      value += rt * Math.pow(2, 1 - eBias)
+    }
+    if (value * c >= 2) {
+      e++
+      c /= 2
+    }
+
+    if (e + eBias >= eMax) {
+      m = 0
+      e = eMax
+    } else if (e + eBias >= 1) {
+      m = (value * c - 1) * Math.pow(2, mLen)
+      e = e + eBias
+    } else {
+      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen)
+      e = 0
+    }
+  }
+
+  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8) {}
+
+  e = (e << mLen) | m
+  eLen += mLen
+  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8) {}
+
+  buffer[offset + i - d] |= s * 128
+}
+
+},{}],84:[function(require,module,exports){
+
+/**
+ * isArray
+ */
+
+var isArray = Array.isArray;
+
+/**
+ * toString
+ */
+
+var str = Object.prototype.toString;
+
+/**
+ * Whether or not the given `val`
+ * is an array.
+ *
+ * example:
+ *
+ *        isArray([]);
+ *        // > true
+ *        isArray(arguments);
+ *        // > false
+ *        isArray('');
+ *        // > false
+ *
+ * @param {mixed} val
+ * @return {bool}
+ */
+
+module.exports = isArray || function (val) {
+  return !! val && '[object Array]' == str.call(val);
+};
+
+},{}],85:[function(require,module,exports){
+/*
+ * $Id: base64.js,v 2.15 2014/04/05 12:58:57 dankogai Exp dankogai $
+ *
+ *  Licensed under the MIT license.
+ *    http://opensource.org/licenses/mit-license
+ *
+ *  References:
+ *    http://en.wikipedia.org/wiki/Base64
+ */
+
+(function(global) {
+    'use strict';
+    // existing version for noConflict()
+    var _Base64 = global.Base64;
+    var version = "2.1.9";
+    // if node.js, we use Buffer
+    var buffer;
+    if (typeof module !== 'undefined' && module.exports) {
+        try {
+            buffer = require('buffer').Buffer;
+        } catch (err) {}
+    }
+    // constants
+    var b64chars
+        = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    var b64tab = function(bin) {
+        var t = {};
+        for (var i = 0, l = bin.length; i < l; i++) t[bin.charAt(i)] = i;
+        return t;
+    }(b64chars);
+    var fromCharCode = String.fromCharCode;
+    // encoder stuff
+    var cb_utob = function(c) {
+        if (c.length < 2) {
+            var cc = c.charCodeAt(0);
+            return cc < 0x80 ? c
+                : cc < 0x800 ? (fromCharCode(0xc0 | (cc >>> 6))
+                                + fromCharCode(0x80 | (cc & 0x3f)))
+                : (fromCharCode(0xe0 | ((cc >>> 12) & 0x0f))
+                   + fromCharCode(0x80 | ((cc >>>  6) & 0x3f))
+                   + fromCharCode(0x80 | ( cc         & 0x3f)));
+        } else {
+            var cc = 0x10000
+                + (c.charCodeAt(0) - 0xD800) * 0x400
+                + (c.charCodeAt(1) - 0xDC00);
+            return (fromCharCode(0xf0 | ((cc >>> 18) & 0x07))
+                    + fromCharCode(0x80 | ((cc >>> 12) & 0x3f))
+                    + fromCharCode(0x80 | ((cc >>>  6) & 0x3f))
+                    + fromCharCode(0x80 | ( cc         & 0x3f)));
+        }
+    };
+    var re_utob = /[\uD800-\uDBFF][\uDC00-\uDFFFF]|[^\x00-\x7F]/g;
+    var utob = function(u) {
+        return u.replace(re_utob, cb_utob);
+    };
+    var cb_encode = function(ccc) {
+        var padlen = [0, 2, 1][ccc.length % 3],
+        ord = ccc.charCodeAt(0) << 16
+            | ((ccc.length > 1 ? ccc.charCodeAt(1) : 0) << 8)
+            | ((ccc.length > 2 ? ccc.charCodeAt(2) : 0)),
+        chars = [
+            b64chars.charAt( ord >>> 18),
+            b64chars.charAt((ord >>> 12) & 63),
+            padlen >= 2 ? '=' : b64chars.charAt((ord >>> 6) & 63),
+            padlen >= 1 ? '=' : b64chars.charAt(ord & 63)
+        ];
+        return chars.join('');
+    };
+    var btoa = global.btoa ? function(b) {
+        return global.btoa(b);
+    } : function(b) {
+        return b.replace(/[\s\S]{1,3}/g, cb_encode);
+    };
+    var _encode = buffer ? function (u) {
+        return (u.constructor === buffer.constructor ? u : new buffer(u))
+        .toString('base64')
+    }
+    : function (u) { return btoa(utob(u)) }
+    ;
+    var encode = function(u, urisafe) {
+        return !urisafe
+            ? _encode(String(u))
+            : _encode(String(u)).replace(/[+\/]/g, function(m0) {
+                return m0 == '+' ? '-' : '_';
+            }).replace(/=/g, '');
+    };
+    var encodeURI = function(u) { return encode(u, true) };
+    // decoder stuff
+    var re_btou = new RegExp([
+        '[\xC0-\xDF][\x80-\xBF]',
+        '[\xE0-\xEF][\x80-\xBF]{2}',
+        '[\xF0-\xF7][\x80-\xBF]{3}'
+    ].join('|'), 'g');
+    var cb_btou = function(cccc) {
+        switch(cccc.length) {
+        case 4:
+            var cp = ((0x07 & cccc.charCodeAt(0)) << 18)
+                |    ((0x3f & cccc.charCodeAt(1)) << 12)
+                |    ((0x3f & cccc.charCodeAt(2)) <<  6)
+                |     (0x3f & cccc.charCodeAt(3)),
+            offset = cp - 0x10000;
+            return (fromCharCode((offset  >>> 10) + 0xD800)
+                    + fromCharCode((offset & 0x3FF) + 0xDC00));
+        case 3:
+            return fromCharCode(
+                ((0x0f & cccc.charCodeAt(0)) << 12)
+                    | ((0x3f & cccc.charCodeAt(1)) << 6)
+                    |  (0x3f & cccc.charCodeAt(2))
+            );
+        default:
+            return  fromCharCode(
+                ((0x1f & cccc.charCodeAt(0)) << 6)
+                    |  (0x3f & cccc.charCodeAt(1))
+            );
+        }
+    };
+    var btou = function(b) {
+        return b.replace(re_btou, cb_btou);
+    };
+    var cb_decode = function(cccc) {
+        var len = cccc.length,
+        padlen = len % 4,
+        n = (len > 0 ? b64tab[cccc.charAt(0)] << 18 : 0)
+            | (len > 1 ? b64tab[cccc.charAt(1)] << 12 : 0)
+            | (len > 2 ? b64tab[cccc.charAt(2)] <<  6 : 0)
+            | (len > 3 ? b64tab[cccc.charAt(3)]       : 0),
+        chars = [
+            fromCharCode( n >>> 16),
+            fromCharCode((n >>>  8) & 0xff),
+            fromCharCode( n         & 0xff)
+        ];
+        chars.length -= [0, 0, 2, 1][padlen];
+        return chars.join('');
+    };
+    var atob = global.atob ? function(a) {
+        return global.atob(a);
+    } : function(a){
+        return a.replace(/[\s\S]{1,4}/g, cb_decode);
+    };
+    var _decode = buffer ? function(a) {
+        return (a.constructor === buffer.constructor
+                ? a : new buffer(a, 'base64')).toString();
+    }
+    : function(a) { return btou(atob(a)) };
+    var decode = function(a){
+        return _decode(
+            String(a).replace(/[-_]/g, function(m0) { return m0 == '-' ? '+' : '/' })
+                .replace(/[^A-Za-z0-9\+\/]/g, '')
+        );
+    };
+    var noConflict = function() {
+        var Base64 = global.Base64;
+        global.Base64 = _Base64;
+        return Base64;
+    };
+    // export Base64
+    global.Base64 = {
+        VERSION: version,
+        atob: atob,
+        btoa: btoa,
+        fromBase64: decode,
+        toBase64: encode,
+        utob: utob,
+        encode: encode,
+        encodeURI: encodeURI,
+        btou: btou,
+        decode: decode,
+        noConflict: noConflict
+    };
+    // if ES5 is available, make Base64.extendString() available
+    if (typeof Object.defineProperty === 'function') {
+        var noEnum = function(v){
+            return {value:v,enumerable:false,writable:true,configurable:true};
+        };
+        global.Base64.extendString = function () {
+            Object.defineProperty(
+                String.prototype, 'fromBase64', noEnum(function () {
+                    return decode(this)
+                }));
+            Object.defineProperty(
+                String.prototype, 'toBase64', noEnum(function (urisafe) {
+                    return encode(this, urisafe)
+                }));
+            Object.defineProperty(
+                String.prototype, 'toBase64URI', noEnum(function () {
+                    return encode(this, true)
+                }));
+        };
+    }
+    // that's it!
+    if (global['Meteor']) {
+       Base64 = global.Base64; // for normal export in Meteor.js
+    }
+})(this);
+
+},{"buffer":38}],86:[function(require,module,exports){
+(function (__dirname){
+var fs = require('fs'),
+    path = require('path'),
+    existsSync = require('fs').existsSync || require('path').existsSync;
+
+// Load all stated versions into the module exports
+module.exports.version = {};
+
+var refs = [
+ '2.0.0',
+ '2.0.1',
+ '2.0.2',
+ '2.1.0',
+ '2.1.1',
+ '2.2.0',
+ '2.3.0',
+ '3.0.0'
+];
+
+refs.map(function(version) {
+    module.exports.version[version] = require(path.join(__dirname, version, 'reference.json'));
+    var ds_path = path.join(__dirname, version, 'datasources.json');
+    if (existsSync(ds_path)) {
+        module.exports.version[version].datasources = require(ds_path).datasources;
+    }
+});
+
+}).call(this,"/node_modules/mapnik-reference")
+},{"fs":37,"path":88}],87:[function(require,module,exports){
+/**
+ * Helpers.
+ */
+
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var y = d * 365.25;
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} options
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function(val, options){
+  options = options || {};
+  if ('string' == typeof val) return parse(val);
+  return options.long
+    ? long(val)
+    : short(val);
+};
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  str = '' + str;
+  if (str.length > 10000) return;
+  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str);
+  if (!match) return;
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y;
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h;
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m;
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s;
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n;
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function short(ms) {
+  if (ms >= d) return Math.round(ms / d) + 'd';
+  if (ms >= h) return Math.round(ms / h) + 'h';
+  if (ms >= m) return Math.round(ms / m) + 'm';
+  if (ms >= s) return Math.round(ms / s) + 's';
+  return ms + 'ms';
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function long(ms) {
+  return plural(ms, d, 'day')
+    || plural(ms, h, 'hour')
+    || plural(ms, m, 'minute')
+    || plural(ms, s, 'second')
+    || ms + ' ms';
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, n, name) {
+  if (ms < n) return;
+  if (ms < n * 1.5) return Math.floor(ms / n) + ' ' + name;
+  return Math.ceil(ms / n) + ' ' + name + 's';
+}
+
+},{}],88:[function(require,module,exports){
+(function (process){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// resolves . and .. elements in a path array with directory names there
+// must be no slashes, empty elements, or device names (c:\) in the array
+// (so also no leading and trailing slashes - it does not distinguish
+// relative and absolute paths)
+function normalizeArray(parts, allowAboveRoot) {
+  // if the path tries to go above the root, `up` ends up > 0
+  var up = 0;
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var last = parts[i];
+    if (last === '.') {
+      parts.splice(i, 1);
+    } else if (last === '..') {
+      parts.splice(i, 1);
+      up++;
+    } else if (up) {
+      parts.splice(i, 1);
+      up--;
+    }
+  }
+
+  // if the path is allowed to go above the root, restore leading ..s
+  if (allowAboveRoot) {
+    for (; up--; up) {
+      parts.unshift('..');
+    }
+  }
+
+  return parts;
+}
+
+// Split a filename into [root, dir, basename, ext], unix version
+// 'root' is just a slash, or nothing.
+var splitPathRe =
+    /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
+var splitPath = function(filename) {
+  return splitPathRe.exec(filename).slice(1);
+};
+
+// path.resolve([from ...], to)
+// posix version
+exports.resolve = function() {
+  var resolvedPath = '',
+      resolvedAbsolute = false;
+
+  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+    var path = (i >= 0) ? arguments[i] : process.cwd();
+
+    // Skip empty and invalid entries
+    if (typeof path !== 'string') {
+      throw new TypeError('Arguments to path.resolve must be strings');
+    } else if (!path) {
+      continue;
+    }
+
+    resolvedPath = path + '/' + resolvedPath;
+    resolvedAbsolute = path.charAt(0) === '/';
+  }
+
+  // At this point the path should be resolved to a full absolute path, but
+  // handle relative paths to be safe (might happen when process.cwd() fails)
+
+  // Normalize the path
+  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
+    return !!p;
+  }), !resolvedAbsolute).join('/');
+
+  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
+};
+
+// path.normalize(path)
+// posix version
+exports.normalize = function(path) {
+  var isAbsolute = exports.isAbsolute(path),
+      trailingSlash = substr(path, -1) === '/';
+
+  // Normalize the path
+  path = normalizeArray(filter(path.split('/'), function(p) {
+    return !!p;
+  }), !isAbsolute).join('/');
+
+  if (!path && !isAbsolute) {
+    path = '.';
+  }
+  if (path && trailingSlash) {
+    path += '/';
+  }
+
+  return (isAbsolute ? '/' : '') + path;
+};
+
+// posix version
+exports.isAbsolute = function(path) {
+  return path.charAt(0) === '/';
+};
+
+// posix version
+exports.join = function() {
+  var paths = Array.prototype.slice.call(arguments, 0);
+  return exports.normalize(filter(paths, function(p, index) {
+    if (typeof p !== 'string') {
+      throw new TypeError('Arguments to path.join must be strings');
+    }
+    return p;
+  }).join('/'));
+};
+
+
+// path.relative(from, to)
+// posix version
+exports.relative = function(from, to) {
+  from = exports.resolve(from).substr(1);
+  to = exports.resolve(to).substr(1);
+
+  function trim(arr) {
+    var start = 0;
+    for (; start < arr.length; start++) {
+      if (arr[start] !== '') break;
+    }
+
+    var end = arr.length - 1;
+    for (; end >= 0; end--) {
+      if (arr[end] !== '') break;
+    }
+
+    if (start > end) return [];
+    return arr.slice(start, end - start + 1);
+  }
+
+  var fromParts = trim(from.split('/'));
+  var toParts = trim(to.split('/'));
+
+  var length = Math.min(fromParts.length, toParts.length);
+  var samePartsLength = length;
+  for (var i = 0; i < length; i++) {
+    if (fromParts[i] !== toParts[i]) {
+      samePartsLength = i;
+      break;
+    }
+  }
+
+  var outputParts = [];
+  for (var i = samePartsLength; i < fromParts.length; i++) {
+    outputParts.push('..');
+  }
+
+  outputParts = outputParts.concat(toParts.slice(samePartsLength));
+
+  return outputParts.join('/');
+};
+
+exports.sep = '/';
+exports.delimiter = ':';
+
+exports.dirname = function(path) {
+  var result = splitPath(path),
+      root = result[0],
+      dir = result[1];
+
+  if (!root && !dir) {
+    // No dirname whatsoever
+    return '.';
+  }
+
+  if (dir) {
+    // It has a dirname, strip trailing slash
+    dir = dir.substr(0, dir.length - 1);
+  }
+
+  return root + dir;
+};
+
+
+exports.basename = function(path, ext) {
+  var f = splitPath(path)[2];
+  // TODO: make this comparison case-insensitive on windows?
+  if (ext && f.substr(-1 * ext.length) === ext) {
+    f = f.substr(0, f.length - ext.length);
+  }
+  return f;
+};
+
+
+exports.extname = function(path) {
+  return splitPath(path)[3];
+};
+
+function filter (xs, f) {
+    if (xs.filter) return xs.filter(f);
+    var res = [];
+    for (var i = 0; i < xs.length; i++) {
+        if (f(xs[i], i, xs)) res.push(xs[i]);
+    }
+    return res;
+}
+
+// String.prototype.substr - negative index don't work in IE8
+var substr = 'ab'.substr(-1) === 'b'
+    ? function (str, start, len) { return str.substr(start, len) }
+    : function (str, start, len) {
+        if (start < 0) start = str.length + start;
+        return str.substr(start, len);
+    }
+;
+
+}).call(this,require('_process'))
+},{"_process":118}],89:[function(require,module,exports){
 var parse = require('./parse');
 var walk = require('./walk');
 var stringify = require('./stringify');
@@ -28724,7 +28328,7 @@ ValueParser.stringify = stringify;
 
 module.exports = ValueParser;
 
-},{"./parse":93,"./stringify":94,"./unit":95,"./walk":96}],93:[function(require,module,exports){
+},{"./parse":90,"./stringify":91,"./unit":92,"./walk":93}],90:[function(require,module,exports){
 var openParentheses = '('.charCodeAt(0);
 var closeParentheses = ')'.charCodeAt(0);
 var singleQuote = '\''.charCodeAt(0);
@@ -28968,7 +28572,7 @@ module.exports = function (input) {
     return stack[0].nodes;
 };
 
-},{}],94:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 function stringifyNode(node, custom) {
     var type = node.type;
     var value = node.value;
@@ -29011,7 +28615,7 @@ function stringify(nodes, custom) {
 
 module.exports = stringify;
 
-},{}],95:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 var minus = '-'.charCodeAt(0);
 var plus  = '+'.charCodeAt(0);
 var dot   = '.'.charCodeAt(0);
@@ -29054,7 +28658,7 @@ module.exports = function (value) {
     } : false;
 };
 
-},{}],96:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 module.exports = function walk(nodes, cb, bubble) {
     var i, max, node, result;
 
@@ -29074,7 +28678,7 @@ module.exports = function walk(nodes, cb, bubble) {
     }
 };
 
-},{}],97:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -29172,7 +28776,7 @@ var AtRule = function (_Container) {
 
 exports.default = AtRule;
 module.exports = exports['default'];
-},{"./container":99,"./warn-once":119}],98:[function(require,module,exports){
+},{"./container":96,"./warn-once":116}],95:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -29246,7 +28850,7 @@ var Comment = function (_Node) {
 
 exports.default = Comment;
 module.exports = exports['default'];
-},{"./node":106,"./warn-once":119}],99:[function(require,module,exports){
+},{"./node":103,"./warn-once":116}],96:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -29818,7 +29422,7 @@ var Container = function (_Node) {
 
 exports.default = Container;
 module.exports = exports['default'];
-},{"./at-rule":97,"./comment":98,"./declaration":101,"./node":106,"./parse":107,"./root":113,"./rule":114,"./warn-once":119}],100:[function(require,module,exports){
+},{"./at-rule":94,"./comment":95,"./declaration":98,"./node":103,"./parse":104,"./root":110,"./rule":111,"./warn-once":116}],97:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -29914,7 +29518,7 @@ var CssSyntaxError = function () {
 
 exports.default = CssSyntaxError;
 module.exports = exports['default'];
-},{"./warn-once":119,"supports-color":133}],101:[function(require,module,exports){
+},{"./warn-once":116,"supports-color":131}],98:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -29988,7 +29592,7 @@ var Declaration = function (_Node) {
 
 exports.default = Declaration;
 module.exports = exports['default'];
-},{"./node":106,"./warn-once":119}],102:[function(require,module,exports){
+},{"./node":103,"./warn-once":116}],99:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -30093,7 +29697,7 @@ var Input = function () {
 
 exports.default = Input;
 module.exports = exports['default'];
-},{"./css-syntax-error":100,"./previous-map":110,"path":41}],103:[function(require,module,exports){
+},{"./css-syntax-error":97,"./previous-map":107,"path":88}],100:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -30368,7 +29972,7 @@ var LazyResult = function () {
 
 exports.default = LazyResult;
 module.exports = exports['default'];
-},{"./map-generator":105,"./parse":107,"./result":112,"./stringify":116,"./warn-once":119}],104:[function(require,module,exports){
+},{"./map-generator":102,"./parse":104,"./result":109,"./stringify":113,"./warn-once":116}],101:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -30427,7 +30031,7 @@ var list = {
 
 exports.default = list;
 module.exports = exports['default'];
-},{}],105:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -30717,7 +30321,7 @@ var _class = function () {
 
 exports.default = _class;
 module.exports = exports['default'];
-},{"js-base64":121,"path":41,"source-map":132}],106:[function(require,module,exports){
+},{"js-base64":85,"path":88,"source-map":130}],103:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -31049,7 +30653,7 @@ var Node = function () {
 
 exports.default = Node;
 module.exports = exports['default'];
-},{"./css-syntax-error":100,"./stringifier":115,"./stringify":116,"./warn-once":119}],107:[function(require,module,exports){
+},{"./css-syntax-error":97,"./stringifier":112,"./stringify":113,"./warn-once":116}],104:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -31080,7 +30684,7 @@ function parse(css, opts) {
     return parser.root;
 }
 module.exports = exports['default'];
-},{"./input":102,"./parser":108}],108:[function(require,module,exports){
+},{"./input":99,"./parser":105}],105:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -31583,7 +31187,7 @@ var Parser = function () {
 
 exports.default = Parser;
 module.exports = exports['default'];
-},{"./at-rule":97,"./comment":98,"./declaration":101,"./root":113,"./rule":114,"./tokenize":117}],109:[function(require,module,exports){
+},{"./at-rule":94,"./comment":95,"./declaration":98,"./root":110,"./rule":111,"./tokenize":114}],106:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -31679,7 +31283,7 @@ postcss.root = function (defaults) {
 
 exports.default = postcss;
 module.exports = exports['default'];
-},{"./at-rule":97,"./comment":98,"./declaration":101,"./list":104,"./parse":107,"./processor":111,"./root":113,"./rule":114,"./stringify":116,"./vendor":118}],110:[function(require,module,exports){
+},{"./at-rule":94,"./comment":95,"./declaration":98,"./list":101,"./parse":104,"./processor":108,"./root":110,"./rule":111,"./stringify":113,"./vendor":115}],107:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -31794,7 +31398,7 @@ var PreviousMap = function () {
 
 exports.default = PreviousMap;
 module.exports = exports['default'];
-},{"fs":35,"js-base64":121,"path":41,"source-map":132}],111:[function(require,module,exports){
+},{"fs":37,"js-base64":85,"path":88,"source-map":130}],108:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -31865,7 +31469,7 @@ var Processor = function () {
 
 exports.default = Processor;
 module.exports = exports['default'];
-},{"./lazy-result":103}],112:[function(require,module,exports){
+},{"./lazy-result":100}],109:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -31926,7 +31530,7 @@ var Result = function () {
 
 exports.default = Result;
 module.exports = exports['default'];
-},{"./warning":120}],113:[function(require,module,exports){
+},{"./warning":117}],110:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32035,7 +31639,7 @@ var Root = function (_Container) {
 
 exports.default = Root;
 module.exports = exports['default'];
-},{"./container":99,"./lazy-result":103,"./processor":111,"./warn-once":119}],114:[function(require,module,exports){
+},{"./container":96,"./lazy-result":100,"./processor":108,"./warn-once":116}],111:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32107,7 +31711,7 @@ var Rule = function (_Container) {
 
 exports.default = Rule;
 module.exports = exports['default'];
-},{"./container":99,"./list":104,"./warn-once":119}],115:[function(require,module,exports){
+},{"./container":96,"./list":101,"./warn-once":116}],112:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32442,7 +32046,7 @@ var Stringifier = function () {
 
 exports.default = Stringifier;
 module.exports = exports['default'];
-},{}],116:[function(require,module,exports){
+},{}],113:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32459,7 +32063,7 @@ function stringify(node, builder) {
     str.stringify(node);
 }
 module.exports = exports['default'];
-},{"./stringifier":115}],117:[function(require,module,exports){
+},{"./stringifier":112}],114:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32698,7 +32302,7 @@ function tokenize(input) {
     return tokens;
 }
 module.exports = exports['default'];
-},{}],118:[function(require,module,exports){
+},{}],115:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32721,7 +32325,7 @@ exports.default = {
     }
 };
 module.exports = exports['default'];
-},{}],119:[function(require,module,exports){
+},{}],116:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32737,7 +32341,7 @@ function warnOnce(message) {
     if (typeof console !== 'undefined' && console.warn) console.warn(message);
 }
 module.exports = exports['default'];
-},{}],120:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -32784,4678 +32388,95 @@ var Warning = function () {
 
 exports.default = Warning;
 module.exports = exports['default'];
-},{}],121:[function(require,module,exports){
-/*
- * $Id: base64.js,v 2.15 2014/04/05 12:58:57 dankogai Exp dankogai $
- *
- *  Licensed under the MIT license.
- *    http://opensource.org/licenses/mit-license
- *
- *  References:
- *    http://en.wikipedia.org/wiki/Base64
- */
+},{}],118:[function(require,module,exports){
+// shim for using process in browser
 
-(function(global) {
-    'use strict';
-    // existing version for noConflict()
-    var _Base64 = global.Base64;
-    var version = "2.1.9";
-    // if node.js, we use Buffer
-    var buffer;
-    if (typeof module !== 'undefined' && module.exports) {
-        try {
-            buffer = require('buffer').Buffer;
-        } catch (err) {}
-    }
-    // constants
-    var b64chars
-        = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    var b64tab = function(bin) {
-        var t = {};
-        for (var i = 0, l = bin.length; i < l; i++) t[bin.charAt(i)] = i;
-        return t;
-    }(b64chars);
-    var fromCharCode = String.fromCharCode;
-    // encoder stuff
-    var cb_utob = function(c) {
-        if (c.length < 2) {
-            var cc = c.charCodeAt(0);
-            return cc < 0x80 ? c
-                : cc < 0x800 ? (fromCharCode(0xc0 | (cc >>> 6))
-                                + fromCharCode(0x80 | (cc & 0x3f)))
-                : (fromCharCode(0xe0 | ((cc >>> 12) & 0x0f))
-                   + fromCharCode(0x80 | ((cc >>>  6) & 0x3f))
-                   + fromCharCode(0x80 | ( cc         & 0x3f)));
-        } else {
-            var cc = 0x10000
-                + (c.charCodeAt(0) - 0xD800) * 0x400
-                + (c.charCodeAt(1) - 0xDC00);
-            return (fromCharCode(0xf0 | ((cc >>> 18) & 0x07))
-                    + fromCharCode(0x80 | ((cc >>> 12) & 0x3f))
-                    + fromCharCode(0x80 | ((cc >>>  6) & 0x3f))
-                    + fromCharCode(0x80 | ( cc         & 0x3f)));
-        }
-    };
-    var re_utob = /[\uD800-\uDBFF][\uDC00-\uDFFFF]|[^\x00-\x7F]/g;
-    var utob = function(u) {
-        return u.replace(re_utob, cb_utob);
-    };
-    var cb_encode = function(ccc) {
-        var padlen = [0, 2, 1][ccc.length % 3],
-        ord = ccc.charCodeAt(0) << 16
-            | ((ccc.length > 1 ? ccc.charCodeAt(1) : 0) << 8)
-            | ((ccc.length > 2 ? ccc.charCodeAt(2) : 0)),
-        chars = [
-            b64chars.charAt( ord >>> 18),
-            b64chars.charAt((ord >>> 12) & 63),
-            padlen >= 2 ? '=' : b64chars.charAt((ord >>> 6) & 63),
-            padlen >= 1 ? '=' : b64chars.charAt(ord & 63)
-        ];
-        return chars.join('');
-    };
-    var btoa = global.btoa ? function(b) {
-        return global.btoa(b);
-    } : function(b) {
-        return b.replace(/[\s\S]{1,3}/g, cb_encode);
-    };
-    var _encode = buffer ? function (u) {
-        return (u.constructor === buffer.constructor ? u : new buffer(u))
-        .toString('base64')
-    }
-    : function (u) { return btoa(utob(u)) }
+var process = module.exports = {};
+
+process.nextTick = (function () {
+    var canSetImmediate = typeof window !== 'undefined'
+    && window.setImmediate;
+    var canMutationObserver = typeof window !== 'undefined'
+    && window.MutationObserver;
+    var canPost = typeof window !== 'undefined'
+    && window.postMessage && window.addEventListener
     ;
-    var encode = function(u, urisafe) {
-        return !urisafe
-            ? _encode(String(u))
-            : _encode(String(u)).replace(/[+\/]/g, function(m0) {
-                return m0 == '+' ? '-' : '_';
-            }).replace(/=/g, '');
-    };
-    var encodeURI = function(u) { return encode(u, true) };
-    // decoder stuff
-    var re_btou = new RegExp([
-        '[\xC0-\xDF][\x80-\xBF]',
-        '[\xE0-\xEF][\x80-\xBF]{2}',
-        '[\xF0-\xF7][\x80-\xBF]{3}'
-    ].join('|'), 'g');
-    var cb_btou = function(cccc) {
-        switch(cccc.length) {
-        case 4:
-            var cp = ((0x07 & cccc.charCodeAt(0)) << 18)
-                |    ((0x3f & cccc.charCodeAt(1)) << 12)
-                |    ((0x3f & cccc.charCodeAt(2)) <<  6)
-                |     (0x3f & cccc.charCodeAt(3)),
-            offset = cp - 0x10000;
-            return (fromCharCode((offset  >>> 10) + 0xD800)
-                    + fromCharCode((offset & 0x3FF) + 0xDC00));
-        case 3:
-            return fromCharCode(
-                ((0x0f & cccc.charCodeAt(0)) << 12)
-                    | ((0x3f & cccc.charCodeAt(1)) << 6)
-                    |  (0x3f & cccc.charCodeAt(2))
-            );
-        default:
-            return  fromCharCode(
-                ((0x1f & cccc.charCodeAt(0)) << 6)
-                    |  (0x3f & cccc.charCodeAt(1))
-            );
-        }
-    };
-    var btou = function(b) {
-        return b.replace(re_btou, cb_btou);
-    };
-    var cb_decode = function(cccc) {
-        var len = cccc.length,
-        padlen = len % 4,
-        n = (len > 0 ? b64tab[cccc.charAt(0)] << 18 : 0)
-            | (len > 1 ? b64tab[cccc.charAt(1)] << 12 : 0)
-            | (len > 2 ? b64tab[cccc.charAt(2)] <<  6 : 0)
-            | (len > 3 ? b64tab[cccc.charAt(3)]       : 0),
-        chars = [
-            fromCharCode( n >>> 16),
-            fromCharCode((n >>>  8) & 0xff),
-            fromCharCode( n         & 0xff)
-        ];
-        chars.length -= [0, 0, 2, 1][padlen];
-        return chars.join('');
-    };
-    var atob = global.atob ? function(a) {
-        return global.atob(a);
-    } : function(a){
-        return a.replace(/[\s\S]{1,4}/g, cb_decode);
-    };
-    var _decode = buffer ? function(a) {
-        return (a.constructor === buffer.constructor
-                ? a : new buffer(a, 'base64')).toString();
-    }
-    : function(a) { return btou(atob(a)) };
-    var decode = function(a){
-        return _decode(
-            String(a).replace(/[-_]/g, function(m0) { return m0 == '-' ? '+' : '/' })
-                .replace(/[^A-Za-z0-9\+\/]/g, '')
-        );
-    };
-    var noConflict = function() {
-        var Base64 = global.Base64;
-        global.Base64 = _Base64;
-        return Base64;
-    };
-    // export Base64
-    global.Base64 = {
-        VERSION: version,
-        atob: atob,
-        btoa: btoa,
-        fromBase64: decode,
-        toBase64: encode,
-        utob: utob,
-        encode: encode,
-        encodeURI: encodeURI,
-        btou: btou,
-        decode: decode,
-        noConflict: noConflict
-    };
-    // if ES5 is available, make Base64.extendString() available
-    if (typeof Object.defineProperty === 'function') {
-        var noEnum = function(v){
-            return {value:v,enumerable:false,writable:true,configurable:true};
-        };
-        global.Base64.extendString = function () {
-            Object.defineProperty(
-                String.prototype, 'fromBase64', noEnum(function () {
-                    return decode(this)
-                }));
-            Object.defineProperty(
-                String.prototype, 'toBase64', noEnum(function (urisafe) {
-                    return encode(this, urisafe)
-                }));
-            Object.defineProperty(
-                String.prototype, 'toBase64URI', noEnum(function () {
-                    return encode(this, true)
-                }));
-        };
-    }
-    // that's it!
-    if (global['Meteor']) {
-       Base64 = global.Base64; // for normal export in Meteor.js
-    }
-})(this);
 
-},{"buffer":37}],122:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-var util = require('./util');
-var has = Object.prototype.hasOwnProperty;
-
-/**
- * A data structure which is a combination of an array and a set. Adding a new
- * member is O(1), testing for membership is O(1), and finding the index of an
- * element is O(1). Removing elements from the set is not supported. Only
- * strings are supported for membership.
- */
-function ArraySet() {
-  this._array = [];
-  this._set = Object.create(null);
-}
-
-/**
- * Static method for creating ArraySet instances from an existing array.
- */
-ArraySet.fromArray = function ArraySet_fromArray(aArray, aAllowDuplicates) {
-  var set = new ArraySet();
-  for (var i = 0, len = aArray.length; i < len; i++) {
-    set.add(aArray[i], aAllowDuplicates);
-  }
-  return set;
-};
-
-/**
- * Return how many unique items are in this ArraySet. If duplicates have been
- * added, than those do not count towards the size.
- *
- * @returns Number
- */
-ArraySet.prototype.size = function ArraySet_size() {
-  return Object.getOwnPropertyNames(this._set).length;
-};
-
-/**
- * Add the given string to this set.
- *
- * @param String aStr
- */
-ArraySet.prototype.add = function ArraySet_add(aStr, aAllowDuplicates) {
-  var sStr = util.toSetString(aStr);
-  var isDuplicate = has.call(this._set, sStr);
-  var idx = this._array.length;
-  if (!isDuplicate || aAllowDuplicates) {
-    this._array.push(aStr);
-  }
-  if (!isDuplicate) {
-    this._set[sStr] = idx;
-  }
-};
-
-/**
- * Is the given string a member of this set?
- *
- * @param String aStr
- */
-ArraySet.prototype.has = function ArraySet_has(aStr) {
-  var sStr = util.toSetString(aStr);
-  return has.call(this._set, sStr);
-};
-
-/**
- * What is the index of the given string in the array?
- *
- * @param String aStr
- */
-ArraySet.prototype.indexOf = function ArraySet_indexOf(aStr) {
-  var sStr = util.toSetString(aStr);
-  if (has.call(this._set, sStr)) {
-    return this._set[sStr];
-  }
-  throw new Error('"' + aStr + '" is not in the set.');
-};
-
-/**
- * What is the element at the given index?
- *
- * @param Number aIdx
- */
-ArraySet.prototype.at = function ArraySet_at(aIdx) {
-  if (aIdx >= 0 && aIdx < this._array.length) {
-    return this._array[aIdx];
-  }
-  throw new Error('No element indexed by ' + aIdx);
-};
-
-/**
- * Returns the array representation of this set (which has the proper indices
- * indicated by indexOf). Note that this is a copy of the internal array used
- * for storing the members so that no one can mess with internal state.
- */
-ArraySet.prototype.toArray = function ArraySet_toArray() {
-  return this._array.slice();
-};
-
-exports.ArraySet = ArraySet;
-
-},{"./util":131}],123:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- *
- * Based on the Base 64 VLQ implementation in Closure Compiler:
- * https://code.google.com/p/closure-compiler/source/browse/trunk/src/com/google/debugging/sourcemap/Base64VLQ.java
- *
- * Copyright 2011 The Closure Compiler Authors. All rights reserved.
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
- *    disclaimer in the documentation and/or other materials provided
- *    with the distribution.
- *  * Neither the name of Google Inc. nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-var base64 = require('./base64');
-
-// A single base 64 digit can contain 6 bits of data. For the base 64 variable
-// length quantities we use in the source map spec, the first bit is the sign,
-// the next four bits are the actual value, and the 6th bit is the
-// continuation bit. The continuation bit tells us whether there are more
-// digits in this value following this digit.
-//
-//   Continuation
-//   |    Sign
-//   |    |
-//   V    V
-//   101011
-
-var VLQ_BASE_SHIFT = 5;
-
-// binary: 100000
-var VLQ_BASE = 1 << VLQ_BASE_SHIFT;
-
-// binary: 011111
-var VLQ_BASE_MASK = VLQ_BASE - 1;
-
-// binary: 100000
-var VLQ_CONTINUATION_BIT = VLQ_BASE;
-
-/**
- * Converts from a two-complement value to a value where the sign bit is
- * placed in the least significant bit.  For example, as decimals:
- *   1 becomes 2 (10 binary), -1 becomes 3 (11 binary)
- *   2 becomes 4 (100 binary), -2 becomes 5 (101 binary)
- */
-function toVLQSigned(aValue) {
-  return aValue < 0
-    ? ((-aValue) << 1) + 1
-    : (aValue << 1) + 0;
-}
-
-/**
- * Converts to a two-complement value from a value where the sign bit is
- * placed in the least significant bit.  For example, as decimals:
- *   2 (10 binary) becomes 1, 3 (11 binary) becomes -1
- *   4 (100 binary) becomes 2, 5 (101 binary) becomes -2
- */
-function fromVLQSigned(aValue) {
-  var isNegative = (aValue & 1) === 1;
-  var shifted = aValue >> 1;
-  return isNegative
-    ? -shifted
-    : shifted;
-}
-
-/**
- * Returns the base 64 VLQ encoded value.
- */
-exports.encode = function base64VLQ_encode(aValue) {
-  var encoded = "";
-  var digit;
-
-  var vlq = toVLQSigned(aValue);
-
-  do {
-    digit = vlq & VLQ_BASE_MASK;
-    vlq >>>= VLQ_BASE_SHIFT;
-    if (vlq > 0) {
-      // There are still more digits in this value, so we must make sure the
-      // continuation bit is marked.
-      digit |= VLQ_CONTINUATION_BIT;
-    }
-    encoded += base64.encode(digit);
-  } while (vlq > 0);
-
-  return encoded;
-};
-
-/**
- * Decodes the next base 64 VLQ value from the given string and returns the
- * value and the rest of the string via the out parameter.
- */
-exports.decode = function base64VLQ_decode(aStr, aIndex, aOutParam) {
-  var strLen = aStr.length;
-  var result = 0;
-  var shift = 0;
-  var continuation, digit;
-
-  do {
-    if (aIndex >= strLen) {
-      throw new Error("Expected more digits in base 64 VLQ value.");
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
     }
 
-    digit = base64.decode(aStr.charCodeAt(aIndex++));
-    if (digit === -1) {
-      throw new Error("Invalid base64 digit: " + aStr.charAt(aIndex - 1));
-    }
-
-    continuation = !!(digit & VLQ_CONTINUATION_BIT);
-    digit &= VLQ_BASE_MASK;
-    result = result + (digit << shift);
-    shift += VLQ_BASE_SHIFT;
-  } while (continuation);
-
-  aOutParam.value = fromVLQSigned(result);
-  aOutParam.rest = aIndex;
-};
-
-},{"./base64":124}],124:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-var intToCharMap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.split('');
-
-/**
- * Encode an integer in the range of 0 to 63 to a single base 64 digit.
- */
-exports.encode = function (number) {
-  if (0 <= number && number < intToCharMap.length) {
-    return intToCharMap[number];
-  }
-  throw new TypeError("Must be between 0 and 63: " + number);
-};
-
-/**
- * Decode a single base 64 character code digit to an integer. Returns -1 on
- * failure.
- */
-exports.decode = function (charCode) {
-  var bigA = 65;     // 'A'
-  var bigZ = 90;     // 'Z'
-
-  var littleA = 97;  // 'a'
-  var littleZ = 122; // 'z'
-
-  var zero = 48;     // '0'
-  var nine = 57;     // '9'
-
-  var plus = 43;     // '+'
-  var slash = 47;    // '/'
-
-  var littleOffset = 26;
-  var numberOffset = 52;
-
-  // 0 - 25: ABCDEFGHIJKLMNOPQRSTUVWXYZ
-  if (bigA <= charCode && charCode <= bigZ) {
-    return (charCode - bigA);
-  }
-
-  // 26 - 51: abcdefghijklmnopqrstuvwxyz
-  if (littleA <= charCode && charCode <= littleZ) {
-    return (charCode - littleA + littleOffset);
-  }
-
-  // 52 - 61: 0123456789
-  if (zero <= charCode && charCode <= nine) {
-    return (charCode - zero + numberOffset);
-  }
-
-  // 62: +
-  if (charCode == plus) {
-    return 62;
-  }
-
-  // 63: /
-  if (charCode == slash) {
-    return 63;
-  }
-
-  // Invalid base64 digit.
-  return -1;
-};
-
-},{}],125:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-exports.GREATEST_LOWER_BOUND = 1;
-exports.LEAST_UPPER_BOUND = 2;
-
-/**
- * Recursive implementation of binary search.
- *
- * @param aLow Indices here and lower do not contain the needle.
- * @param aHigh Indices here and higher do not contain the needle.
- * @param aNeedle The element being searched for.
- * @param aHaystack The non-empty array being searched.
- * @param aCompare Function which takes two elements and returns -1, 0, or 1.
- * @param aBias Either 'binarySearch.GREATEST_LOWER_BOUND' or
- *     'binarySearch.LEAST_UPPER_BOUND'. Specifies whether to return the
- *     closest element that is smaller than or greater than the one we are
- *     searching for, respectively, if the exact element cannot be found.
- */
-function recursiveSearch(aLow, aHigh, aNeedle, aHaystack, aCompare, aBias) {
-  // This function terminates when one of the following is true:
-  //
-  //   1. We find the exact element we are looking for.
-  //
-  //   2. We did not find the exact element, but we can return the index of
-  //      the next-closest element.
-  //
-  //   3. We did not find the exact element, and there is no next-closest
-  //      element than the one we are searching for, so we return -1.
-  var mid = Math.floor((aHigh - aLow) / 2) + aLow;
-  var cmp = aCompare(aNeedle, aHaystack[mid], true);
-  if (cmp === 0) {
-    // Found the element we are looking for.
-    return mid;
-  }
-  else if (cmp > 0) {
-    // Our needle is greater than aHaystack[mid].
-    if (aHigh - mid > 1) {
-      // The element is in the upper half.
-      return recursiveSearch(mid, aHigh, aNeedle, aHaystack, aCompare, aBias);
-    }
-
-    // The exact needle element was not found in this haystack. Determine if
-    // we are in termination case (3) or (2) and return the appropriate thing.
-    if (aBias == exports.LEAST_UPPER_BOUND) {
-      return aHigh < aHaystack.length ? aHigh : -1;
-    } else {
-      return mid;
-    }
-  }
-  else {
-    // Our needle is less than aHaystack[mid].
-    if (mid - aLow > 1) {
-      // The element is in the lower half.
-      return recursiveSearch(aLow, mid, aNeedle, aHaystack, aCompare, aBias);
-    }
-
-    // we are in termination case (3) or (2) and return the appropriate thing.
-    if (aBias == exports.LEAST_UPPER_BOUND) {
-      return mid;
-    } else {
-      return aLow < 0 ? -1 : aLow;
-    }
-  }
-}
-
-/**
- * This is an implementation of binary search which will always try and return
- * the index of the closest element if there is no exact hit. This is because
- * mappings between original and generated line/col pairs are single points,
- * and there is an implicit region between each of them, so a miss just means
- * that you aren't on the very start of a region.
- *
- * @param aNeedle The element you are looking for.
- * @param aHaystack The array that is being searched.
- * @param aCompare A function which takes the needle and an element in the
- *     array and returns -1, 0, or 1 depending on whether the needle is less
- *     than, equal to, or greater than the element, respectively.
- * @param aBias Either 'binarySearch.GREATEST_LOWER_BOUND' or
- *     'binarySearch.LEAST_UPPER_BOUND'. Specifies whether to return the
- *     closest element that is smaller than or greater than the one we are
- *     searching for, respectively, if the exact element cannot be found.
- *     Defaults to 'binarySearch.GREATEST_LOWER_BOUND'.
- */
-exports.search = function search(aNeedle, aHaystack, aCompare, aBias) {
-  if (aHaystack.length === 0) {
-    return -1;
-  }
-
-  var index = recursiveSearch(-1, aHaystack.length, aNeedle, aHaystack,
-                              aCompare, aBias || exports.GREATEST_LOWER_BOUND);
-  if (index < 0) {
-    return -1;
-  }
-
-  // We have found either the exact element, or the next-closest element than
-  // the one we are searching for. However, there may be more than one such
-  // element. Make sure we always return the smallest of these.
-  while (index - 1 >= 0) {
-    if (aCompare(aHaystack[index], aHaystack[index - 1], true) !== 0) {
-      break;
-    }
-    --index;
-  }
-
-  return index;
-};
-
-},{}],126:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2014 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-var util = require('./util');
-
-/**
- * Determine whether mappingB is after mappingA with respect to generated
- * position.
- */
-function generatedPositionAfter(mappingA, mappingB) {
-  // Optimized for most common case
-  var lineA = mappingA.generatedLine;
-  var lineB = mappingB.generatedLine;
-  var columnA = mappingA.generatedColumn;
-  var columnB = mappingB.generatedColumn;
-  return lineB > lineA || lineB == lineA && columnB >= columnA ||
-         util.compareByGeneratedPositionsInflated(mappingA, mappingB) <= 0;
-}
-
-/**
- * A data structure to provide a sorted view of accumulated mappings in a
- * performance conscious manner. It trades a neglibable overhead in general
- * case for a large speedup in case of mappings being added in order.
- */
-function MappingList() {
-  this._array = [];
-  this._sorted = true;
-  // Serves as infimum
-  this._last = {generatedLine: -1, generatedColumn: 0};
-}
-
-/**
- * Iterate through internal items. This method takes the same arguments that
- * `Array.prototype.forEach` takes.
- *
- * NOTE: The order of the mappings is NOT guaranteed.
- */
-MappingList.prototype.unsortedForEach =
-  function MappingList_forEach(aCallback, aThisArg) {
-    this._array.forEach(aCallback, aThisArg);
-  };
-
-/**
- * Add the given source mapping.
- *
- * @param Object aMapping
- */
-MappingList.prototype.add = function MappingList_add(aMapping) {
-  if (generatedPositionAfter(this._last, aMapping)) {
-    this._last = aMapping;
-    this._array.push(aMapping);
-  } else {
-    this._sorted = false;
-    this._array.push(aMapping);
-  }
-};
-
-/**
- * Returns the flat, sorted array of mappings. The mappings are sorted by
- * generated position.
- *
- * WARNING: This method returns internal data without copying, for
- * performance. The return value must NOT be mutated, and should be treated as
- * an immutable borrow. If you want to take ownership, you must make your own
- * copy.
- */
-MappingList.prototype.toArray = function MappingList_toArray() {
-  if (!this._sorted) {
-    this._array.sort(util.compareByGeneratedPositionsInflated);
-    this._sorted = true;
-  }
-  return this._array;
-};
-
-exports.MappingList = MappingList;
-
-},{"./util":131}],127:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-// It turns out that some (most?) JavaScript engines don't self-host
-// `Array.prototype.sort`. This makes sense because C++ will likely remain
-// faster than JS when doing raw CPU-intensive sorting. However, when using a
-// custom comparator function, calling back and forth between the VM's C++ and
-// JIT'd JS is rather slow *and* loses JIT type information, resulting in
-// worse generated code for the comparator function than would be optimal. In
-// fact, when sorting with a comparator, these costs outweigh the benefits of
-// sorting in C++. By using our own JS-implemented Quick Sort (below), we get
-// a ~3500ms mean speed-up in `bench/bench.html`.
-
-/**
- * Swap the elements indexed by `x` and `y` in the array `ary`.
- *
- * @param {Array} ary
- *        The array.
- * @param {Number} x
- *        The index of the first item.
- * @param {Number} y
- *        The index of the second item.
- */
-function swap(ary, x, y) {
-  var temp = ary[x];
-  ary[x] = ary[y];
-  ary[y] = temp;
-}
-
-/**
- * Returns a random integer within the range `low .. high` inclusive.
- *
- * @param {Number} low
- *        The lower bound on the range.
- * @param {Number} high
- *        The upper bound on the range.
- */
-function randomIntInRange(low, high) {
-  return Math.round(low + (Math.random() * (high - low)));
-}
-
-/**
- * The Quick Sort algorithm.
- *
- * @param {Array} ary
- *        An array to sort.
- * @param {function} comparator
- *        Function to use to compare two items.
- * @param {Number} p
- *        Start index of the array
- * @param {Number} r
- *        End index of the array
- */
-function doQuickSort(ary, comparator, p, r) {
-  // If our lower bound is less than our upper bound, we (1) partition the
-  // array into two pieces and (2) recurse on each half. If it is not, this is
-  // the empty array and our base case.
-
-  if (p < r) {
-    // (1) Partitioning.
-    //
-    // The partitioning chooses a pivot between `p` and `r` and moves all
-    // elements that are less than or equal to the pivot to the before it, and
-    // all the elements that are greater than it after it. The effect is that
-    // once partition is done, the pivot is in the exact place it will be when
-    // the array is put in sorted order, and it will not need to be moved
-    // again. This runs in O(n) time.
-
-    // Always choose a random pivot so that an input array which is reverse
-    // sorted does not cause O(n^2) running time.
-    var pivotIndex = randomIntInRange(p, r);
-    var i = p - 1;
-
-    swap(ary, pivotIndex, r);
-    var pivot = ary[r];
-
-    // Immediately after `j` is incremented in this loop, the following hold
-    // true:
-    //
-    //   * Every element in `ary[p .. i]` is less than or equal to the pivot.
-    //
-    //   * Every element in `ary[i+1 .. j-1]` is greater than the pivot.
-    for (var j = p; j < r; j++) {
-      if (comparator(ary[j], pivot) <= 0) {
-        i += 1;
-        swap(ary, i, j);
-      }
-    }
-
-    swap(ary, i + 1, j);
-    var q = i + 1;
-
-    // (2) Recurse on each half.
-
-    doQuickSort(ary, comparator, p, q - 1);
-    doQuickSort(ary, comparator, q + 1, r);
-  }
-}
-
-/**
- * Sort the given array in-place with the given comparator function.
- *
- * @param {Array} ary
- *        An array to sort.
- * @param {function} comparator
- *        Function to use to compare two items.
- */
-exports.quickSort = function (ary, comparator) {
-  doQuickSort(ary, comparator, 0, ary.length - 1);
-};
-
-},{}],128:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-var util = require('./util');
-var binarySearch = require('./binary-search');
-var ArraySet = require('./array-set').ArraySet;
-var base64VLQ = require('./base64-vlq');
-var quickSort = require('./quick-sort').quickSort;
-
-function SourceMapConsumer(aSourceMap) {
-  var sourceMap = aSourceMap;
-  if (typeof aSourceMap === 'string') {
-    sourceMap = JSON.parse(aSourceMap.replace(/^\)\]\}'/, ''));
-  }
-
-  return sourceMap.sections != null
-    ? new IndexedSourceMapConsumer(sourceMap)
-    : new BasicSourceMapConsumer(sourceMap);
-}
-
-SourceMapConsumer.fromSourceMap = function(aSourceMap) {
-  return BasicSourceMapConsumer.fromSourceMap(aSourceMap);
-}
-
-/**
- * The version of the source mapping spec that we are consuming.
- */
-SourceMapConsumer.prototype._version = 3;
-
-// `__generatedMappings` and `__originalMappings` are arrays that hold the
-// parsed mapping coordinates from the source map's "mappings" attribute. They
-// are lazily instantiated, accessed via the `_generatedMappings` and
-// `_originalMappings` getters respectively, and we only parse the mappings
-// and create these arrays once queried for a source location. We jump through
-// these hoops because there can be many thousands of mappings, and parsing
-// them is expensive, so we only want to do it if we must.
-//
-// Each object in the arrays is of the form:
-//
-//     {
-//       generatedLine: The line number in the generated code,
-//       generatedColumn: The column number in the generated code,
-//       source: The path to the original source file that generated this
-//               chunk of code,
-//       originalLine: The line number in the original source that
-//                     corresponds to this chunk of generated code,
-//       originalColumn: The column number in the original source that
-//                       corresponds to this chunk of generated code,
-//       name: The name of the original symbol which generated this chunk of
-//             code.
-//     }
-//
-// All properties except for `generatedLine` and `generatedColumn` can be
-// `null`.
-//
-// `_generatedMappings` is ordered by the generated positions.
-//
-// `_originalMappings` is ordered by the original positions.
-
-SourceMapConsumer.prototype.__generatedMappings = null;
-Object.defineProperty(SourceMapConsumer.prototype, '_generatedMappings', {
-  get: function () {
-    if (!this.__generatedMappings) {
-      this._parseMappings(this._mappings, this.sourceRoot);
-    }
-
-    return this.__generatedMappings;
-  }
-});
-
-SourceMapConsumer.prototype.__originalMappings = null;
-Object.defineProperty(SourceMapConsumer.prototype, '_originalMappings', {
-  get: function () {
-    if (!this.__originalMappings) {
-      this._parseMappings(this._mappings, this.sourceRoot);
-    }
-
-    return this.__originalMappings;
-  }
-});
-
-SourceMapConsumer.prototype._charIsMappingSeparator =
-  function SourceMapConsumer_charIsMappingSeparator(aStr, index) {
-    var c = aStr.charAt(index);
-    return c === ";" || c === ",";
-  };
-
-/**
- * Parse the mappings in a string in to a data structure which we can easily
- * query (the ordered arrays in the `this.__generatedMappings` and
- * `this.__originalMappings` properties).
- */
-SourceMapConsumer.prototype._parseMappings =
-  function SourceMapConsumer_parseMappings(aStr, aSourceRoot) {
-    throw new Error("Subclasses must implement _parseMappings");
-  };
-
-SourceMapConsumer.GENERATED_ORDER = 1;
-SourceMapConsumer.ORIGINAL_ORDER = 2;
-
-SourceMapConsumer.GREATEST_LOWER_BOUND = 1;
-SourceMapConsumer.LEAST_UPPER_BOUND = 2;
-
-/**
- * Iterate over each mapping between an original source/line/column and a
- * generated line/column in this source map.
- *
- * @param Function aCallback
- *        The function that is called with each mapping.
- * @param Object aContext
- *        Optional. If specified, this object will be the value of `this` every
- *        time that `aCallback` is called.
- * @param aOrder
- *        Either `SourceMapConsumer.GENERATED_ORDER` or
- *        `SourceMapConsumer.ORIGINAL_ORDER`. Specifies whether you want to
- *        iterate over the mappings sorted by the generated file's line/column
- *        order or the original's source/line/column order, respectively. Defaults to
- *        `SourceMapConsumer.GENERATED_ORDER`.
- */
-SourceMapConsumer.prototype.eachMapping =
-  function SourceMapConsumer_eachMapping(aCallback, aContext, aOrder) {
-    var context = aContext || null;
-    var order = aOrder || SourceMapConsumer.GENERATED_ORDER;
-
-    var mappings;
-    switch (order) {
-    case SourceMapConsumer.GENERATED_ORDER:
-      mappings = this._generatedMappings;
-      break;
-    case SourceMapConsumer.ORIGINAL_ORDER:
-      mappings = this._originalMappings;
-      break;
-    default:
-      throw new Error("Unknown order of iteration.");
-    }
-
-    var sourceRoot = this.sourceRoot;
-    mappings.map(function (mapping) {
-      var source = mapping.source === null ? null : this._sources.at(mapping.source);
-      if (source != null && sourceRoot != null) {
-        source = util.join(sourceRoot, source);
-      }
-      return {
-        source: source,
-        generatedLine: mapping.generatedLine,
-        generatedColumn: mapping.generatedColumn,
-        originalLine: mapping.originalLine,
-        originalColumn: mapping.originalColumn,
-        name: mapping.name === null ? null : this._names.at(mapping.name)
-      };
-    }, this).forEach(aCallback, context);
-  };
-
-/**
- * Returns all generated line and column information for the original source,
- * line, and column provided. If no column is provided, returns all mappings
- * corresponding to a either the line we are searching for or the next
- * closest line that has any mappings. Otherwise, returns all mappings
- * corresponding to the given line and either the column we are searching for
- * or the next closest column that has any offsets.
- *
- * The only argument is an object with the following properties:
- *
- *   - source: The filename of the original source.
- *   - line: The line number in the original source.
- *   - column: Optional. the column number in the original source.
- *
- * and an array of objects is returned, each with the following properties:
- *
- *   - line: The line number in the generated source, or null.
- *   - column: The column number in the generated source, or null.
- */
-SourceMapConsumer.prototype.allGeneratedPositionsFor =
-  function SourceMapConsumer_allGeneratedPositionsFor(aArgs) {
-    var line = util.getArg(aArgs, 'line');
-
-    // When there is no exact match, BasicSourceMapConsumer.prototype._findMapping
-    // returns the index of the closest mapping less than the needle. By
-    // setting needle.originalColumn to 0, we thus find the last mapping for
-    // the given line, provided such a mapping exists.
-    var needle = {
-      source: util.getArg(aArgs, 'source'),
-      originalLine: line,
-      originalColumn: util.getArg(aArgs, 'column', 0)
-    };
-
-    if (this.sourceRoot != null) {
-      needle.source = util.relative(this.sourceRoot, needle.source);
-    }
-    if (!this._sources.has(needle.source)) {
-      return [];
-    }
-    needle.source = this._sources.indexOf(needle.source);
-
-    var mappings = [];
-
-    var index = this._findMapping(needle,
-                                  this._originalMappings,
-                                  "originalLine",
-                                  "originalColumn",
-                                  util.compareByOriginalPositions,
-                                  binarySearch.LEAST_UPPER_BOUND);
-    if (index >= 0) {
-      var mapping = this._originalMappings[index];
-
-      if (aArgs.column === undefined) {
-        var originalLine = mapping.originalLine;
-
-        // Iterate until either we run out of mappings, or we run into
-        // a mapping for a different line than the one we found. Since
-        // mappings are sorted, this is guaranteed to find all mappings for
-        // the line we found.
-        while (mapping && mapping.originalLine === originalLine) {
-          mappings.push({
-            line: util.getArg(mapping, 'generatedLine', null),
-            column: util.getArg(mapping, 'generatedColumn', null),
-            lastColumn: util.getArg(mapping, 'lastGeneratedColumn', null)
-          });
-
-          mapping = this._originalMappings[++index];
-        }
-      } else {
-        var originalColumn = mapping.originalColumn;
-
-        // Iterate until either we run out of mappings, or we run into
-        // a mapping for a different line than the one we were searching for.
-        // Since mappings are sorted, this is guaranteed to find all mappings for
-        // the line we are searching for.
-        while (mapping &&
-               mapping.originalLine === line &&
-               mapping.originalColumn == originalColumn) {
-          mappings.push({
-            line: util.getArg(mapping, 'generatedLine', null),
-            column: util.getArg(mapping, 'generatedColumn', null),
-            lastColumn: util.getArg(mapping, 'lastGeneratedColumn', null)
-          });
-
-          mapping = this._originalMappings[++index];
-        }
-      }
-    }
-
-    return mappings;
-  };
-
-exports.SourceMapConsumer = SourceMapConsumer;
-
-/**
- * A BasicSourceMapConsumer instance represents a parsed source map which we can
- * query for information about the original file positions by giving it a file
- * position in the generated source.
- *
- * The only parameter is the raw source map (either as a JSON string, or
- * already parsed to an object). According to the spec, source maps have the
- * following attributes:
- *
- *   - version: Which version of the source map spec this map is following.
- *   - sources: An array of URLs to the original source files.
- *   - names: An array of identifiers which can be referrenced by individual mappings.
- *   - sourceRoot: Optional. The URL root from which all sources are relative.
- *   - sourcesContent: Optional. An array of contents of the original source files.
- *   - mappings: A string of base64 VLQs which contain the actual mappings.
- *   - file: Optional. The generated file this source map is associated with.
- *
- * Here is an example source map, taken from the source map spec[0]:
- *
- *     {
- *       version : 3,
- *       file: "out.js",
- *       sourceRoot : "",
- *       sources: ["foo.js", "bar.js"],
- *       names: ["src", "maps", "are", "fun"],
- *       mappings: "AA,AB;;ABCDE;"
- *     }
- *
- * [0]: https://docs.google.com/document/d/1U1RGAehQwRypUTovF1KRlpiOFze0b-_2gc6fAH0KY0k/edit?pli=1#
- */
-function BasicSourceMapConsumer(aSourceMap) {
-  var sourceMap = aSourceMap;
-  if (typeof aSourceMap === 'string') {
-    sourceMap = JSON.parse(aSourceMap.replace(/^\)\]\}'/, ''));
-  }
-
-  var version = util.getArg(sourceMap, 'version');
-  var sources = util.getArg(sourceMap, 'sources');
-  // Sass 3.3 leaves out the 'names' array, so we deviate from the spec (which
-  // requires the array) to play nice here.
-  var names = util.getArg(sourceMap, 'names', []);
-  var sourceRoot = util.getArg(sourceMap, 'sourceRoot', null);
-  var sourcesContent = util.getArg(sourceMap, 'sourcesContent', null);
-  var mappings = util.getArg(sourceMap, 'mappings');
-  var file = util.getArg(sourceMap, 'file', null);
-
-  // Once again, Sass deviates from the spec and supplies the version as a
-  // string rather than a number, so we use loose equality checking here.
-  if (version != this._version) {
-    throw new Error('Unsupported version: ' + version);
-  }
-
-  sources = sources
-    .map(String)
-    // Some source maps produce relative source paths like "./foo.js" instead of
-    // "foo.js".  Normalize these first so that future comparisons will succeed.
-    // See bugzil.la/1090768.
-    .map(util.normalize)
-    // Always ensure that absolute sources are internally stored relative to
-    // the source root, if the source root is absolute. Not doing this would
-    // be particularly problematic when the source root is a prefix of the
-    // source (valid, but why??). See github issue #199 and bugzil.la/1188982.
-    .map(function (source) {
-      return sourceRoot && util.isAbsolute(sourceRoot) && util.isAbsolute(source)
-        ? util.relative(sourceRoot, source)
-        : source;
-    });
-
-  // Pass `true` below to allow duplicate names and sources. While source maps
-  // are intended to be compressed and deduplicated, the TypeScript compiler
-  // sometimes generates source maps with duplicates in them. See Github issue
-  // #72 and bugzil.la/889492.
-  this._names = ArraySet.fromArray(names.map(String), true);
-  this._sources = ArraySet.fromArray(sources, true);
-
-  this.sourceRoot = sourceRoot;
-  this.sourcesContent = sourcesContent;
-  this._mappings = mappings;
-  this.file = file;
-}
-
-BasicSourceMapConsumer.prototype = Object.create(SourceMapConsumer.prototype);
-BasicSourceMapConsumer.prototype.consumer = SourceMapConsumer;
-
-/**
- * Create a BasicSourceMapConsumer from a SourceMapGenerator.
- *
- * @param SourceMapGenerator aSourceMap
- *        The source map that will be consumed.
- * @returns BasicSourceMapConsumer
- */
-BasicSourceMapConsumer.fromSourceMap =
-  function SourceMapConsumer_fromSourceMap(aSourceMap) {
-    var smc = Object.create(BasicSourceMapConsumer.prototype);
-
-    var names = smc._names = ArraySet.fromArray(aSourceMap._names.toArray(), true);
-    var sources = smc._sources = ArraySet.fromArray(aSourceMap._sources.toArray(), true);
-    smc.sourceRoot = aSourceMap._sourceRoot;
-    smc.sourcesContent = aSourceMap._generateSourcesContent(smc._sources.toArray(),
-                                                            smc.sourceRoot);
-    smc.file = aSourceMap._file;
-
-    // Because we are modifying the entries (by converting string sources and
-    // names to indices into the sources and names ArraySets), we have to make
-    // a copy of the entry or else bad things happen. Shared mutable state
-    // strikes again! See github issue #191.
-
-    var generatedMappings = aSourceMap._mappings.toArray().slice();
-    var destGeneratedMappings = smc.__generatedMappings = [];
-    var destOriginalMappings = smc.__originalMappings = [];
-
-    for (var i = 0, length = generatedMappings.length; i < length; i++) {
-      var srcMapping = generatedMappings[i];
-      var destMapping = new Mapping;
-      destMapping.generatedLine = srcMapping.generatedLine;
-      destMapping.generatedColumn = srcMapping.generatedColumn;
-
-      if (srcMapping.source) {
-        destMapping.source = sources.indexOf(srcMapping.source);
-        destMapping.originalLine = srcMapping.originalLine;
-        destMapping.originalColumn = srcMapping.originalColumn;
-
-        if (srcMapping.name) {
-          destMapping.name = names.indexOf(srcMapping.name);
-        }
-
-        destOriginalMappings.push(destMapping);
-      }
-
-      destGeneratedMappings.push(destMapping);
-    }
-
-    quickSort(smc.__originalMappings, util.compareByOriginalPositions);
-
-    return smc;
-  };
-
-/**
- * The version of the source mapping spec that we are consuming.
- */
-BasicSourceMapConsumer.prototype._version = 3;
-
-/**
- * The list of original sources.
- */
-Object.defineProperty(BasicSourceMapConsumer.prototype, 'sources', {
-  get: function () {
-    return this._sources.toArray().map(function (s) {
-      return this.sourceRoot != null ? util.join(this.sourceRoot, s) : s;
-    }, this);
-  }
-});
-
-/**
- * Provide the JIT with a nice shape / hidden class.
- */
-function Mapping() {
-  this.generatedLine = 0;
-  this.generatedColumn = 0;
-  this.source = null;
-  this.originalLine = null;
-  this.originalColumn = null;
-  this.name = null;
-}
-
-/**
- * Parse the mappings in a string in to a data structure which we can easily
- * query (the ordered arrays in the `this.__generatedMappings` and
- * `this.__originalMappings` properties).
- */
-BasicSourceMapConsumer.prototype._parseMappings =
-  function SourceMapConsumer_parseMappings(aStr, aSourceRoot) {
-    var generatedLine = 1;
-    var previousGeneratedColumn = 0;
-    var previousOriginalLine = 0;
-    var previousOriginalColumn = 0;
-    var previousSource = 0;
-    var previousName = 0;
-    var length = aStr.length;
-    var index = 0;
-    var cachedSegments = {};
-    var temp = {};
-    var originalMappings = [];
-    var generatedMappings = [];
-    var mapping, str, segment, end, value;
-
-    while (index < length) {
-      if (aStr.charAt(index) === ';') {
-        generatedLine++;
-        index++;
-        previousGeneratedColumn = 0;
-      }
-      else if (aStr.charAt(index) === ',') {
-        index++;
-      }
-      else {
-        mapping = new Mapping();
-        mapping.generatedLine = generatedLine;
-
-        // Because each offset is encoded relative to the previous one,
-        // many segments often have the same encoding. We can exploit this
-        // fact by caching the parsed variable length fields of each segment,
-        // allowing us to avoid a second parse if we encounter the same
-        // segment again.
-        for (end = index; end < length; end++) {
-          if (this._charIsMappingSeparator(aStr, end)) {
-            break;
-          }
-        }
-        str = aStr.slice(index, end);
-
-        segment = cachedSegments[str];
-        if (segment) {
-          index += str.length;
-        } else {
-          segment = [];
-          while (index < end) {
-            base64VLQ.decode(aStr, index, temp);
-            value = temp.value;
-            index = temp.rest;
-            segment.push(value);
-          }
-
-          if (segment.length === 2) {
-            throw new Error('Found a source, but no line and column');
-          }
-
-          if (segment.length === 3) {
-            throw new Error('Found a source and line, but no column');
-          }
-
-          cachedSegments[str] = segment;
-        }
-
-        // Generated column.
-        mapping.generatedColumn = previousGeneratedColumn + segment[0];
-        previousGeneratedColumn = mapping.generatedColumn;
-
-        if (segment.length > 1) {
-          // Original source.
-          mapping.source = previousSource + segment[1];
-          previousSource += segment[1];
-
-          // Original line.
-          mapping.originalLine = previousOriginalLine + segment[2];
-          previousOriginalLine = mapping.originalLine;
-          // Lines are stored 0-based
-          mapping.originalLine += 1;
-
-          // Original column.
-          mapping.originalColumn = previousOriginalColumn + segment[3];
-          previousOriginalColumn = mapping.originalColumn;
-
-          if (segment.length > 4) {
-            // Original name.
-            mapping.name = previousName + segment[4];
-            previousName += segment[4];
-          }
-        }
-
-        generatedMappings.push(mapping);
-        if (typeof mapping.originalLine === 'number') {
-          originalMappings.push(mapping);
-        }
-      }
-    }
-
-    quickSort(generatedMappings, util.compareByGeneratedPositionsDeflated);
-    this.__generatedMappings = generatedMappings;
-
-    quickSort(originalMappings, util.compareByOriginalPositions);
-    this.__originalMappings = originalMappings;
-  };
-
-/**
- * Find the mapping that best matches the hypothetical "needle" mapping that
- * we are searching for in the given "haystack" of mappings.
- */
-BasicSourceMapConsumer.prototype._findMapping =
-  function SourceMapConsumer_findMapping(aNeedle, aMappings, aLineName,
-                                         aColumnName, aComparator, aBias) {
-    // To return the position we are searching for, we must first find the
-    // mapping for the given position and then return the opposite position it
-    // points to. Because the mappings are sorted, we can use binary search to
-    // find the best mapping.
-
-    if (aNeedle[aLineName] <= 0) {
-      throw new TypeError('Line must be greater than or equal to 1, got '
-                          + aNeedle[aLineName]);
-    }
-    if (aNeedle[aColumnName] < 0) {
-      throw new TypeError('Column must be greater than or equal to 0, got '
-                          + aNeedle[aColumnName]);
-    }
-
-    return binarySearch.search(aNeedle, aMappings, aComparator, aBias);
-  };
-
-/**
- * Compute the last column for each generated mapping. The last column is
- * inclusive.
- */
-BasicSourceMapConsumer.prototype.computeColumnSpans =
-  function SourceMapConsumer_computeColumnSpans() {
-    for (var index = 0; index < this._generatedMappings.length; ++index) {
-      var mapping = this._generatedMappings[index];
-
-      // Mappings do not contain a field for the last generated columnt. We
-      // can come up with an optimistic estimate, however, by assuming that
-      // mappings are contiguous (i.e. given two consecutive mappings, the
-      // first mapping ends where the second one starts).
-      if (index + 1 < this._generatedMappings.length) {
-        var nextMapping = this._generatedMappings[index + 1];
-
-        if (mapping.generatedLine === nextMapping.generatedLine) {
-          mapping.lastGeneratedColumn = nextMapping.generatedColumn - 1;
-          continue;
-        }
-      }
-
-      // The last mapping for each line spans the entire line.
-      mapping.lastGeneratedColumn = Infinity;
-    }
-  };
-
-/**
- * Returns the original source, line, and column information for the generated
- * source's line and column positions provided. The only argument is an object
- * with the following properties:
- *
- *   - line: The line number in the generated source.
- *   - column: The column number in the generated source.
- *   - bias: Either 'SourceMapConsumer.GREATEST_LOWER_BOUND' or
- *     'SourceMapConsumer.LEAST_UPPER_BOUND'. Specifies whether to return the
- *     closest element that is smaller than or greater than the one we are
- *     searching for, respectively, if the exact element cannot be found.
- *     Defaults to 'SourceMapConsumer.GREATEST_LOWER_BOUND'.
- *
- * and an object is returned with the following properties:
- *
- *   - source: The original source file, or null.
- *   - line: The line number in the original source, or null.
- *   - column: The column number in the original source, or null.
- *   - name: The original identifier, or null.
- */
-BasicSourceMapConsumer.prototype.originalPositionFor =
-  function SourceMapConsumer_originalPositionFor(aArgs) {
-    var needle = {
-      generatedLine: util.getArg(aArgs, 'line'),
-      generatedColumn: util.getArg(aArgs, 'column')
-    };
-
-    var index = this._findMapping(
-      needle,
-      this._generatedMappings,
-      "generatedLine",
-      "generatedColumn",
-      util.compareByGeneratedPositionsDeflated,
-      util.getArg(aArgs, 'bias', SourceMapConsumer.GREATEST_LOWER_BOUND)
-    );
-
-    if (index >= 0) {
-      var mapping = this._generatedMappings[index];
-
-      if (mapping.generatedLine === needle.generatedLine) {
-        var source = util.getArg(mapping, 'source', null);
-        if (source !== null) {
-          source = this._sources.at(source);
-          if (this.sourceRoot != null) {
-            source = util.join(this.sourceRoot, source);
-          }
-        }
-        var name = util.getArg(mapping, 'name', null);
-        if (name !== null) {
-          name = this._names.at(name);
-        }
-        return {
-          source: source,
-          line: util.getArg(mapping, 'originalLine', null),
-          column: util.getArg(mapping, 'originalColumn', null),
-          name: name
-        };
-      }
-    }
-
-    return {
-      source: null,
-      line: null,
-      column: null,
-      name: null
-    };
-  };
-
-/**
- * Return true if we have the source content for every source in the source
- * map, false otherwise.
- */
-BasicSourceMapConsumer.prototype.hasContentsOfAllSources =
-  function BasicSourceMapConsumer_hasContentsOfAllSources() {
-    if (!this.sourcesContent) {
-      return false;
-    }
-    return this.sourcesContent.length >= this._sources.size() &&
-      !this.sourcesContent.some(function (sc) { return sc == null; });
-  };
-
-/**
- * Returns the original source content. The only argument is the url of the
- * original source file. Returns null if no original source content is
- * available.
- */
-BasicSourceMapConsumer.prototype.sourceContentFor =
-  function SourceMapConsumer_sourceContentFor(aSource, nullOnMissing) {
-    if (!this.sourcesContent) {
-      return null;
-    }
-
-    if (this.sourceRoot != null) {
-      aSource = util.relative(this.sourceRoot, aSource);
-    }
-
-    if (this._sources.has(aSource)) {
-      return this.sourcesContent[this._sources.indexOf(aSource)];
-    }
-
-    var url;
-    if (this.sourceRoot != null
-        && (url = util.urlParse(this.sourceRoot))) {
-      // XXX: file:// URIs and absolute paths lead to unexpected behavior for
-      // many users. We can help them out when they expect file:// URIs to
-      // behave like it would if they were running a local HTTP server. See
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=885597.
-      var fileUriAbsPath = aSource.replace(/^file:\/\//, "");
-      if (url.scheme == "file"
-          && this._sources.has(fileUriAbsPath)) {
-        return this.sourcesContent[this._sources.indexOf(fileUriAbsPath)]
-      }
-
-      if ((!url.path || url.path == "/")
-          && this._sources.has("/" + aSource)) {
-        return this.sourcesContent[this._sources.indexOf("/" + aSource)];
-      }
-    }
-
-    // This function is used recursively from
-    // IndexedSourceMapConsumer.prototype.sourceContentFor. In that case, we
-    // don't want to throw if we can't find the source - we just want to
-    // return null, so we provide a flag to exit gracefully.
-    if (nullOnMissing) {
-      return null;
-    }
-    else {
-      throw new Error('"' + aSource + '" is not in the SourceMap.');
-    }
-  };
-
-/**
- * Returns the generated line and column information for the original source,
- * line, and column positions provided. The only argument is an object with
- * the following properties:
- *
- *   - source: The filename of the original source.
- *   - line: The line number in the original source.
- *   - column: The column number in the original source.
- *   - bias: Either 'SourceMapConsumer.GREATEST_LOWER_BOUND' or
- *     'SourceMapConsumer.LEAST_UPPER_BOUND'. Specifies whether to return the
- *     closest element that is smaller than or greater than the one we are
- *     searching for, respectively, if the exact element cannot be found.
- *     Defaults to 'SourceMapConsumer.GREATEST_LOWER_BOUND'.
- *
- * and an object is returned with the following properties:
- *
- *   - line: The line number in the generated source, or null.
- *   - column: The column number in the generated source, or null.
- */
-BasicSourceMapConsumer.prototype.generatedPositionFor =
-  function SourceMapConsumer_generatedPositionFor(aArgs) {
-    var source = util.getArg(aArgs, 'source');
-    if (this.sourceRoot != null) {
-      source = util.relative(this.sourceRoot, source);
-    }
-    if (!this._sources.has(source)) {
-      return {
-        line: null,
-        column: null,
-        lastColumn: null
-      };
-    }
-    source = this._sources.indexOf(source);
-
-    var needle = {
-      source: source,
-      originalLine: util.getArg(aArgs, 'line'),
-      originalColumn: util.getArg(aArgs, 'column')
-    };
-
-    var index = this._findMapping(
-      needle,
-      this._originalMappings,
-      "originalLine",
-      "originalColumn",
-      util.compareByOriginalPositions,
-      util.getArg(aArgs, 'bias', SourceMapConsumer.GREATEST_LOWER_BOUND)
-    );
-
-    if (index >= 0) {
-      var mapping = this._originalMappings[index];
-
-      if (mapping.source === needle.source) {
-        return {
-          line: util.getArg(mapping, 'generatedLine', null),
-          column: util.getArg(mapping, 'generatedColumn', null),
-          lastColumn: util.getArg(mapping, 'lastGeneratedColumn', null)
-        };
-      }
-    }
-
-    return {
-      line: null,
-      column: null,
-      lastColumn: null
-    };
-  };
-
-exports.BasicSourceMapConsumer = BasicSourceMapConsumer;
-
-/**
- * An IndexedSourceMapConsumer instance represents a parsed source map which
- * we can query for information. It differs from BasicSourceMapConsumer in
- * that it takes "indexed" source maps (i.e. ones with a "sections" field) as
- * input.
- *
- * The only parameter is a raw source map (either as a JSON string, or already
- * parsed to an object). According to the spec for indexed source maps, they
- * have the following attributes:
- *
- *   - version: Which version of the source map spec this map is following.
- *   - file: Optional. The generated file this source map is associated with.
- *   - sections: A list of section definitions.
- *
- * Each value under the "sections" field has two fields:
- *   - offset: The offset into the original specified at which this section
- *       begins to apply, defined as an object with a "line" and "column"
- *       field.
- *   - map: A source map definition. This source map could also be indexed,
- *       but doesn't have to be.
- *
- * Instead of the "map" field, it's also possible to have a "url" field
- * specifying a URL to retrieve a source map from, but that's currently
- * unsupported.
- *
- * Here's an example source map, taken from the source map spec[0], but
- * modified to omit a section which uses the "url" field.
- *
- *  {
- *    version : 3,
- *    file: "app.js",
- *    sections: [{
- *      offset: {line:100, column:10},
- *      map: {
- *        version : 3,
- *        file: "section.js",
- *        sources: ["foo.js", "bar.js"],
- *        names: ["src", "maps", "are", "fun"],
- *        mappings: "AAAA,E;;ABCDE;"
- *      }
- *    }],
- *  }
- *
- * [0]: https://docs.google.com/document/d/1U1RGAehQwRypUTovF1KRlpiOFze0b-_2gc6fAH0KY0k/edit#heading=h.535es3xeprgt
- */
-function IndexedSourceMapConsumer(aSourceMap) {
-  var sourceMap = aSourceMap;
-  if (typeof aSourceMap === 'string') {
-    sourceMap = JSON.parse(aSourceMap.replace(/^\)\]\}'/, ''));
-  }
-
-  var version = util.getArg(sourceMap, 'version');
-  var sections = util.getArg(sourceMap, 'sections');
-
-  if (version != this._version) {
-    throw new Error('Unsupported version: ' + version);
-  }
-
-  this._sources = new ArraySet();
-  this._names = new ArraySet();
-
-  var lastOffset = {
-    line: -1,
-    column: 0
-  };
-  this._sections = sections.map(function (s) {
-    if (s.url) {
-      // The url field will require support for asynchronicity.
-      // See https://github.com/mozilla/source-map/issues/16
-      throw new Error('Support for url field in sections not implemented.');
-    }
-    var offset = util.getArg(s, 'offset');
-    var offsetLine = util.getArg(offset, 'line');
-    var offsetColumn = util.getArg(offset, 'column');
-
-    if (offsetLine < lastOffset.line ||
-        (offsetLine === lastOffset.line && offsetColumn < lastOffset.column)) {
-      throw new Error('Section offsets must be ordered and non-overlapping.');
-    }
-    lastOffset = offset;
-
-    return {
-      generatedOffset: {
-        // The offset fields are 0-based, but we use 1-based indices when
-        // encoding/decoding from VLQ.
-        generatedLine: offsetLine + 1,
-        generatedColumn: offsetColumn + 1
-      },
-      consumer: new SourceMapConsumer(util.getArg(s, 'map'))
-    }
-  });
-}
-
-IndexedSourceMapConsumer.prototype = Object.create(SourceMapConsumer.prototype);
-IndexedSourceMapConsumer.prototype.constructor = SourceMapConsumer;
-
-/**
- * The version of the source mapping spec that we are consuming.
- */
-IndexedSourceMapConsumer.prototype._version = 3;
-
-/**
- * The list of original sources.
- */
-Object.defineProperty(IndexedSourceMapConsumer.prototype, 'sources', {
-  get: function () {
-    var sources = [];
-    for (var i = 0; i < this._sections.length; i++) {
-      for (var j = 0; j < this._sections[i].consumer.sources.length; j++) {
-        sources.push(this._sections[i].consumer.sources[j]);
-      }
-    }
-    return sources;
-  }
-});
-
-/**
- * Returns the original source, line, and column information for the generated
- * source's line and column positions provided. The only argument is an object
- * with the following properties:
- *
- *   - line: The line number in the generated source.
- *   - column: The column number in the generated source.
- *
- * and an object is returned with the following properties:
- *
- *   - source: The original source file, or null.
- *   - line: The line number in the original source, or null.
- *   - column: The column number in the original source, or null.
- *   - name: The original identifier, or null.
- */
-IndexedSourceMapConsumer.prototype.originalPositionFor =
-  function IndexedSourceMapConsumer_originalPositionFor(aArgs) {
-    var needle = {
-      generatedLine: util.getArg(aArgs, 'line'),
-      generatedColumn: util.getArg(aArgs, 'column')
-    };
-
-    // Find the section containing the generated position we're trying to map
-    // to an original position.
-    var sectionIndex = binarySearch.search(needle, this._sections,
-      function(needle, section) {
-        var cmp = needle.generatedLine - section.generatedOffset.generatedLine;
-        if (cmp) {
-          return cmp;
-        }
-
-        return (needle.generatedColumn -
-                section.generatedOffset.generatedColumn);
-      });
-    var section = this._sections[sectionIndex];
-
-    if (!section) {
-      return {
-        source: null,
-        line: null,
-        column: null,
-        name: null
-      };
-    }
-
-    return section.consumer.originalPositionFor({
-      line: needle.generatedLine -
-        (section.generatedOffset.generatedLine - 1),
-      column: needle.generatedColumn -
-        (section.generatedOffset.generatedLine === needle.generatedLine
-         ? section.generatedOffset.generatedColumn - 1
-         : 0),
-      bias: aArgs.bias
-    });
-  };
-
-/**
- * Return true if we have the source content for every source in the source
- * map, false otherwise.
- */
-IndexedSourceMapConsumer.prototype.hasContentsOfAllSources =
-  function IndexedSourceMapConsumer_hasContentsOfAllSources() {
-    return this._sections.every(function (s) {
-      return s.consumer.hasContentsOfAllSources();
-    });
-  };
-
-/**
- * Returns the original source content. The only argument is the url of the
- * original source file. Returns null if no original source content is
- * available.
- */
-IndexedSourceMapConsumer.prototype.sourceContentFor =
-  function IndexedSourceMapConsumer_sourceContentFor(aSource, nullOnMissing) {
-    for (var i = 0; i < this._sections.length; i++) {
-      var section = this._sections[i];
-
-      var content = section.consumer.sourceContentFor(aSource, true);
-      if (content) {
-        return content;
-      }
-    }
-    if (nullOnMissing) {
-      return null;
-    }
-    else {
-      throw new Error('"' + aSource + '" is not in the SourceMap.');
-    }
-  };
-
-/**
- * Returns the generated line and column information for the original source,
- * line, and column positions provided. The only argument is an object with
- * the following properties:
- *
- *   - source: The filename of the original source.
- *   - line: The line number in the original source.
- *   - column: The column number in the original source.
- *
- * and an object is returned with the following properties:
- *
- *   - line: The line number in the generated source, or null.
- *   - column: The column number in the generated source, or null.
- */
-IndexedSourceMapConsumer.prototype.generatedPositionFor =
-  function IndexedSourceMapConsumer_generatedPositionFor(aArgs) {
-    for (var i = 0; i < this._sections.length; i++) {
-      var section = this._sections[i];
-
-      // Only consider this section if the requested source is in the list of
-      // sources of the consumer.
-      if (section.consumer.sources.indexOf(util.getArg(aArgs, 'source')) === -1) {
-        continue;
-      }
-      var generatedPosition = section.consumer.generatedPositionFor(aArgs);
-      if (generatedPosition) {
-        var ret = {
-          line: generatedPosition.line +
-            (section.generatedOffset.generatedLine - 1),
-          column: generatedPosition.column +
-            (section.generatedOffset.generatedLine === generatedPosition.line
-             ? section.generatedOffset.generatedColumn - 1
-             : 0)
-        };
-        return ret;
-      }
-    }
-
-    return {
-      line: null,
-      column: null
-    };
-  };
-
-/**
- * Parse the mappings in a string in to a data structure which we can easily
- * query (the ordered arrays in the `this.__generatedMappings` and
- * `this.__originalMappings` properties).
- */
-IndexedSourceMapConsumer.prototype._parseMappings =
-  function IndexedSourceMapConsumer_parseMappings(aStr, aSourceRoot) {
-    this.__generatedMappings = [];
-    this.__originalMappings = [];
-    for (var i = 0; i < this._sections.length; i++) {
-      var section = this._sections[i];
-      var sectionMappings = section.consumer._generatedMappings;
-      for (var j = 0; j < sectionMappings.length; j++) {
-        var mapping = sectionMappings[j];
-
-        var source = section.consumer._sources.at(mapping.source);
-        if (section.consumer.sourceRoot !== null) {
-          source = util.join(section.consumer.sourceRoot, source);
-        }
-        this._sources.add(source);
-        source = this._sources.indexOf(source);
-
-        var name = section.consumer._names.at(mapping.name);
-        this._names.add(name);
-        name = this._names.indexOf(name);
-
-        // The mappings coming from the consumer for the section have
-        // generated positions relative to the start of the section, so we
-        // need to offset them to be relative to the start of the concatenated
-        // generated file.
-        var adjustedMapping = {
-          source: source,
-          generatedLine: mapping.generatedLine +
-            (section.generatedOffset.generatedLine - 1),
-          generatedColumn: mapping.generatedColumn +
-            (section.generatedOffset.generatedLine === mapping.generatedLine
-            ? section.generatedOffset.generatedColumn - 1
-            : 0),
-          originalLine: mapping.originalLine,
-          originalColumn: mapping.originalColumn,
-          name: name
-        };
-
-        this.__generatedMappings.push(adjustedMapping);
-        if (typeof adjustedMapping.originalLine === 'number') {
-          this.__originalMappings.push(adjustedMapping);
-        }
-      }
-    }
-
-    quickSort(this.__generatedMappings, util.compareByGeneratedPositionsDeflated);
-    quickSort(this.__originalMappings, util.compareByOriginalPositions);
-  };
-
-exports.IndexedSourceMapConsumer = IndexedSourceMapConsumer;
-
-},{"./array-set":122,"./base64-vlq":123,"./binary-search":125,"./quick-sort":127,"./util":131}],129:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-var base64VLQ = require('./base64-vlq');
-var util = require('./util');
-var ArraySet = require('./array-set').ArraySet;
-var MappingList = require('./mapping-list').MappingList;
-
-/**
- * An instance of the SourceMapGenerator represents a source map which is
- * being built incrementally. You may pass an object with the following
- * properties:
- *
- *   - file: The filename of the generated source.
- *   - sourceRoot: A root for all relative URLs in this source map.
- */
-function SourceMapGenerator(aArgs) {
-  if (!aArgs) {
-    aArgs = {};
-  }
-  this._file = util.getArg(aArgs, 'file', null);
-  this._sourceRoot = util.getArg(aArgs, 'sourceRoot', null);
-  this._skipValidation = util.getArg(aArgs, 'skipValidation', false);
-  this._sources = new ArraySet();
-  this._names = new ArraySet();
-  this._mappings = new MappingList();
-  this._sourcesContents = null;
-}
-
-SourceMapGenerator.prototype._version = 3;
-
-/**
- * Creates a new SourceMapGenerator based on a SourceMapConsumer
- *
- * @param aSourceMapConsumer The SourceMap.
- */
-SourceMapGenerator.fromSourceMap =
-  function SourceMapGenerator_fromSourceMap(aSourceMapConsumer) {
-    var sourceRoot = aSourceMapConsumer.sourceRoot;
-    var generator = new SourceMapGenerator({
-      file: aSourceMapConsumer.file,
-      sourceRoot: sourceRoot
-    });
-    aSourceMapConsumer.eachMapping(function (mapping) {
-      var newMapping = {
-        generated: {
-          line: mapping.generatedLine,
-          column: mapping.generatedColumn
-        }
-      };
-
-      if (mapping.source != null) {
-        newMapping.source = mapping.source;
-        if (sourceRoot != null) {
-          newMapping.source = util.relative(sourceRoot, newMapping.source);
-        }
-
-        newMapping.original = {
-          line: mapping.originalLine,
-          column: mapping.originalColumn
-        };
-
-        if (mapping.name != null) {
-          newMapping.name = mapping.name;
-        }
-      }
-
-      generator.addMapping(newMapping);
-    });
-    aSourceMapConsumer.sources.forEach(function (sourceFile) {
-      var content = aSourceMapConsumer.sourceContentFor(sourceFile);
-      if (content != null) {
-        generator.setSourceContent(sourceFile, content);
-      }
-    });
-    return generator;
-  };
-
-/**
- * Add a single mapping from original source line and column to the generated
- * source's line and column for this source map being created. The mapping
- * object should have the following properties:
- *
- *   - generated: An object with the generated line and column positions.
- *   - original: An object with the original line and column positions.
- *   - source: The original source file (relative to the sourceRoot).
- *   - name: An optional original token name for this mapping.
- */
-SourceMapGenerator.prototype.addMapping =
-  function SourceMapGenerator_addMapping(aArgs) {
-    var generated = util.getArg(aArgs, 'generated');
-    var original = util.getArg(aArgs, 'original', null);
-    var source = util.getArg(aArgs, 'source', null);
-    var name = util.getArg(aArgs, 'name', null);
-
-    if (!this._skipValidation) {
-      this._validateMapping(generated, original, source, name);
-    }
-
-    if (source != null) {
-      source = String(source);
-      if (!this._sources.has(source)) {
-        this._sources.add(source);
-      }
-    }
-
-    if (name != null) {
-      name = String(name);
-      if (!this._names.has(name)) {
-        this._names.add(name);
-      }
-    }
-
-    this._mappings.add({
-      generatedLine: generated.line,
-      generatedColumn: generated.column,
-      originalLine: original != null && original.line,
-      originalColumn: original != null && original.column,
-      source: source,
-      name: name
-    });
-  };
-
-/**
- * Set the source content for a source file.
- */
-SourceMapGenerator.prototype.setSourceContent =
-  function SourceMapGenerator_setSourceContent(aSourceFile, aSourceContent) {
-    var source = aSourceFile;
-    if (this._sourceRoot != null) {
-      source = util.relative(this._sourceRoot, source);
-    }
-
-    if (aSourceContent != null) {
-      // Add the source content to the _sourcesContents map.
-      // Create a new _sourcesContents map if the property is null.
-      if (!this._sourcesContents) {
-        this._sourcesContents = Object.create(null);
-      }
-      this._sourcesContents[util.toSetString(source)] = aSourceContent;
-    } else if (this._sourcesContents) {
-      // Remove the source file from the _sourcesContents map.
-      // If the _sourcesContents map is empty, set the property to null.
-      delete this._sourcesContents[util.toSetString(source)];
-      if (Object.keys(this._sourcesContents).length === 0) {
-        this._sourcesContents = null;
-      }
-    }
-  };
-
-/**
- * Applies the mappings of a sub-source-map for a specific source file to the
- * source map being generated. Each mapping to the supplied source file is
- * rewritten using the supplied source map. Note: The resolution for the
- * resulting mappings is the minimium of this map and the supplied map.
- *
- * @param aSourceMapConsumer The source map to be applied.
- * @param aSourceFile Optional. The filename of the source file.
- *        If omitted, SourceMapConsumer's file property will be used.
- * @param aSourceMapPath Optional. The dirname of the path to the source map
- *        to be applied. If relative, it is relative to the SourceMapConsumer.
- *        This parameter is needed when the two source maps aren't in the same
- *        directory, and the source map to be applied contains relative source
- *        paths. If so, those relative source paths need to be rewritten
- *        relative to the SourceMapGenerator.
- */
-SourceMapGenerator.prototype.applySourceMap =
-  function SourceMapGenerator_applySourceMap(aSourceMapConsumer, aSourceFile, aSourceMapPath) {
-    var sourceFile = aSourceFile;
-    // If aSourceFile is omitted, we will use the file property of the SourceMap
-    if (aSourceFile == null) {
-      if (aSourceMapConsumer.file == null) {
-        throw new Error(
-          'SourceMapGenerator.prototype.applySourceMap requires either an explicit source file, ' +
-          'or the source map\'s "file" property. Both were omitted.'
-        );
-      }
-      sourceFile = aSourceMapConsumer.file;
-    }
-    var sourceRoot = this._sourceRoot;
-    // Make "sourceFile" relative if an absolute Url is passed.
-    if (sourceRoot != null) {
-      sourceFile = util.relative(sourceRoot, sourceFile);
-    }
-    // Applying the SourceMap can add and remove items from the sources and
-    // the names array.
-    var newSources = new ArraySet();
-    var newNames = new ArraySet();
-
-    // Find mappings for the "sourceFile"
-    this._mappings.unsortedForEach(function (mapping) {
-      if (mapping.source === sourceFile && mapping.originalLine != null) {
-        // Check if it can be mapped by the source map, then update the mapping.
-        var original = aSourceMapConsumer.originalPositionFor({
-          line: mapping.originalLine,
-          column: mapping.originalColumn
+    var queue = [];
+
+    if (canMutationObserver) {
+        var hiddenDiv = document.createElement("div");
+        var observer = new MutationObserver(function () {
+            var queueList = queue.slice();
+            queue.length = 0;
+            queueList.forEach(function (fn) {
+                fn();
+            });
         });
-        if (original.source != null) {
-          // Copy mapping
-          mapping.source = original.source;
-          if (aSourceMapPath != null) {
-            mapping.source = util.join(aSourceMapPath, mapping.source)
-          }
-          if (sourceRoot != null) {
-            mapping.source = util.relative(sourceRoot, mapping.source);
-          }
-          mapping.originalLine = original.line;
-          mapping.originalColumn = original.column;
-          if (original.name != null) {
-            mapping.name = original.name;
-          }
-        }
-      }
 
-      var source = mapping.source;
-      if (source != null && !newSources.has(source)) {
-        newSources.add(source);
-      }
+        observer.observe(hiddenDiv, { attributes: true });
 
-      var name = mapping.name;
-      if (name != null && !newNames.has(name)) {
-        newNames.add(name);
-      }
-
-    }, this);
-    this._sources = newSources;
-    this._names = newNames;
-
-    // Copy sourcesContents of applied map.
-    aSourceMapConsumer.sources.forEach(function (sourceFile) {
-      var content = aSourceMapConsumer.sourceContentFor(sourceFile);
-      if (content != null) {
-        if (aSourceMapPath != null) {
-          sourceFile = util.join(aSourceMapPath, sourceFile);
-        }
-        if (sourceRoot != null) {
-          sourceFile = util.relative(sourceRoot, sourceFile);
-        }
-        this.setSourceContent(sourceFile, content);
-      }
-    }, this);
-  };
-
-/**
- * A mapping can have one of the three levels of data:
- *
- *   1. Just the generated position.
- *   2. The Generated position, original position, and original source.
- *   3. Generated and original position, original source, as well as a name
- *      token.
- *
- * To maintain consistency, we validate that any new mapping being added falls
- * in to one of these categories.
- */
-SourceMapGenerator.prototype._validateMapping =
-  function SourceMapGenerator_validateMapping(aGenerated, aOriginal, aSource,
-                                              aName) {
-    if (aGenerated && 'line' in aGenerated && 'column' in aGenerated
-        && aGenerated.line > 0 && aGenerated.column >= 0
-        && !aOriginal && !aSource && !aName) {
-      // Case 1.
-      return;
-    }
-    else if (aGenerated && 'line' in aGenerated && 'column' in aGenerated
-             && aOriginal && 'line' in aOriginal && 'column' in aOriginal
-             && aGenerated.line > 0 && aGenerated.column >= 0
-             && aOriginal.line > 0 && aOriginal.column >= 0
-             && aSource) {
-      // Cases 2 and 3.
-      return;
-    }
-    else {
-      throw new Error('Invalid mapping: ' + JSON.stringify({
-        generated: aGenerated,
-        source: aSource,
-        original: aOriginal,
-        name: aName
-      }));
-    }
-  };
-
-/**
- * Serialize the accumulated mappings in to the stream of base 64 VLQs
- * specified by the source map format.
- */
-SourceMapGenerator.prototype._serializeMappings =
-  function SourceMapGenerator_serializeMappings() {
-    var previousGeneratedColumn = 0;
-    var previousGeneratedLine = 1;
-    var previousOriginalColumn = 0;
-    var previousOriginalLine = 0;
-    var previousName = 0;
-    var previousSource = 0;
-    var result = '';
-    var next;
-    var mapping;
-    var nameIdx;
-    var sourceIdx;
-
-    var mappings = this._mappings.toArray();
-    for (var i = 0, len = mappings.length; i < len; i++) {
-      mapping = mappings[i];
-      next = ''
-
-      if (mapping.generatedLine !== previousGeneratedLine) {
-        previousGeneratedColumn = 0;
-        while (mapping.generatedLine !== previousGeneratedLine) {
-          next += ';';
-          previousGeneratedLine++;
-        }
-      }
-      else {
-        if (i > 0) {
-          if (!util.compareByGeneratedPositionsInflated(mapping, mappings[i - 1])) {
-            continue;
-          }
-          next += ',';
-        }
-      }
-
-      next += base64VLQ.encode(mapping.generatedColumn
-                                 - previousGeneratedColumn);
-      previousGeneratedColumn = mapping.generatedColumn;
-
-      if (mapping.source != null) {
-        sourceIdx = this._sources.indexOf(mapping.source);
-        next += base64VLQ.encode(sourceIdx - previousSource);
-        previousSource = sourceIdx;
-
-        // lines are stored 0-based in SourceMap spec version 3
-        next += base64VLQ.encode(mapping.originalLine - 1
-                                   - previousOriginalLine);
-        previousOriginalLine = mapping.originalLine - 1;
-
-        next += base64VLQ.encode(mapping.originalColumn
-                                   - previousOriginalColumn);
-        previousOriginalColumn = mapping.originalColumn;
-
-        if (mapping.name != null) {
-          nameIdx = this._names.indexOf(mapping.name);
-          next += base64VLQ.encode(nameIdx - previousName);
-          previousName = nameIdx;
-        }
-      }
-
-      result += next;
+        return function nextTick(fn) {
+            if (!queue.length) {
+                hiddenDiv.setAttribute('yes', 'no');
+            }
+            queue.push(fn);
+        };
     }
 
-    return result;
-  };
+    if (canPost) {
+        window.addEventListener('message', function (ev) {
+            var source = ev.source;
+            if ((source === window || source === null) && ev.data === 'process-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
 
-SourceMapGenerator.prototype._generateSourcesContent =
-  function SourceMapGenerator_generateSourcesContent(aSources, aSourceRoot) {
-    return aSources.map(function (source) {
-      if (!this._sourcesContents) {
-        return null;
-      }
-      if (aSourceRoot != null) {
-        source = util.relative(aSourceRoot, source);
-      }
-      var key = util.toSetString(source);
-      return Object.prototype.hasOwnProperty.call(this._sourcesContents, key)
-        ? this._sourcesContents[key]
-        : null;
-    }, this);
-  };
+        return function nextTick(fn) {
+            queue.push(fn);
+            window.postMessage('process-tick', '*');
+        };
+    }
 
-/**
- * Externalize the source map.
- */
-SourceMapGenerator.prototype.toJSON =
-  function SourceMapGenerator_toJSON() {
-    var map = {
-      version: this._version,
-      sources: this._sources.toArray(),
-      names: this._names.toArray(),
-      mappings: this._serializeMappings()
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
     };
-    if (this._file != null) {
-      map.file = this._file;
-    }
-    if (this._sourceRoot != null) {
-      map.sourceRoot = this._sourceRoot;
-    }
-    if (this._sourcesContents) {
-      map.sourcesContent = this._generateSourcesContent(map.sources, map.sourceRoot);
-    }
+})();
 
-    return map;
-  };
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
 
-/**
- * Render the source map being generated to a string.
- */
-SourceMapGenerator.prototype.toString =
-  function SourceMapGenerator_toString() {
-    return JSON.stringify(this.toJSON());
-  };
+function noop() {}
 
-exports.SourceMapGenerator = SourceMapGenerator;
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
 
-},{"./array-set":122,"./base64-vlq":123,"./mapping-list":126,"./util":131}],130:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-var SourceMapGenerator = require('./source-map-generator').SourceMapGenerator;
-var util = require('./util');
-
-// Matches a Windows-style `\r\n` newline or a `\n` newline used by all other
-// operating systems these days (capturing the result).
-var REGEX_NEWLINE = /(\r?\n)/;
-
-// Newline character code for charCodeAt() comparisons
-var NEWLINE_CODE = 10;
-
-// Private symbol for identifying `SourceNode`s when multiple versions of
-// the source-map library are loaded. This MUST NOT CHANGE across
-// versions!
-var isSourceNode = "$$$isSourceNode$$$";
-
-/**
- * SourceNodes provide a way to abstract over interpolating/concatenating
- * snippets of generated JavaScript source code while maintaining the line and
- * column information associated with the original source code.
- *
- * @param aLine The original line number.
- * @param aColumn The original column number.
- * @param aSource The original source's filename.
- * @param aChunks Optional. An array of strings which are snippets of
- *        generated JS, or other SourceNodes.
- * @param aName The original identifier.
- */
-function SourceNode(aLine, aColumn, aSource, aChunks, aName) {
-  this.children = [];
-  this.sourceContents = {};
-  this.line = aLine == null ? null : aLine;
-  this.column = aColumn == null ? null : aColumn;
-  this.source = aSource == null ? null : aSource;
-  this.name = aName == null ? null : aName;
-  this[isSourceNode] = true;
-  if (aChunks != null) this.add(aChunks);
-}
-
-/**
- * Creates a SourceNode from generated code and a SourceMapConsumer.
- *
- * @param aGeneratedCode The generated code
- * @param aSourceMapConsumer The SourceMap for the generated code
- * @param aRelativePath Optional. The path that relative sources in the
- *        SourceMapConsumer should be relative to.
- */
-SourceNode.fromStringWithSourceMap =
-  function SourceNode_fromStringWithSourceMap(aGeneratedCode, aSourceMapConsumer, aRelativePath) {
-    // The SourceNode we want to fill with the generated code
-    // and the SourceMap
-    var node = new SourceNode();
-
-    // All even indices of this array are one line of the generated code,
-    // while all odd indices are the newlines between two adjacent lines
-    // (since `REGEX_NEWLINE` captures its match).
-    // Processed fragments are removed from this array, by calling `shiftNextLine`.
-    var remainingLines = aGeneratedCode.split(REGEX_NEWLINE);
-    var shiftNextLine = function() {
-      var lineContents = remainingLines.shift();
-      // The last line of a file might not have a newline.
-      var newLine = remainingLines.shift() || "";
-      return lineContents + newLine;
-    };
-
-    // We need to remember the position of "remainingLines"
-    var lastGeneratedLine = 1, lastGeneratedColumn = 0;
-
-    // The generate SourceNodes we need a code range.
-    // To extract it current and last mapping is used.
-    // Here we store the last mapping.
-    var lastMapping = null;
-
-    aSourceMapConsumer.eachMapping(function (mapping) {
-      if (lastMapping !== null) {
-        // We add the code from "lastMapping" to "mapping":
-        // First check if there is a new line in between.
-        if (lastGeneratedLine < mapping.generatedLine) {
-          // Associate first line with "lastMapping"
-          addMappingWithCode(lastMapping, shiftNextLine());
-          lastGeneratedLine++;
-          lastGeneratedColumn = 0;
-          // The remaining code is added without mapping
-        } else {
-          // There is no new line in between.
-          // Associate the code between "lastGeneratedColumn" and
-          // "mapping.generatedColumn" with "lastMapping"
-          var nextLine = remainingLines[0];
-          var code = nextLine.substr(0, mapping.generatedColumn -
-                                        lastGeneratedColumn);
-          remainingLines[0] = nextLine.substr(mapping.generatedColumn -
-                                              lastGeneratedColumn);
-          lastGeneratedColumn = mapping.generatedColumn;
-          addMappingWithCode(lastMapping, code);
-          // No more remaining code, continue
-          lastMapping = mapping;
-          return;
-        }
-      }
-      // We add the generated code until the first mapping
-      // to the SourceNode without any mapping.
-      // Each line is added as separate string.
-      while (lastGeneratedLine < mapping.generatedLine) {
-        node.add(shiftNextLine());
-        lastGeneratedLine++;
-      }
-      if (lastGeneratedColumn < mapping.generatedColumn) {
-        var nextLine = remainingLines[0];
-        node.add(nextLine.substr(0, mapping.generatedColumn));
-        remainingLines[0] = nextLine.substr(mapping.generatedColumn);
-        lastGeneratedColumn = mapping.generatedColumn;
-      }
-      lastMapping = mapping;
-    }, this);
-    // We have processed all mappings.
-    if (remainingLines.length > 0) {
-      if (lastMapping) {
-        // Associate the remaining code in the current line with "lastMapping"
-        addMappingWithCode(lastMapping, shiftNextLine());
-      }
-      // and add the remaining lines without any mapping
-      node.add(remainingLines.join(""));
-    }
-
-    // Copy sourcesContent into SourceNode
-    aSourceMapConsumer.sources.forEach(function (sourceFile) {
-      var content = aSourceMapConsumer.sourceContentFor(sourceFile);
-      if (content != null) {
-        if (aRelativePath != null) {
-          sourceFile = util.join(aRelativePath, sourceFile);
-        }
-        node.setSourceContent(sourceFile, content);
-      }
-    });
-
-    return node;
-
-    function addMappingWithCode(mapping, code) {
-      if (mapping === null || mapping.source === undefined) {
-        node.add(code);
-      } else {
-        var source = aRelativePath
-          ? util.join(aRelativePath, mapping.source)
-          : mapping.source;
-        node.add(new SourceNode(mapping.originalLine,
-                                mapping.originalColumn,
-                                source,
-                                code,
-                                mapping.name));
-      }
-    }
-  };
-
-/**
- * Add a chunk of generated JS to this source node.
- *
- * @param aChunk A string snippet of generated JS code, another instance of
- *        SourceNode, or an array where each member is one of those things.
- */
-SourceNode.prototype.add = function SourceNode_add(aChunk) {
-  if (Array.isArray(aChunk)) {
-    aChunk.forEach(function (chunk) {
-      this.add(chunk);
-    }, this);
-  }
-  else if (aChunk[isSourceNode] || typeof aChunk === "string") {
-    if (aChunk) {
-      this.children.push(aChunk);
-    }
-  }
-  else {
-    throw new TypeError(
-      "Expected a SourceNode, string, or an array of SourceNodes and strings. Got " + aChunk
-    );
-  }
-  return this;
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
 };
 
-/**
- * Add a chunk of generated JS to the beginning of this source node.
- *
- * @param aChunk A string snippet of generated JS code, another instance of
- *        SourceNode, or an array where each member is one of those things.
- */
-SourceNode.prototype.prepend = function SourceNode_prepend(aChunk) {
-  if (Array.isArray(aChunk)) {
-    for (var i = aChunk.length-1; i >= 0; i--) {
-      this.prepend(aChunk[i]);
-    }
-  }
-  else if (aChunk[isSourceNode] || typeof aChunk === "string") {
-    this.children.unshift(aChunk);
-  }
-  else {
-    throw new TypeError(
-      "Expected a SourceNode, string, or an array of SourceNodes and strings. Got " + aChunk
-    );
-  }
-  return this;
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
 };
 
-/**
- * Walk over the tree of JS snippets in this node and its children. The
- * walking function is called once for each snippet of JS and is passed that
- * snippet and the its original associated source's line/column location.
- *
- * @param aFn The traversal function.
- */
-SourceNode.prototype.walk = function SourceNode_walk(aFn) {
-  var chunk;
-  for (var i = 0, len = this.children.length; i < len; i++) {
-    chunk = this.children[i];
-    if (chunk[isSourceNode]) {
-      chunk.walk(aFn);
-    }
-    else {
-      if (chunk !== '') {
-        aFn(chunk, { source: this.source,
-                     line: this.line,
-                     column: this.column,
-                     name: this.name });
-      }
-    }
-  }
-};
-
-/**
- * Like `String.prototype.join` except for SourceNodes. Inserts `aStr` between
- * each of `this.children`.
- *
- * @param aSep The separator.
- */
-SourceNode.prototype.join = function SourceNode_join(aSep) {
-  var newChildren;
-  var i;
-  var len = this.children.length;
-  if (len > 0) {
-    newChildren = [];
-    for (i = 0; i < len-1; i++) {
-      newChildren.push(this.children[i]);
-      newChildren.push(aSep);
-    }
-    newChildren.push(this.children[i]);
-    this.children = newChildren;
-  }
-  return this;
-};
-
-/**
- * Call String.prototype.replace on the very right-most source snippet. Useful
- * for trimming whitespace from the end of a source node, etc.
- *
- * @param aPattern The pattern to replace.
- * @param aReplacement The thing to replace the pattern with.
- */
-SourceNode.prototype.replaceRight = function SourceNode_replaceRight(aPattern, aReplacement) {
-  var lastChild = this.children[this.children.length - 1];
-  if (lastChild[isSourceNode]) {
-    lastChild.replaceRight(aPattern, aReplacement);
-  }
-  else if (typeof lastChild === 'string') {
-    this.children[this.children.length - 1] = lastChild.replace(aPattern, aReplacement);
-  }
-  else {
-    this.children.push(''.replace(aPattern, aReplacement));
-  }
-  return this;
-};
-
-/**
- * Set the source content for a source file. This will be added to the SourceMapGenerator
- * in the sourcesContent field.
- *
- * @param aSourceFile The filename of the source file
- * @param aSourceContent The content of the source file
- */
-SourceNode.prototype.setSourceContent =
-  function SourceNode_setSourceContent(aSourceFile, aSourceContent) {
-    this.sourceContents[util.toSetString(aSourceFile)] = aSourceContent;
-  };
-
-/**
- * Walk over the tree of SourceNodes. The walking function is called for each
- * source file content and is passed the filename and source content.
- *
- * @param aFn The traversal function.
- */
-SourceNode.prototype.walkSourceContents =
-  function SourceNode_walkSourceContents(aFn) {
-    for (var i = 0, len = this.children.length; i < len; i++) {
-      if (this.children[i][isSourceNode]) {
-        this.children[i].walkSourceContents(aFn);
-      }
-    }
-
-    var sources = Object.keys(this.sourceContents);
-    for (var i = 0, len = sources.length; i < len; i++) {
-      aFn(util.fromSetString(sources[i]), this.sourceContents[sources[i]]);
-    }
-  };
-
-/**
- * Return the string representation of this source node. Walks over the tree
- * and concatenates all the various snippets together to one string.
- */
-SourceNode.prototype.toString = function SourceNode_toString() {
-  var str = "";
-  this.walk(function (chunk) {
-    str += chunk;
-  });
-  return str;
-};
-
-/**
- * Returns the string representation of this source node along with a source
- * map.
- */
-SourceNode.prototype.toStringWithSourceMap = function SourceNode_toStringWithSourceMap(aArgs) {
-  var generated = {
-    code: "",
-    line: 1,
-    column: 0
-  };
-  var map = new SourceMapGenerator(aArgs);
-  var sourceMappingActive = false;
-  var lastOriginalSource = null;
-  var lastOriginalLine = null;
-  var lastOriginalColumn = null;
-  var lastOriginalName = null;
-  this.walk(function (chunk, original) {
-    generated.code += chunk;
-    if (original.source !== null
-        && original.line !== null
-        && original.column !== null) {
-      if(lastOriginalSource !== original.source
-         || lastOriginalLine !== original.line
-         || lastOriginalColumn !== original.column
-         || lastOriginalName !== original.name) {
-        map.addMapping({
-          source: original.source,
-          original: {
-            line: original.line,
-            column: original.column
-          },
-          generated: {
-            line: generated.line,
-            column: generated.column
-          },
-          name: original.name
-        });
-      }
-      lastOriginalSource = original.source;
-      lastOriginalLine = original.line;
-      lastOriginalColumn = original.column;
-      lastOriginalName = original.name;
-      sourceMappingActive = true;
-    } else if (sourceMappingActive) {
-      map.addMapping({
-        generated: {
-          line: generated.line,
-          column: generated.column
-        }
-      });
-      lastOriginalSource = null;
-      sourceMappingActive = false;
-    }
-    for (var idx = 0, length = chunk.length; idx < length; idx++) {
-      if (chunk.charCodeAt(idx) === NEWLINE_CODE) {
-        generated.line++;
-        generated.column = 0;
-        // Mappings end at eol
-        if (idx + 1 === length) {
-          lastOriginalSource = null;
-          sourceMappingActive = false;
-        } else if (sourceMappingActive) {
-          map.addMapping({
-            source: original.source,
-            original: {
-              line: original.line,
-              column: original.column
-            },
-            generated: {
-              line: generated.line,
-              column: generated.column
-            },
-            name: original.name
-          });
-        }
-      } else {
-        generated.column++;
-      }
-    }
-  });
-  this.walkSourceContents(function (sourceFile, sourceContent) {
-    map.setSourceContent(sourceFile, sourceContent);
-  });
-
-  return { code: generated.code, map: map };
-};
-
-exports.SourceNode = SourceNode;
-
-},{"./source-map-generator":129,"./util":131}],131:[function(require,module,exports){
-/* -*- Mode: js; js-indent-level: 2; -*- */
-/*
- * Copyright 2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-
-/**
- * This is a helper function for getting values from parameter/options
- * objects.
- *
- * @param args The object we are extracting values from
- * @param name The name of the property we are getting.
- * @param defaultValue An optional value to return if the property is missing
- * from the object. If this is not specified and the property is missing, an
- * error will be thrown.
- */
-function getArg(aArgs, aName, aDefaultValue) {
-  if (aName in aArgs) {
-    return aArgs[aName];
-  } else if (arguments.length === 3) {
-    return aDefaultValue;
-  } else {
-    throw new Error('"' + aName + '" is a required argument.');
-  }
-}
-exports.getArg = getArg;
-
-var urlRegexp = /^(?:([\w+\-.]+):)?\/\/(?:(\w+:\w+)@)?([\w.]*)(?::(\d+))?(\S*)$/;
-var dataUrlRegexp = /^data:.+\,.+$/;
-
-function urlParse(aUrl) {
-  var match = aUrl.match(urlRegexp);
-  if (!match) {
-    return null;
-  }
-  return {
-    scheme: match[1],
-    auth: match[2],
-    host: match[3],
-    port: match[4],
-    path: match[5]
-  };
-}
-exports.urlParse = urlParse;
-
-function urlGenerate(aParsedUrl) {
-  var url = '';
-  if (aParsedUrl.scheme) {
-    url += aParsedUrl.scheme + ':';
-  }
-  url += '//';
-  if (aParsedUrl.auth) {
-    url += aParsedUrl.auth + '@';
-  }
-  if (aParsedUrl.host) {
-    url += aParsedUrl.host;
-  }
-  if (aParsedUrl.port) {
-    url += ":" + aParsedUrl.port
-  }
-  if (aParsedUrl.path) {
-    url += aParsedUrl.path;
-  }
-  return url;
-}
-exports.urlGenerate = urlGenerate;
-
-/**
- * Normalizes a path, or the path portion of a URL:
- *
- * - Replaces consecutive slashes with one slash.
- * - Removes unnecessary '.' parts.
- * - Removes unnecessary '<dir>/..' parts.
- *
- * Based on code in the Node.js 'path' core module.
- *
- * @param aPath The path or url to normalize.
- */
-function normalize(aPath) {
-  var path = aPath;
-  var url = urlParse(aPath);
-  if (url) {
-    if (!url.path) {
-      return aPath;
-    }
-    path = url.path;
-  }
-  var isAbsolute = exports.isAbsolute(path);
-
-  var parts = path.split(/\/+/);
-  for (var part, up = 0, i = parts.length - 1; i >= 0; i--) {
-    part = parts[i];
-    if (part === '.') {
-      parts.splice(i, 1);
-    } else if (part === '..') {
-      up++;
-    } else if (up > 0) {
-      if (part === '') {
-        // The first part is blank if the path is absolute. Trying to go
-        // above the root is a no-op. Therefore we can remove all '..' parts
-        // directly after the root.
-        parts.splice(i + 1, up);
-        up = 0;
-      } else {
-        parts.splice(i, 2);
-        up--;
-      }
-    }
-  }
-  path = parts.join('/');
-
-  if (path === '') {
-    path = isAbsolute ? '/' : '.';
-  }
-
-  if (url) {
-    url.path = path;
-    return urlGenerate(url);
-  }
-  return path;
-}
-exports.normalize = normalize;
-
-/**
- * Joins two paths/URLs.
- *
- * @param aRoot The root path or URL.
- * @param aPath The path or URL to be joined with the root.
- *
- * - If aPath is a URL or a data URI, aPath is returned, unless aPath is a
- *   scheme-relative URL: Then the scheme of aRoot, if any, is prepended
- *   first.
- * - Otherwise aPath is a path. If aRoot is a URL, then its path portion
- *   is updated with the result and aRoot is returned. Otherwise the result
- *   is returned.
- *   - If aPath is absolute, the result is aPath.
- *   - Otherwise the two paths are joined with a slash.
- * - Joining for example 'http://' and 'www.example.com' is also supported.
- */
-function join(aRoot, aPath) {
-  if (aRoot === "") {
-    aRoot = ".";
-  }
-  if (aPath === "") {
-    aPath = ".";
-  }
-  var aPathUrl = urlParse(aPath);
-  var aRootUrl = urlParse(aRoot);
-  if (aRootUrl) {
-    aRoot = aRootUrl.path || '/';
-  }
-
-  // `join(foo, '//www.example.org')`
-  if (aPathUrl && !aPathUrl.scheme) {
-    if (aRootUrl) {
-      aPathUrl.scheme = aRootUrl.scheme;
-    }
-    return urlGenerate(aPathUrl);
-  }
-
-  if (aPathUrl || aPath.match(dataUrlRegexp)) {
-    return aPath;
-  }
-
-  // `join('http://', 'www.example.com')`
-  if (aRootUrl && !aRootUrl.host && !aRootUrl.path) {
-    aRootUrl.host = aPath;
-    return urlGenerate(aRootUrl);
-  }
-
-  var joined = aPath.charAt(0) === '/'
-    ? aPath
-    : normalize(aRoot.replace(/\/+$/, '') + '/' + aPath);
-
-  if (aRootUrl) {
-    aRootUrl.path = joined;
-    return urlGenerate(aRootUrl);
-  }
-  return joined;
-}
-exports.join = join;
-
-exports.isAbsolute = function (aPath) {
-  return aPath.charAt(0) === '/' || !!aPath.match(urlRegexp);
-};
-
-/**
- * Make a path relative to a URL or another path.
- *
- * @param aRoot The root path or URL.
- * @param aPath The path or URL to be made relative to aRoot.
- */
-function relative(aRoot, aPath) {
-  if (aRoot === "") {
-    aRoot = ".";
-  }
-
-  aRoot = aRoot.replace(/\/$/, '');
-
-  // It is possible for the path to be above the root. In this case, simply
-  // checking whether the root is a prefix of the path won't work. Instead, we
-  // need to remove components from the root one by one, until either we find
-  // a prefix that fits, or we run out of components to remove.
-  var level = 0;
-  while (aPath.indexOf(aRoot + '/') !== 0) {
-    var index = aRoot.lastIndexOf("/");
-    if (index < 0) {
-      return aPath;
-    }
-
-    // If the only part of the root that is left is the scheme (i.e. http://,
-    // file:///, etc.), one or more slashes (/), or simply nothing at all, we
-    // have exhausted all components, so the path is not relative to the root.
-    aRoot = aRoot.slice(0, index);
-    if (aRoot.match(/^([^\/]+:\/)?\/*$/)) {
-      return aPath;
-    }
-
-    ++level;
-  }
-
-  // Make sure we add a "../" for each component we removed from the root.
-  return Array(level + 1).join("../") + aPath.substr(aRoot.length + 1);
-}
-exports.relative = relative;
-
-var supportsNullProto = (function () {
-  var obj = Object.create(null);
-  return !('__proto__' in obj);
-}());
-
-function identity (s) {
-  return s;
-}
-
-/**
- * Because behavior goes wacky when you set `__proto__` on objects, we
- * have to prefix all the strings in our set with an arbitrary character.
- *
- * See https://github.com/mozilla/source-map/pull/31 and
- * https://github.com/mozilla/source-map/issues/30
- *
- * @param String aStr
- */
-function toSetString(aStr) {
-  if (isProtoString(aStr)) {
-    return '$' + aStr;
-  }
-
-  return aStr;
-}
-exports.toSetString = supportsNullProto ? identity : toSetString;
-
-function fromSetString(aStr) {
-  if (isProtoString(aStr)) {
-    return aStr.slice(1);
-  }
-
-  return aStr;
-}
-exports.fromSetString = supportsNullProto ? identity : fromSetString;
-
-function isProtoString(s) {
-  if (!s) {
-    return false;
-  }
-
-  var length = s.length;
-
-  if (length < 9 /* "__proto__".length */) {
-    return false;
-  }
-
-  if (s.charCodeAt(length - 1) !== 95  /* '_' */ ||
-      s.charCodeAt(length - 2) !== 95  /* '_' */ ||
-      s.charCodeAt(length - 3) !== 111 /* 'o' */ ||
-      s.charCodeAt(length - 4) !== 116 /* 't' */ ||
-      s.charCodeAt(length - 5) !== 111 /* 'o' */ ||
-      s.charCodeAt(length - 6) !== 114 /* 'r' */ ||
-      s.charCodeAt(length - 7) !== 112 /* 'p' */ ||
-      s.charCodeAt(length - 8) !== 95  /* '_' */ ||
-      s.charCodeAt(length - 9) !== 95  /* '_' */) {
-    return false;
-  }
-
-  for (var i = length - 10; i >= 0; i--) {
-    if (s.charCodeAt(i) !== 36 /* '$' */) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Comparator between two mappings where the original positions are compared.
- *
- * Optionally pass in `true` as `onlyCompareGenerated` to consider two
- * mappings with the same original source/line/column, but different generated
- * line and column the same. Useful when searching for a mapping with a
- * stubbed out mapping.
- */
-function compareByOriginalPositions(mappingA, mappingB, onlyCompareOriginal) {
-  var cmp = mappingA.source - mappingB.source;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.originalLine - mappingB.originalLine;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.originalColumn - mappingB.originalColumn;
-  if (cmp !== 0 || onlyCompareOriginal) {
-    return cmp;
-  }
-
-  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.generatedLine - mappingB.generatedLine;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  return mappingA.name - mappingB.name;
-}
-exports.compareByOriginalPositions = compareByOriginalPositions;
-
-/**
- * Comparator between two mappings with deflated source and name indices where
- * the generated positions are compared.
- *
- * Optionally pass in `true` as `onlyCompareGenerated` to consider two
- * mappings with the same generated line and column, but different
- * source/name/original line and column the same. Useful when searching for a
- * mapping with a stubbed out mapping.
- */
-function compareByGeneratedPositionsDeflated(mappingA, mappingB, onlyCompareGenerated) {
-  var cmp = mappingA.generatedLine - mappingB.generatedLine;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
-  if (cmp !== 0 || onlyCompareGenerated) {
-    return cmp;
-  }
-
-  cmp = mappingA.source - mappingB.source;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.originalLine - mappingB.originalLine;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.originalColumn - mappingB.originalColumn;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  return mappingA.name - mappingB.name;
-}
-exports.compareByGeneratedPositionsDeflated = compareByGeneratedPositionsDeflated;
-
-function strcmp(aStr1, aStr2) {
-  if (aStr1 === aStr2) {
-    return 0;
-  }
-
-  if (aStr1 > aStr2) {
-    return 1;
-  }
-
-  return -1;
-}
-
-/**
- * Comparator between two mappings with inflated source and name strings where
- * the generated positions are compared.
- */
-function compareByGeneratedPositionsInflated(mappingA, mappingB) {
-  var cmp = mappingA.generatedLine - mappingB.generatedLine;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = strcmp(mappingA.source, mappingB.source);
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.originalLine - mappingB.originalLine;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  cmp = mappingA.originalColumn - mappingB.originalColumn;
-  if (cmp !== 0) {
-    return cmp;
-  }
-
-  return strcmp(mappingA.name, mappingB.name);
-}
-exports.compareByGeneratedPositionsInflated = compareByGeneratedPositionsInflated;
-
-},{}],132:[function(require,module,exports){
-/*
- * Copyright 2009-2011 Mozilla Foundation and contributors
- * Licensed under the New BSD license. See LICENSE.txt or:
- * http://opensource.org/licenses/BSD-3-Clause
- */
-exports.SourceMapGenerator = require('./lib/source-map-generator').SourceMapGenerator;
-exports.SourceMapConsumer = require('./lib/source-map-consumer').SourceMapConsumer;
-exports.SourceNode = require('./lib/source-node').SourceNode;
-
-},{"./lib/source-map-consumer":128,"./lib/source-map-generator":129,"./lib/source-node":130}],133:[function(require,module,exports){
-'use strict';
-module.exports = false;
-
-},{}],134:[function(require,module,exports){
-module.exports={
-  "name": "turbo-carto",
-  "version": "0.19.0",
-  "description": "CartoCSS preprocessor",
-  "main": "src/index.js",
-  "scripts": {
-    "test": "make test-all"
-  },
-  "author": {
-    "name": "CartoDB",
-    "email": "wadus@cartodb.com",
-    "url": "http://cartodb.com/"
-  },
-  "contributors": [
-    {
-      "name": "Raul Ochoa",
-      "email": "rochoa@cartodb.com"
-    }
-  ],
-  "license": "BSD-3-Clause",
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/CartoDB/turbo-carto.git"
-  },
-  "dependencies": {
-    "colorbrewer": "1.0.0",
-    "cartocolor": "4.0.0",
-    "debug": "2.2.0",
-    "es6-promise": "3.1.2",
-    "postcss": "5.0.19",
-    "postcss-value-parser": "3.3.0"
-  },
-  "devDependencies": {
-    "browser-request": "^0.3.3",
-    "browserify": "^12.0.1",
-    "istanbul": "^0.4.1",
-    "jshint": "^2.9.1-rc2",
-    "mocha": "^2.3.4",
-    "querystring": "^0.2.0",
-    "request": "^2.67.0",
-    "semistandard": "^7.0.4",
-    "semistandard-format": "^2.1.0",
-    "yargs": "^3.31.0"
-  },
-  "semistandard": {
-    "globals": [
-      "describe",
-      "it"
-    ],
-    "ignore": [
-      "examples/app.js"
-    ]
-  },
-  "readme": "# Turbo-Carto\n\nNext-Gen Styling for Data-Driven Maps, AKA CartoCSS preprocessor.\n\ntl;dr Enables adding functions to CartoCSS that can be evaluated asynchronously.\n\n[![Build Status](https://travis-ci.org/CartoDB/turbo-carto.png?branch=master)](https://travis-ci.org/CartoDB/turbo-carto)\n\n## Ramps\n\nIt's all about ramps.\n\nYou can create color and symbol size ramps with just a single line of code. You no longer need to worry about\ncalculating the bins for your thematic map, if your data changes your CartoCSS changes.\n\n\n### Very basic introduction to CartoCSS\n\nIn CartoCSS you usually assign values to properties and apply filters in order to change those values based on some\ndata attributes.\n\nThe general form for properties and filters is:\n\n```css\n#selector {\n    property: value;\n    [filter] {\n        property: value;\n    }\n}\n```\n\nAn example of a filter based on price attribute:\n\n```css\n#selector {\n    marker-width: 10;\n    [price > 100] {\n        marker-width: 20;\n    }\n}\n```\n\n### Turbo-Carto ramps\n\nTurbo-Carto high-level API for ramps is as follows:\n\n```css\n#selector {\n    property: ramp([attribute], (...values), (...filters), mapping);\n}\n```\n\nWhere:\n - `property` is the CartoCSS property you want to create.\n - `[attribute]` usually is a column/key name from your dataset.\n - `(...values)` is **what** `property` is gonna get for different filters.\n - `(...filters)` is **how** `property` is gonna get the different values.\n - `mapping` is the type of filter that will be applied: <, <=, >, >=, =.\n\nSo for the previous example you could write (see [examples/readme/example-0.css](./examples/readme/example-0.css)):\n\n```css\n#selector {\n    marker-width: ramp([price], (10, 20), (100));\n}\n```\n\nIn this case, the first value is the default value.\n\n\nIf you want to have a category map, to generate a CartoCSS like:\n\n```css\n#selector {\n    marker-fill: red;\n    [room_type = \"Private Room\"] {\n        marker-fill: green;\n    }\n}\n```\n\nYou can use the same approach but specifying the mapping type to be an equality (see [examples/readme/example-1.css](./examples/readme/example-1.css)):\n\n```css\n#selector {\n    marker-fill: ramp([room_type], (green, red), (\"Private room\"), =);\n}\n```\n\nSee that in this case the last value is the default value, and if the number of values is equal to the number of filters\nit won't have a default value, like in (see [examples/readme/example-2.css](./examples/readme/example-2.css)):\n\n```css\n#selector {\n    marker-width: ramp([room_type], (green, red), (\"Private room\"), =);\n}\n```\n\nThat's nice, but it is still unlinked from the actual data/attributes.\n\n#### Mappings default values\n\n`<` and `<=`: Last provided value will be the default value.\n`=`: Last provided value will be the default value, if the number of values is\nequal to the number of filters it won't have a default value.\n`>` and `>=`: First provided value will be the default value.\n\n#### Associate ramp filters to your data\n\nTo generate ramps based on actual data you have to say what kind of quantification you want to use, for that purpose\nTurbo-Carto provides some shorthand methods that will delegate the filters computation to different collaborators.\n\nLet's say you want to compute the ramp using jenks as quantification function (see [examples/readme/example-3.css](./examples/readme/example-3.css)):\n\n```css\n#selector {\n    marker-width: ramp([price], (10, 20, 30), jenks());\n}\n```\n\nOr generate a category map depending on the room_type property (see [examples/readme/example-4.css](./examples/readme/example-4.css)):\n\n```css\n#selector {\n    marker-fill: ramp([room_type], (red, green, blue), category(2));\n}\n```\n\nYou can override the mapping if you know your data requires an more strict filter (see [examples/readme/example-5.css](./examples/readme/example-5.css)):\n\n```css\n#selector {\n    marker-width: ramp([price], (10, 20, 30), jenks(), >=);\n}\n```\n\nShorthand methods include:\n - `category()`: default mapping is `=`.\n - `equal()`: default mapping is `>`.\n - `headtails()`: default mapping is `<`.\n - `jenks()`: default mapping is `>`.\n - `quantiles()`: default mapping is `>`.\n\n#### Color ramps\n\nFor color ramps, there are a couple of handy functions to retrieve color palettes: `cartocolor` and `colorbrewer`.\n\nYou can create a choropleth map using Reds color palette from colorbrewer (see [examples/readme/example-6.css](./examples/readme/example-6.css)):\n\n```css\n#selector {\n    polygon-fill: ramp([avg_price], colorbrewer(Reds), jenks());\n}\n```\n\nOr a category map using Bold color palette from cartocolor (see [examples/readme/example-7.css](./examples/readme/example-7.css)):\n\n```css\n#selector {\n    polygon-fill: ramp([room_type], cartocolor(Bold), category(4));\n}\n```\n\n#### Numeric ramps\n\nSometimes is really useful to have a continuous range that can be split in as many bins as desired, so you don't have to\nworry about how many values you have to provide for your calculated filters. You only specify the start and the end, and\nthe values are computed linearly (see [examples/readme/example-8.css](./examples/readme/example-8.css)):\n\n```css\n#selector {\n    marker-width: ramp([price], range(4, 40), equal(5));\n}\n```\n\nIt is kind of similar to color palettes where depending on your number of filters you get the correct number of values.\n\n\n## Dependencies\n\n * Node >=0.10\n * npm >=2.x\n\n## Install\n\nTo install the rest of the dependencies just run:\n\n```\nnpm install\n```\n\n#### Some examples\n\nCurrent examples expect to have CartoDB's SQL API running at http://development.localhost.lan:8080/. It should have a\npublicly accessible `populated_places_simple` table.\n\nExamples using a cli tool:\n\n```shell\n$ ./tools/cli.js examples/populated_places.css # will use a dummy datasource, check tools/cli.js source\n$ ./tools/cli.js examples/populated_places.css --datasource sql --query 'select * from populated_places_simple'\n```\n\nVisit `examples/index.html`, to test different styles using CartoDB's SQL API as datasource.\n\n## Tests\n\nTests suite can be run with:\n\n```\nnpm test\n```\n\nThat will check code style and run the tests.\n\n## TODO\n\nSee https://github.com/CartoDB/turbo-carto/issues\n",
-  "readmeFilename": "README.md",
-  "bugs": {
-    "url": "https://github.com/CartoDB/turbo-carto/issues"
-  },
-  "homepage": "https://github.com/CartoDB/turbo-carto#readme",
-  "_id": "turbo-carto@0.19.0",
-  "_shasum": "83fb1932acd42acb426312eef216b5f6ac34708e",
-  "_resolved": "https://registry.npmjs.org/turbo-carto/-/turbo-carto-0.19.0.tgz",
-  "_from": "turbo-carto@0.19.0"
-}
-
-},{}],135:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var FnExecutor = require('./executor');
-
-function FnBuilder (datasource) {
-  this.datasource = datasource;
-  this.fnExecutors = [];
-}
-
-module.exports = FnBuilder;
-
-FnBuilder.prototype.add = function (decl, fnNode, metadataHolder) {
-  this.fnExecutors.push({ decl: decl, fnExecutor: createFnExecutor(fnNode, this.datasource, decl, metadataHolder) });
-};
-
-function createFnExecutor (fnNode, datasource, decl, metadataHolder) {
-  var fnArgs = [];
-  if (Array.isArray(fnNode.nodes)) {
-    fnArgs = fnNode.nodes.reduce(function (args, nestedFnNode) {
-      switch (nestedFnNode.type) {
-        case 'word':
-          if (Number.isFinite(+nestedFnNode.value)) {
-            args.push(+nestedFnNode.value);
-          } else {
-            args.push(nestedFnNode.value);
-          }
-          break;
-        case 'string':
-          args.push(nestedFnNode.value);
-          break;
-        case 'function':
-          args.push(createFnExecutor(nestedFnNode, datasource, decl, metadataHolder));
-          break;
-        default:
-      // pass: includes 'div', 'space', 'comment'
-      }
-      return args;
-    }, []);
-  }
-  return new FnExecutor(datasource, fnNode.value, fnArgs, decl, metadataHolder);
-}
-
-FnBuilder.prototype.exec = function () {
-  var executorsExec = this.fnExecutors.map(function (fnExecutor) {
-    return fnExecutor.fnExecutor.exec();
-  });
-
-  return Promise.all(executorsExec);
-};
-
-},{"./executor":136,"es6-promise":91}],136:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var debug = require('../helper/debug')('fn-executor');
-var FnFactory = require('./factory');
-
-function FnExecutor (datasource, fnName, fnArgs, decl, metadataHolder) {
-  this.datasource = datasource;
-  this.fnName = fnName;
-  this.args = fnArgs;
-  this.decl = decl;
-  this.metadataHolder = metadataHolder;
-}
-
-module.exports = FnExecutor;
-
-FnExecutor.prototype.exec = function () {
-  var self = this;
-  debug('[ENTERING] Fn.prototype.exec %s(%j)', self.fnName, self.args);
-
-  var backendFn = FnFactory.create(self.fnName, self.datasource, self.decl, self.metadataHolder);
-
-  return Promise.all(self.getNestedFns())
-    .then(function (nestedFnResults) {
-      debug('[QUEUE DONE] %s=%j', self.fnName, nestedFnResults);
-
-      nestedFnResults.forEach(function (nestedFnResult) {
-        self.args[nestedFnResult.index] = nestedFnResult.result;
-      });
-
-      return backendFn.apply(backendFn, self.args);
-    });
-};
-
-FnExecutor.prototype.getNestedFns = function () {
-  var self = this;
-
-  return self.getNestedFnIndexes()
-    .map(function (nestedFnIndex) {
-      return self.execFn(nestedFnIndex);
-    });
-};
-
-FnExecutor.prototype.getNestedFnIndexes = function () {
-  return this.args.reduce(function (nestedFns, arg, index) {
-    if (arg instanceof FnExecutor) {
-      nestedFns.push(index);
-    }
-    return nestedFns;
-  }, []);
-};
-
-FnExecutor.prototype.execFn = function (nestedFnIndex) {
-  return this.args[nestedFnIndex].exec()
-    .then(function (result) {
-      return { index: nestedFnIndex, result: result };
-    });
-};
-
-},{"../helper/debug":151,"./factory":137,"es6-promise":91}],137:[function(require,module,exports){
-'use strict';
-
-var fns = [
-  require('./fn-buckets'),
-  require('./fn-buckets-category'),
-  require('./fn-buckets-equal'),
-  require('./fn-buckets-headtails'),
-  require('./fn-buckets-jenks'),
-  require('./fn-buckets-quantiles'),
-  require('./fn-cartocolor'),
-  require('./fn-colorbrewer'),
-  require('./fn-ramp'),
-  require('./fn-range')
-];
-var fnMap = fns.reduce(function (fnMap, fn) {
-  fnMap[fn.fnName] = fn;
-  return fnMap;
-}, {});
-var fnIdentity = require('./fn-identity');
-var fnAnonymousTuple = require('./fn-anonymous-tuple');
-
-var FnFactory = {
-  create: function (fnName, datasource, decl, metadataHolder) {
-    if (fnName === '') {
-      return fnAnonymousTuple();
-    }
-
-    var fn = fnMap[fnName];
-    if (fn) {
-      return fn(datasource, decl, metadataHolder);
-    }
-
-    return fnIdentity(fnName);
-  }
-};
-
-module.exports = FnFactory;
-
-},{"./fn-anonymous-tuple":138,"./fn-buckets":144,"./fn-buckets-category":139,"./fn-buckets-equal":140,"./fn-buckets-headtails":141,"./fn-buckets-jenks":142,"./fn-buckets-quantiles":143,"./fn-cartocolor":145,"./fn-colorbrewer":146,"./fn-identity":147,"./fn-ramp":148,"./fn-range":149}],138:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var debug = require('../helper/debug')('fn-anonymous-tuple');
-var ValuesResult = require('../model/values-result');
-
-module.exports = function () {
-  return function fn$anonymousTuple () {
-    debug('fn$anonymousTuple(%j)', arguments);
-    var args = arguments;
-    return new Promise(function (resolve) {
-      var tupleValues = Object.keys(args).map(function (k) { return args[k]; });
-      resolve(new ValuesResult(tupleValues));
-    });
-  };
-};
-
-module.exports.fnName = 'anonymousTuple';
-
-},{"../helper/debug":151,"../model/values-result":161,"es6-promise":91}],139:[function(require,module,exports){
-'use strict';
-
-var createBucketsFn = require('./fn-buckets').createBucketsFn;
-
-var FN_NAME = 'category';
-
-module.exports = function (datasource) {
-  return createBucketsFn(datasource, FN_NAME, '==');
-};
-
-module.exports.fnName = FN_NAME;
-
-},{"./fn-buckets":144}],140:[function(require,module,exports){
-'use strict';
-
-var createBucketsFn = require('./fn-buckets').createBucketsFn;
-
-var FN_NAME = 'equal';
-
-module.exports = function (datasource) {
-  return createBucketsFn(datasource, FN_NAME, '>');
-};
-
-module.exports.fnName = FN_NAME;
-
-},{"./fn-buckets":144}],141:[function(require,module,exports){
-'use strict';
-
-var createBucketsFn = require('./fn-buckets').createBucketsFn;
-
-var FN_NAME = 'headtails';
-
-module.exports = function (datasource) {
-  return createBucketsFn(datasource, FN_NAME, '<');
-};
-
-module.exports.fnName = FN_NAME;
-
-},{"./fn-buckets":144}],142:[function(require,module,exports){
-'use strict';
-
-var createBucketsFn = require('./fn-buckets').createBucketsFn;
-
-var FN_NAME = 'jenks';
-
-module.exports = function (datasource) {
-  return createBucketsFn(datasource, FN_NAME, '>');
-};
-
-module.exports.fnName = FN_NAME;
-
-},{"./fn-buckets":144}],143:[function(require,module,exports){
-'use strict';
-
-var createBucketsFn = require('./fn-buckets').createBucketsFn;
-
-var FN_NAME = 'quantiles';
-
-module.exports = function (datasource) {
-  return createBucketsFn(datasource, FN_NAME, '>');
-};
-
-module.exports.fnName = FN_NAME;
-
-},{"./fn-buckets":144}],144:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var debug = require('../helper/debug')('fn-buckets');
-var columnName = require('../helper/column-name');
-var TurboCartoError = require('../helper/turbo-carto-error');
-var FiltersResult = require('../model/filters-result');
-var LazyFiltersResult = require('../model/lazy-filters-result');
-
-function fnBuckets (datasource) {
-  return function fn$buckets (column, quantificationMethod, numBuckets) {
-    debug('fn$buckets(%j)', arguments);
-    debug('Using "%s" datasource to calculate buckets', datasource.getName());
-
-    return new Promise(function (resolve, reject) {
-      if (!quantificationMethod) {
-        return reject(new TurboCartoError('Missing quantification method in buckets function'));
-      }
-      numBuckets = Number.isFinite(+numBuckets) ? +numBuckets : 5;
-      datasource.getRamp(columnName(column), numBuckets, quantificationMethod, function (err, filters) {
-        if (err) {
-          return reject(
-            new TurboCartoError('unable to compute ramp,', err)
-          );
-        }
-        var strategy = 'max';
-        var stats = {};
-        if (!Array.isArray(filters)) {
-          strategy = filters.strategy || 'max';
-          stats = filters.stats;
-          filters = filters.ramp;
-        }
-        resolve(new FiltersResult(filters, strategy, stats));
-      });
-    });
-  };
-}
-
-module.exports = fnBuckets;
-module.exports.fnName = 'buckets';
-
-module.exports.createBucketsFn = function (datasource, alias, defaultStrategy) {
-  return function fn$bucketsFn (numBuckets) {
-    debug('fn$%s(%j)', alias, arguments);
-    debug('Using "%s" datasource to calculate %s', datasource.getName(), alias);
-    return new Promise(function (resolve) {
-      return resolve(new LazyFiltersResult(function (column, strategy) {
-        return fnBuckets(datasource)(column, alias, numBuckets).then(function (filters) {
-          filters.strategy = strategy || defaultStrategy;
-          return new Promise(function (resolve) {
-            return resolve(filters);
-          });
-        });
-      }));
-    });
-  };
-};
-
-},{"../helper/column-name":150,"../helper/debug":151,"../helper/turbo-carto-error":154,"../model/filters-result":156,"../model/lazy-filters-result":158,"es6-promise":91}],145:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var cartocolor = require('cartocolor');
-var ValuesResult = require('../model/values-result');
-var minMaxKeys = require('../helper/min-max-keys');
-var debug = require('../helper/debug')('fn-cartocolor');
-
-module.exports = function () {
-  return function fn$cartocolor (scheme, numberDataClasses) {
-    debug('fn$cartocolor(%j)', arguments);
-    return new Promise(function (resolve, reject) {
-      if (!cartocolor.hasOwnProperty(scheme)) {
-        return reject(new Error('Invalid cartocolor scheme: "' + scheme + '"'));
-      }
-      var result = cartocolor[scheme];
-      var minMax = minMaxKeys(result);
-      numberDataClasses = Math.min(minMax.max, Math.max(minMax.min, numberDataClasses || 5));
-      resolve(new ValuesResult(result, numberDataClasses, null, minMax.max));
-    });
-  };
-};
-
-module.exports.fnName = 'cartocolor';
-
-},{"../helper/debug":151,"../helper/min-max-keys":153,"../model/values-result":161,"cartocolor":85,"es6-promise":91}],146:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var colorbrewer = require('colorbrewer');
-var ValuesResult = require('../model/values-result');
-var minMaxKeys = require('../helper/min-max-keys');
-var debug = require('../helper/debug')('fn-colorbrewer');
-
-module.exports = function () {
-  return function fn$colorbrewer (scheme, numberDataClasses) {
-    debug('fn$colorbrewer(%j)', arguments);
-    return new Promise(function (resolve, reject) {
-      if (!colorbrewer.hasOwnProperty(scheme)) {
-        return reject(new Error('Invalid colorbrewer scheme: "' + scheme + '"'));
-      }
-      var result = colorbrewer[scheme];
-      var minMax = minMaxKeys(result);
-      numberDataClasses = Math.min(minMax.max, Math.max(minMax.min, numberDataClasses || 5));
-      resolve(new ValuesResult(result, numberDataClasses, null, minMax.max));
-    });
-  };
-};
-
-module.exports.fnName = 'colorbrewer';
-
-},{"../helper/debug":151,"../helper/min-max-keys":153,"../model/values-result":161,"colorbrewer":87,"es6-promise":91}],147:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var debug = require('../helper/debug')('fn-identity');
-
-module.exports = function (fnName) {
-  return function fn$identity () {
-    debug('fn$identity(%j)', arguments);
-
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; ++i) {
-      // i is always valid index in the arguments object
-      if (typeof arguments[i] === 'string') {
-        args[i] = '\'' + arguments[i] + '\'';
-      } else {
-        args[i] = arguments[i];
-      }
-    }
-
-    return Promise.resolve(fnName + '(' + args.join(',') + ')');
-  };
-};
-
-module.exports.fnName = 'pass';
-
-},{"../helper/debug":151,"es6-promise":91}],148:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var debug = require('../helper/debug')('fn-ramp');
-var columnName = require('../helper/column-name');
-var TurboCartoError = require('../helper/turbo-carto-error');
-var isResult = require('../model/is-result');
-var linearBuckets = require('../helper/linear-buckets');
-var ValuesResult = require('../model/values-result');
-var FiltersResult = require('../model/filters-result');
-var LazyFiltersResult = require('../model/lazy-filters-result');
-var RampResult = require('../model/ramp/ramp-result');
-
-function createSplitStrategy (mapping) {
-  return function splitStrategy (column, rampResult, stats, decl, metadataHolder) {
-    var allFilters = rampResult.filter(evenIndex);
-    var values = rampResult.filter(reverse(evenIndex));
-    var filters = allFilters.slice(1);
-    if (mapping === '=') {
-      values = values.slice(1).concat([rampResult.filter(reverse(evenIndex))[0]]);
-    }
-    filters = filters.filter(reverse(isNull));
-    var ramp = new RampResult(new ValuesResult(values), new FiltersResult(filters, null, stats), mapping);
-    return ramp.process(column, decl, metadataHolder);
-  };
-}
-
-function evenIndex (value, index) {
-  return index % 2 === 0;
-}
-
-function isNull (val) {
-  return val === null;
-}
-
-function reverse (fn, ctx) {
-  return function () {
-    return !fn.apply(ctx, arguments);
-  };
-}
-
-var strategy = {
-  max: function maxStrategy (column, rampResult, stats, decl, metadataHolder) {
-    var values = rampResult.filter(reverse(evenIndex));
-    var filters = rampResult.filter(evenIndex).filter(reverse(isNull));
-    var ramp = new RampResult(new ValuesResult(values), new FiltersResult(filters, null, stats), '>');
-    return ramp.process(column, decl, metadataHolder);
-  },
-
-  split: createSplitStrategy('>'),
-
-  exact: createSplitStrategy('='),
-
-  '=': createSplitStrategy('=')
-};
-
-module.exports = function (datasource, decl, metadataHolder) {
-  return function fn$ramp (column, /* ... */args) {
-    debug('fn$ramp(%j)', arguments);
-    debug('Using "%s" datasource to calculate ramp', datasource.getName());
-
-    args = Array.prototype.slice.call(arguments, 1);
-
-    return ramp(datasource, column, args)
-      .then(function (rampResult) {
-        if (rampResult.constructor === RampResult) {
-          return rampResult.process(columnName(column), decl, metadataHolder);
-        }
-        var strategyFn = strategy.hasOwnProperty(rampResult.strategy) ? strategy[rampResult.strategy] : strategy.max;
-        return strategyFn(columnName(column), rampResult.ramp, rampResult.stats, decl, metadataHolder);
-      })
-      .catch(function (err) {
-        var context = {};
-        if (decl.parent) {
-          context.selector = decl.parent.selector;
-        }
-        if (decl.source) {
-          context.source = {
-            start: decl.source.start,
-            end: decl.source.end
-          };
-        }
-        throw new TurboCartoError('Failed to process "' + decl.prop + '" property:', err, context);
-      });
-  };
-};
-
-/**
- * @param datasource
- * @param {String} column
- * @param args
- *
- * ####################
- * ###  COLOR RAMP  ###
- * ####################
- *
- * [colorbrewer(Greens, 7), jenks]
- *  <Array>scheme         , <String>method
- *
- * [colorbrewer(Greens, 7)]
- *  <Array>scheme
- *
- * ####################
- * ### NUMERIC RAMP ###
- * ####################
- *
- * [10            , 20]
- *  <Number>minVal, <Number>maxValue
- *
- * [10            , 20,             , jenks]
- *  <Number>minVal, <Number>maxValue, <String>method
- *
- * [10            , 20,             , 4]
- *  <Number>minVal, <Number>maxValue, <Number>numBuckets
- *
- * [10            , 20,             , 4              , jenks]
- *  <Number>minVal, <Number>maxValue, <Number>numBuckets, <String>method
- */
-function ramp (datasource, column, args) {
-  if (args.length === 0) {
-    return Promise.reject(
-      new TurboCartoError('invalid number of arguments')
-    );
-  }
-
-  /**
-   * Overload scenarios to support
-   * marker-width: ramp([price], 4, 100);
-   * marker-width: ramp([price], 4, 100, method);
-   * marker-width: ramp([price], 4, 100, 5, method);
-   * marker-width: ramp([price], 4, 100, 3, (100, 200, 1000));
-   * marker-width: ramp([price], 4, 100, (100, 150, 250, 200, 1000));
-   */
-  if (Number.isFinite(args[0])) {
-    return compatibilityNumericRamp(datasource, column, args);
-  }
-
-  /**
-   * Overload methods to support
-   * marker-fill: ramp([price], colorbrewer(Reds));
-   * marker-fill: ramp([price], colorbrewer(Reds), jenks);
-   */
-  if (!isResult(args[1])) {
-    return compatibilityValuesRamp(datasource, column, args);
-  }
-
-  /**
-   * Overload methods to support from here
-   * marker-fill: ramp([price], colorbrewer(Reds), (100, 200, 300, 400, 500));
-   * marker-fill: ramp([price], colorbrewer(Reds), (100, 200, 300, 400, 500), =);
-   * marker-fill: ramp([price], (...values), (...filters), [mapping]);
-   */
-  var values = args[0];
-  var filters = args[1];
-  var mapping = args[2];
-  var strategy = strategyFromMapping(mapping);
-  filters = filters.is(ValuesResult) ? new FiltersResult(filters.get(), strategy) : filters;
-  if (filters.is(LazyFiltersResult)) {
-    return filters.get(column, strategy).then(createRampFn(values));
-  } else {
-    return Promise.resolve(filters).then(createRampFn(values));
-  }
-}
-
-var oldMappings2Strategies = {
-  quantiles: 'max',
-  equal: 'max',
-  jenks: 'max',
-  headtails: 'split',
-  category: 'exact'
-};
-
-function strategyFromMapping (mapping) {
-  if (oldMappings2Strategies.hasOwnProperty(mapping)) {
-    return oldMappings2Strategies[mapping];
-  }
-  return mapping;
-}
-
-/**
- * Overload methods to support
- * marker-fill: ramp([price], colorbrewer(Reds));
- * marker-fill: ramp([price], colorbrewer(Reds), jenks);
- */
-function compatibilityValuesRamp (datasource, column, args) {
-  var values = args[0];
-  var method = (args[1] || 'quantiles').toLowerCase();
-  var numBuckets = values.getLength();
-  return getRamp(datasource, column, numBuckets, method).then(compatibilityCreateRampFn(values));
-}
-
-/**
- * Overload scenarios to support
- * marker-width: ramp([price], 4, 100);
- * marker-width: ramp([price], 4, 100, method);
- * marker-width: ramp([price], 4, 100, 5, method); √
- * marker-width: ramp([price], 4, 100, 3, (100, 200, 1000)); √
- * marker-width: ramp([price], 4, 100, (100, 150, 250, 200, 1000)); √
- */
-function compatibilityNumericRamp (datasource, column, args) {
-  // jshint maxcomplexity:9
-  if (args.length < 2) {
-    return Promise.reject(
-      new TurboCartoError('invalid number of arguments')
-    );
-  }
-
-  var min = +args[0];
-  var max = +args[1];
-
-  var numBuckets;
-  var filters = null;
-  var method;
-
-  if (Number.isFinite(args[2])) {
-    numBuckets = args[2];
-
-    if (isResult(args[3])) {
-      filters = args[3];
-      method = null;
-      if (filters.getLength() !== numBuckets) {
-        return Promise.reject(
-          new TurboCartoError(
-              'invalid ramp length, got ' + filters.getLength() + ' values, expected ' + numBuckets
-          )
-        );
-      }
-    } else {
-      filters = null;
-      method = args[3];
-    }
-  } else if (isResult(args[2])) {
-    filters = args[2];
-    numBuckets = filters.getLength();
-    method = null;
-  } else {
-    filters = null;
-    numBuckets = 5;
-    method = args[2];
-  }
-
-  var values = new ValuesResult([min, max], numBuckets, linearBuckets, Number.POSITIVE_INFINITY);
-
-  if (filters === null) {
-    // normalize method
-    method = (method || 'quantiles').toLowerCase();
-    return getRamp(datasource, column, numBuckets, method).then(compatibilityCreateRampFn(values));
-  }
-
-  filters = filters.is(FiltersResult) ? filters : new FiltersResult(filters.get(), 'max');
-  return Promise.resolve(filters).then(compatibilityCreateRampFn(values));
-}
-
-function getRamp (datasource, column, buckets, method) {
-  return new Promise(function (resolve, reject) {
-    datasource.getRamp(columnName(column), buckets, method, function (err, filters) {
-      if (err) {
-        return reject(
-          new TurboCartoError('unable to compute ramp,', err)
-        );
-      }
-      var strategy = 'max';
-      var stats = {};
-      if (!Array.isArray(filters)) {
-        strategy = filters.strategy || 'max';
-        stats = filters.stats;
-        filters = filters.ramp;
-      }
-      resolve(new FiltersResult(filters, strategy, stats));
-    });
-  });
-}
-
-function compatibilityCreateRampFn (valuesResult) {
-  return function prepareRamp (filtersResult) {
-    var buckets = Math.min(valuesResult.getLength(), filtersResult.getLength());
-
-    var i;
-    var rampResult = [];
-
-    var filters = filtersResult.get();
-    var values = valuesResult.get();
-
-    if (buckets > 0) {
-      for (i = 0; i < buckets; i++) {
-        rampResult.push(filters[i]);
-        rampResult.push(values[i]);
-      }
-    } else {
-      rampResult.push(null, values[0]);
-    }
-
-    return { ramp: rampResult, strategy: filtersResult.getStrategy(), stats: filtersResult.stats };
-  };
-}
-
-function createRampFn (valuesResult) {
-  return function prepareRamp (filtersResult) {
-    if (RampResult.supports(filtersResult.getStrategy())) {
-      return new RampResult(valuesResult, filtersResult, filtersResult.getStrategy());
-    }
-
-    var buckets = Math.min(valuesResult.getMaxSize(), filtersResult.getMaxSize());
-
-    var i;
-    var rampResult = [];
-
-    var filters = filtersResult.get();
-    var values = valuesResult.get(buckets);
-
-    if (buckets > 0) {
-      for (i = 0; i < buckets; i++) {
-        rampResult.push(filters[i]);
-        rampResult.push(values[i]);
-      }
-    } else {
-      rampResult.push(null, values[0]);
-    }
-
-    return { ramp: rampResult, strategy: filtersResult.getStrategy(), stats: filtersResult.stats };
-  };
-}
-
-module.exports.fnName = 'ramp';
-
-},{"../helper/column-name":150,"../helper/debug":151,"../helper/linear-buckets":152,"../helper/turbo-carto-error":154,"../model/filters-result":156,"../model/is-result":157,"../model/lazy-filters-result":158,"../model/ramp/ramp-result":160,"../model/values-result":161,"es6-promise":91}],149:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var ValuesResult = require('../model/values-result');
-var debug = require('../helper/debug')('fn-range');
-var linearBuckets = require('../helper/linear-buckets');
-
-module.exports = function () {
-  return function fn$range (min, max, numBuckets) {
-    debug('fn$range(%j)', arguments);
-    return new Promise(function (resolve) {
-      var result = [min, max];
-      numBuckets = Number.isFinite(numBuckets) ? numBuckets : 5;
-      resolve(new ValuesResult(result, numBuckets, linearBuckets, Number.POSITIVE_INFINITY));
-    });
-  };
-};
-
-module.exports.fnName = 'range';
-
-},{"../helper/debug":151,"../helper/linear-buckets":152,"../model/values-result":161,"es6-promise":91}],150:[function(require,module,exports){
-'use strict';
-
-function columnName (column) {
-  return column.replace('[', '').replace(']', '');
-}
-
-module.exports = columnName;
-
-},{}],151:[function(require,module,exports){
-'use strict';
-
-var debug = require('debug');
-module.exports = function turboCartoDebug (ns) {
-  return debug(['turbo-carto', ns].join(':'));
-};
-
-},{"debug":88}],152:[function(require,module,exports){
-'use strict';
-
-module.exports = function (min, max, numBuckets) {
-  if (Array.isArray(min)) {
-    numBuckets = max;
-    max = min[1];
-    min = min[0];
-  }
-  var buckets = [];
-  var range = max - min;
-  var width = range / (numBuckets - 1);
-  if (width === Number.POSITIVE_INFINITY || width === Number.NEGATIVE_INFINITY) {
-    width = 0;
-  }
-  for (var i = 0; i < numBuckets; i++) {
-    buckets.push(min + i * width);
-  }
-  return buckets;
-};
-
-},{}],153:[function(require,module,exports){
-'use strict';
-
-function minMaxNumericKey (obj) {
-  return Object.keys(obj).reduce(function (minMax, k) {
-    if (Number.isFinite(+k)) {
-      if (minMax.min === null) {
-        minMax.min = +k;
-      }
-      if (minMax.max === null) {
-        minMax.max = +k;
-      }
-      minMax.max = Math.max(minMax.max, +k);
-      minMax.min = Math.min(minMax.min, +k);
-    }
-    return minMax;
-  }, { min: null, max: null });
-}
-
-module.exports = minMaxNumericKey;
-
-},{}],154:[function(require,module,exports){
-'use strict';
-
-function TurboCartoError (message, originalErr, context) {
-  Error.captureStackTrace(this, this.constructor);
-  this.name = this.constructor.name;
-
-  if (originalErr) {
-    message += ' ' + originalErr.message;
-  }
-
-  this.message = message;
-  this.originalErr = originalErr;
-  this.context = context;
-}
-
-require('util').inherits(TurboCartoError, Error);
-
-module.exports = TurboCartoError;
-
-},{"util":45}],155:[function(require,module,exports){
-'use strict';
-
-var TurboCarto = require('./turbo-carto');
-
-function turbocarto (cartocss, datasource, callback) {
-  new TurboCarto(cartocss, datasource).getCartocss(callback);
-}
-
-module.exports = turbocarto;
-module.exports.TurboCarto = TurboCarto;
-module.exports.version = require('../package.json').version;
-
-},{"../package.json":134,"./turbo-carto":163}],156:[function(require,module,exports){
-'use strict';
-
-var util = require('util');
-var ValuesResult = require('./values-result');
-
-function FiltersResult (result, strategy, stats) {
-  ValuesResult.call(this, result, result.length);
-  this.strategy = strategy;
-  this.stats = stats;
-}
-
-util.inherits(FiltersResult, ValuesResult);
-
-module.exports = FiltersResult;
-
-FiltersResult.prototype.getStrategy = function () {
-  if (this.result.some(nonNumeric)) {
-    return '=';
-  }
-  return this.strategy;
-};
-
-function nonNumeric (item) {
-  return !Number.isFinite(item);
-}
-
-},{"./values-result":161,"util":45}],157:[function(require,module,exports){
-'use strict';
-
-var ValuesResult = require('./values-result');
-var FiltersResult = require('./filters-result');
-var LazyFiltersResult = require('./lazy-filters-result');
-
-function isResult (obj) {
-  return typeof obj === 'object' && obj !== null &&
-    (obj.constructor === ValuesResult || obj.constructor === FiltersResult || obj.constructor === LazyFiltersResult);
-}
-
-module.exports = isResult;
-
-},{"./filters-result":156,"./lazy-filters-result":158,"./values-result":161}],158:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var util = require('util');
-var FiltersResult = require('./filters-result');
-
-function LazyFiltersResult (filterGenerator) {
-  this.filterGenerator = filterGenerator;
-}
-
-util.inherits(LazyFiltersResult, FiltersResult);
-
-module.exports = LazyFiltersResult;
-
-LazyFiltersResult.prototype.get = function (column, strategy) {
-  return this.filterGenerator(column, strategy);
-};
-
-
-},{"./filters-result":156,"es6-promise":91,"util":45}],159:[function(require,module,exports){
-'use strict';
-
-function MetadataHolder () {
-  this.rules = [];
-}
-
-module.exports = MetadataHolder;
-
-MetadataHolder.prototype.add = function (rule) {
-  this.rules.push(rule);
-};
-
-},{}],160:[function(require,module,exports){
-'use strict';
-
-var TurboCartoError = require('../../helper/turbo-carto-error');
-var postcss = require('postcss');
-
-function RampResult (values, filters, mapping) {
-  this.values = values;
-  this.filters = filters;
-  this.mapping = mapping || '>';
-  this.mapping = this.mapping === '==' ? '=' : this.mapping;
-}
-
-module.exports = RampResult;
-
-var SUPPORTED_STRATEGIES = {
-  /**
-   * `equality` will get as many values - 1, and will filter `column` with those filters,
-   * last value will be used as default value.
-   * Example:
-   *  ```css
-   *  marker-fill: ramp([cat_column], (red, green, blue, black), (1, 2, 3), ==);
-   *  ```
-   *
-   * will generate:
-   *  ```css
-   *  marker-width: black;
-   *  [cat_column = 1] {
-   *    marker-width: red;
-   *  }
-   *  [cat_column = 2] {
-   *    marker-width: green;
-   *  }
-   *  [cat_column = 3] {
-   *    marker-width: blue;
-   *  }
-   *  ```
-   *
-   * This is useful for category ramps.
-   * This works for numeric and string filters.
-   */
-  '=': 'equality',
-  '==': 'equality',
-
-  /**
-   * `greater_than` and `greater_than_or_equal` will use first value as default value, and will break by first filter.
-   * Example:
-   *  ```css
-   *  marker-width: ramp([price], (4, 8, 16, 32), (100, 200, 500, 600), >);
-   *  ```
-   *
-   * Will generate:
-   *  ```css
-   *  marker-width: 4;
-   *  [price > 100] {
-   *    marker-width: 8;
-   *  }
-   *  [price > 200] {
-   *    marker-width: 16;
-   *  }
-   *  [price > 500] {
-   *    marker-width: 32;
-   *  }
-   *  ```
-   *
-   *
-   *
-   * This is useful for quantification methods like jenks, quantiles, and equal intervals.
-   * This only work for numeric filters, otherwise it will throw an error.
-   */
-  '>': 'greater_than_or_equal',
-  '>=': 'greater_than_or_equal',
-
-  /**
-   * Example:
-   *  ```css
-   *  marker-width: ramp([price], (4, 8, 16, 32), (50, 75.5, 88, 94.5), <);
-   *  ```
-   *
-   * Will generate:
-   *  ```css
-   *  marker-width: 32;
-   *  [price < 50] {
-   *    marker-width: 4;
-   *  }
-   *  [price < 75.5] {
-   *    marker-width: 8;
-   *  }
-   *  [price < 88] {
-   *    marker-width: 16;
-   *  }
-   *  ```
-   *
-   * This is useful for quantification methods like headtails.
-   * This only work for numeric filters, otherwise it will throw an error.
-   */
-  '<': 'less_than_or_equal',
-  '<=': 'less_than_or_equal'
-
-  /**
-   * Future mappings
-   * '!=': 'inequality',
-   * 'in': 'set_inclusion',
-   * '!in': 'set_exclusion',
-   */
-};
-
-var FILTER_TYPE = {
-  CATEGORY: 'category',
-  DEFAULT: 'default',
-  RANGE: 'range'
-};
-
-RampResult.prototype.process = function (column, decl, metadataHolder) {
-  var strategy = SUPPORTED_STRATEGIES[this.mapping];
-  if (strategy === SUPPORTED_STRATEGIES['<']) {
-    return this.processLessThanOrEqual(column, decl, metadataHolder);
-  } else if (strategy === SUPPORTED_STRATEGIES['==']) {
-    return this.processEquality(column, decl, metadataHolder);
-  } else {
-    return this.processGreaterThanOrEqual(column, decl, metadataHolder);
-  }
-};
-
-RampResult.supports = function (strategy) {
-  return SUPPORTED_STRATEGIES.hasOwnProperty(strategy) || !strategy;
-};
-
-RampResult.prototype.processEquality = function (column, decl, metadataHolder) {
-  if ((this.filters.getLength()) > this.values.getMaxSize()) {
-    throw new TurboCartoError('`' + this.mapping + '` requires more or same values than filters to work.');
-  }
-
-  var values = this.values.get(this.filters.getLength() + 1);
-  var filters = this.filters.get();
-
-  var initialDecl = decl;
-  var defaultValue = null;
-  if (values.length !== filters.length) {
-    defaultValue = values[values.length - 1];
-    initialDecl = postcss.decl({ prop: decl.prop, value: defaultValue });
-    decl.replaceWith(initialDecl);
-  }
-
-  var range = {
-    start: 0,
-    end: filters.length
-  };
-  var indexOffset = 0;
-
-  var result = this.processGeneric(initialDecl, column, defaultValue, values, filters, range, indexOffset);
-
-  if (values.length === filters.length) {
-    decl.remove();
-  }
-
-  if (metadataHolder) {
-    var metadataRule = {
-      selector: selector(initialDecl.parent),
-      prop: initialDecl.prop,
-      column: column,
-      mapping: this.mapping,
-      buckets: [],
-      stats: {}
-    };
-
-    metadataRule.buckets = filters.map(function (filterRaw, index) {
-      return {
-        filter: {
-          name: filterRaw,
-          type: FILTER_TYPE.CATEGORY
-        },
-        value: values[index]
-      };
-    });
-
-    if (defaultValue !== null) {
-      metadataRule.buckets.push({
-        filter: {
-          type: FILTER_TYPE.DEFAULT
-        },
-        value: defaultValue
-      });
-    }
-
-    metadataHolder.add(metadataRule);
-  }
-
-  return result;
-};
-
-RampResult.prototype.processGreaterThanOrEqual = function (column, decl, metadataHolder) {
-  var buckets = Math.min(this.values.getMaxSize(), this.filters.getMaxSize());
-
-  var values = this.values.get((buckets <= 1) ? buckets + 1 : buckets);
-  var filters = this.filters.get(buckets);
-
-  var defaultValue = values[0];
-  var initialDecl = postcss.decl({ prop: decl.prop, value: defaultValue });
-  decl.replaceWith(initialDecl);
-
-  var range = {
-    start: 0,
-    end: Math.max(filters.length - 1, 1)
-  };
-  var indexOffset = 1;
-
-  if (metadataHolder) {
-    var stats = defaultStats(this.filters.stats);
-    var metadataRule = {
-      selector: selector(initialDecl.parent),
-      prop: initialDecl.prop,
-      column: column,
-      mapping: this.mapping,
-      buckets: [],
-      stats: {
-        filter_avg: stats.avg
-      }
-    };
-
-    var previousFilter = null;
-    if (Number.isFinite(stats.min)) {
-      previousFilter = stats.min;
-    }
-    var lastIndex = 0;
-    metadataRule.buckets = filters.slice(range.start, range.end).map(function (filterRaw, index) {
-      var bucket = {
-        filter: {
-          type: FILTER_TYPE.RANGE,
-          start: previousFilter,
-          end: filterRaw
-        },
-        value: values[index]
-      };
-
-      previousFilter = filterRaw;
-      lastIndex = index;
-
-      return bucket;
-    });
-
-    metadataRule.buckets.push({
-      filter: {
-        type: FILTER_TYPE.RANGE,
-        start: previousFilter,
-        end: stats.max
-      },
-      value: values[lastIndex + 1]
-    });
-
-    metadataHolder.add(metadataRule);
-  }
-
-  return this.processGeneric(initialDecl, column, defaultValue, values, filters, range, indexOffset);
-};
-
-RampResult.prototype.processLessThanOrEqual = function (column, decl, metadataHolder) {
-  var values = this.values.get(this.filters.getLength());
-  var filters = this.filters.get();
-
-  var defaultValue = values[values.length - 1];
-  var initialDecl = postcss.decl({ prop: decl.prop, value: defaultValue });
-  decl.replaceWith(initialDecl);
-
-  var range = {
-    start: 0,
-    end: filters.length - 1
-  };
-  var indexOffset = 1;
-
-  if (metadataHolder) {
-    var stats = defaultStats(this.filters.stats);
-    var metadataRule = {
-      selector: selector(initialDecl.parent),
-      prop: initialDecl.prop,
-      column: column,
-      mapping: this.mapping,
-      buckets: [],
-      stats: {
-        filter_avg: stats.avg
-      }
-    };
-
-    var previousFilter = null;
-    if (Number.isFinite(stats.min)) {
-      previousFilter = stats.min;
-    }
-    var lastIndex = 0;
-    metadataRule.buckets = filters.slice(range.start, range.end).map(function (filterRaw, index) {
-      var bucket = {
-        filter: {
-          type: FILTER_TYPE.RANGE,
-          start: previousFilter,
-          end: filterRaw
-        },
-        value: values[index]
-      };
-
-      previousFilter = filterRaw;
-      lastIndex = index;
-
-      return bucket;
-    });
-
-    metadataRule.buckets.push({
-      filter: {
-        type: FILTER_TYPE.RANGE,
-        start: previousFilter,
-        end: stats.max
-      },
-      value: values[lastIndex + 1]
-    });
-
-    metadataHolder.add(metadataRule);
-  }
-
-  var reversedValues = values.concat().reverse();
-  var reversedFilters = filters.concat().reverse();
-
-  return this.processGeneric(initialDecl, column, defaultValue, reversedValues, reversedFilters, range, indexOffset);
-};
-
-// jshint maxparams:8
-RampResult.prototype.processGeneric = function (decl, column, defaultValue, values, filters, range, indexOffset) {
-  var previousNode = decl;
-  filters.slice(range.start, range.end).forEach(function (filterRaw, index) {
-    var filter = Number.isFinite(filterRaw) ? filterRaw : '"' + filterRaw + '"';
-    var rule = postcss.rule({
-      selector: '[ ' + column + ' ' + this.mapping + ' ' + filter + ' ]'
-    });
-    rule.append(postcss.decl({ prop: decl.prop, value: values[index + indexOffset] }));
-
-    rule.moveAfter(previousNode);
-    previousNode = rule;
-  }.bind(this));
-
-  return { values: values, filters: filters, mapping: this.mapping };
-};
-
-function defaultStats (stats) {
-  stats = stats || {};
-  return {
-    min: stats.min_val,
-    max: stats.max_val,
-    avg: stats.avg_val
-  };
-}
-
-function selector (node, repr) {
-  repr = repr || '';
-  if (node && node.type !== 'root') {
-    repr = selector(node.parent, node.selector + repr);
-  }
-  return repr;
-}
-
-},{"../../helper/turbo-carto-error":154,"postcss":109}],161:[function(require,module,exports){
-'use strict';
-
-function ValuesResult (result, defaultSize, getter, maxSize) {
-  this.result = result;
-  this.defaultSize = defaultSize || result.length;
-  this.getter = getter;
-  this.maxSize = maxSize || result.length;
-}
-
-module.exports = ValuesResult;
-
-ValuesResult.prototype.get = function (size) {
-  size = size || this.defaultSize;
-  if (this.getter) {
-    return this.getter(this.result, size);
-  }
-
-  if (Array.isArray(this.result)) {
-    if (size > 0) {
-      return this.result.slice(0, size);
-    }
-    return this.result;
-  }
-
-  return this.result.hasOwnProperty(size) ? this.result[size] : this.result[this.defaultSize];
-};
-
-ValuesResult.prototype.getLength = function (size) {
-  return this.get(size).length;
-};
-
-ValuesResult.prototype.getMaxSize = function () {
-  return this.maxSize;
-};
-
-ValuesResult.prototype.toString = function () {
-  return JSON.stringify({
-    result: this.result,
-    defaultSize: this.defaultSize,
-    getter: this.getter && this.getter.toString()
-  });
-};
-
-ValuesResult.prototype.is = function (constructor) {
-  return this.constructor === constructor;
-};
-
-},{}],162:[function(require,module,exports){
-'use strict';
-
-require('es6-promise').polyfill();
-
-var valueParser = require('postcss-value-parser');
-var postcss = require('postcss');
-var FnBuilder = require('./fn/builder');
-
-function PostcssTurboCarto (datasource) {
-  this.datasource = datasource;
-}
-
-module.exports = PostcssTurboCarto;
-
-PostcssTurboCarto.prototype.getPlugin = function (metadataHolder) {
-  var self = this;
-  return postcss.plugin('turbo-carto', function (/* opts */) {
-    return function (css /* , result */) {
-      var fnBuilder = new FnBuilder(self.datasource);
-
-      css.walkDecls(function (decl) {
-        var parsedValue = valueParser(decl.value);
-        parsedValue.walk(function (node) {
-          if (node.type === 'function') {
-            fnBuilder.add(decl, node, metadataHolder);
-            return false;
-          }
-        }, false);
-      });
-
-      return fnBuilder.exec();
-    };
-  });
-};
-
-},{"./fn/builder":135,"es6-promise":91,"postcss":109,"postcss-value-parser":92}],163:[function(require,module,exports){
-'use strict';
-
-var postcss = require('postcss');
-var PostcssTurboCarto = require('./postcss-turbo-carto');
-var MetadataHolder = require('./model/metadata-holder');
-
-function TurboCarto (cartocss, datasource) {
-  this.cartocss = cartocss;
-  this.datasource = datasource;
-  this.metadataHolder = new MetadataHolder();
-}
-
-TurboCarto.prototype.getCartocss = function (callback) {
-  var self = this;
-
-  var postCssTurboCarto = new PostcssTurboCarto(this.datasource);
-
-  postcss([postCssTurboCarto.getPlugin(this.metadataHolder)])
-    .process(this.cartocss)
-    .then(function (result) {
-      callback(null, result.css, self.metadataHolder);
-    })
-    .catch(callback);
-};
-
-TurboCarto.prototype.getMetadata = function (callback) {
-  return callback(null, this.metadataHolder);
-};
-
-module.exports = TurboCarto;
-
-},{"./model/metadata-holder":159,"./postcss-turbo-carto":162,"postcss":109}],164:[function(require,module,exports){
-var ss = require('simple-statistics');
-
-/**
-* Takes a {@FeatureCollection} of any type and returns an array of the [Jenks Natural breaks](http://en.wikipedia.org/wiki/Jenks_natural_breaks_optimization)
-* for a given property
-* @module turf/jenks
-* @param {FeatureCollection} input a FeatureCollection of any type
-* @param {string} field the property in `input` on which to calculate Jenks natural breaks
-* @param {number} numberOfBreaks number of classes in which to group the data
-* @return {Array<number>} the break number for each class plus the minimum and maximum values
-* @example
-* var points = {
-*   "type": "FeatureCollection",
-*   "features": [
-*     {
-*       "type": "Feature",
-*       "properties": {
-*         "population": 200
-*       },
-*       "geometry": {
-*         "type": "Point",
-*         "coordinates": [49.859733, 40.400424]
-*       }
-*     }, {
-*       "type": "Feature",
-*       "properties": {
-*         "population": 600
-*       },
-*       "geometry": {
-*         "type": "Point",
-*         "coordinates": [49.83879, 40.401209]
-*       }
-*     }, {
-*       "type": "Feature",
-*       "properties": {
-*         "population": 100
-*       },
-*       "geometry": {
-*         "type": "Point",
-*         "coordinates": [49.817848, 40.376889]
-*       }
-*     }, {
-*       "type": "Feature",
-*       "properties": {
-*         "population": 200
-*       },
-*       "geometry": {
-*         "type": "Point",
-*         "coordinates": [49.840507, 40.386043]
-*       }
-*     }, {
-*       "type": "Feature",
-*       "properties": {
-*         "population": 300
-*       },
-*       "geometry": {
-*         "type": "Point",
-*         "coordinates": [49.854583, 40.37532]
-*       }
-*     }
-*   ]
-* };
-*
-* var breaks = turf.jenks(points, 'population', 3);
-*
-* //=breaks
-*/
-module.exports = function(fc, field, num){
-  var vals = [];
-  var breaks = [];
-
-  fc.features.forEach(function(feature){
-    if(feature.properties[field]!==undefined){
-      vals.push(feature.properties[field]);
-    }
-  });
-  breaks = ss.jenks(vals, num);
-
-  return breaks;
-};
-
-},{"simple-statistics":165}],165:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
 'use strict';
 // # simple-statistics
 //
@@ -39031,7 +34052,4579 @@ module.exports = function(fc, field, num){
 
 })(this);
 
-},{}],166:[function(require,module,exports){
+},{}],120:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+var util = require('./util');
+var has = Object.prototype.hasOwnProperty;
+var hasNativeMap = typeof Map !== "undefined";
+
+/**
+ * A data structure which is a combination of an array and a set. Adding a new
+ * member is O(1), testing for membership is O(1), and finding the index of an
+ * element is O(1). Removing elements from the set is not supported. Only
+ * strings are supported for membership.
+ */
+function ArraySet() {
+  this._array = [];
+  this._set = hasNativeMap ? new Map() : Object.create(null);
+}
+
+/**
+ * Static method for creating ArraySet instances from an existing array.
+ */
+ArraySet.fromArray = function ArraySet_fromArray(aArray, aAllowDuplicates) {
+  var set = new ArraySet();
+  for (var i = 0, len = aArray.length; i < len; i++) {
+    set.add(aArray[i], aAllowDuplicates);
+  }
+  return set;
+};
+
+/**
+ * Return how many unique items are in this ArraySet. If duplicates have been
+ * added, than those do not count towards the size.
+ *
+ * @returns Number
+ */
+ArraySet.prototype.size = function ArraySet_size() {
+  return hasNativeMap ? this._set.size : Object.getOwnPropertyNames(this._set).length;
+};
+
+/**
+ * Add the given string to this set.
+ *
+ * @param String aStr
+ */
+ArraySet.prototype.add = function ArraySet_add(aStr, aAllowDuplicates) {
+  var sStr = hasNativeMap ? aStr : util.toSetString(aStr);
+  var isDuplicate = hasNativeMap ? this.has(aStr) : has.call(this._set, sStr);
+  var idx = this._array.length;
+  if (!isDuplicate || aAllowDuplicates) {
+    this._array.push(aStr);
+  }
+  if (!isDuplicate) {
+    if (hasNativeMap) {
+      this._set.set(aStr, idx);
+    } else {
+      this._set[sStr] = idx;
+    }
+  }
+};
+
+/**
+ * Is the given string a member of this set?
+ *
+ * @param String aStr
+ */
+ArraySet.prototype.has = function ArraySet_has(aStr) {
+  if (hasNativeMap) {
+    return this._set.has(aStr);
+  } else {
+    var sStr = util.toSetString(aStr);
+    return has.call(this._set, sStr);
+  }
+};
+
+/**
+ * What is the index of the given string in the array?
+ *
+ * @param String aStr
+ */
+ArraySet.prototype.indexOf = function ArraySet_indexOf(aStr) {
+  if (hasNativeMap) {
+    var idx = this._set.get(aStr);
+    if (idx >= 0) {
+        return idx;
+    }
+  } else {
+    var sStr = util.toSetString(aStr);
+    if (has.call(this._set, sStr)) {
+      return this._set[sStr];
+    }
+  }
+
+  throw new Error('"' + aStr + '" is not in the set.');
+};
+
+/**
+ * What is the element at the given index?
+ *
+ * @param Number aIdx
+ */
+ArraySet.prototype.at = function ArraySet_at(aIdx) {
+  if (aIdx >= 0 && aIdx < this._array.length) {
+    return this._array[aIdx];
+  }
+  throw new Error('No element indexed by ' + aIdx);
+};
+
+/**
+ * Returns the array representation of this set (which has the proper indices
+ * indicated by indexOf). Note that this is a copy of the internal array used
+ * for storing the members so that no one can mess with internal state.
+ */
+ArraySet.prototype.toArray = function ArraySet_toArray() {
+  return this._array.slice();
+};
+
+exports.ArraySet = ArraySet;
+
+},{"./util":129}],121:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ *
+ * Based on the Base 64 VLQ implementation in Closure Compiler:
+ * https://code.google.com/p/closure-compiler/source/browse/trunk/src/com/google/debugging/sourcemap/Base64VLQ.java
+ *
+ * Copyright 2011 The Closure Compiler Authors. All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials provided
+ *    with the distribution.
+ *  * Neither the name of Google Inc. nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+var base64 = require('./base64');
+
+// A single base 64 digit can contain 6 bits of data. For the base 64 variable
+// length quantities we use in the source map spec, the first bit is the sign,
+// the next four bits are the actual value, and the 6th bit is the
+// continuation bit. The continuation bit tells us whether there are more
+// digits in this value following this digit.
+//
+//   Continuation
+//   |    Sign
+//   |    |
+//   V    V
+//   101011
+
+var VLQ_BASE_SHIFT = 5;
+
+// binary: 100000
+var VLQ_BASE = 1 << VLQ_BASE_SHIFT;
+
+// binary: 011111
+var VLQ_BASE_MASK = VLQ_BASE - 1;
+
+// binary: 100000
+var VLQ_CONTINUATION_BIT = VLQ_BASE;
+
+/**
+ * Converts from a two-complement value to a value where the sign bit is
+ * placed in the least significant bit.  For example, as decimals:
+ *   1 becomes 2 (10 binary), -1 becomes 3 (11 binary)
+ *   2 becomes 4 (100 binary), -2 becomes 5 (101 binary)
+ */
+function toVLQSigned(aValue) {
+  return aValue < 0
+    ? ((-aValue) << 1) + 1
+    : (aValue << 1) + 0;
+}
+
+/**
+ * Converts to a two-complement value from a value where the sign bit is
+ * placed in the least significant bit.  For example, as decimals:
+ *   2 (10 binary) becomes 1, 3 (11 binary) becomes -1
+ *   4 (100 binary) becomes 2, 5 (101 binary) becomes -2
+ */
+function fromVLQSigned(aValue) {
+  var isNegative = (aValue & 1) === 1;
+  var shifted = aValue >> 1;
+  return isNegative
+    ? -shifted
+    : shifted;
+}
+
+/**
+ * Returns the base 64 VLQ encoded value.
+ */
+exports.encode = function base64VLQ_encode(aValue) {
+  var encoded = "";
+  var digit;
+
+  var vlq = toVLQSigned(aValue);
+
+  do {
+    digit = vlq & VLQ_BASE_MASK;
+    vlq >>>= VLQ_BASE_SHIFT;
+    if (vlq > 0) {
+      // There are still more digits in this value, so we must make sure the
+      // continuation bit is marked.
+      digit |= VLQ_CONTINUATION_BIT;
+    }
+    encoded += base64.encode(digit);
+  } while (vlq > 0);
+
+  return encoded;
+};
+
+/**
+ * Decodes the next base 64 VLQ value from the given string and returns the
+ * value and the rest of the string via the out parameter.
+ */
+exports.decode = function base64VLQ_decode(aStr, aIndex, aOutParam) {
+  var strLen = aStr.length;
+  var result = 0;
+  var shift = 0;
+  var continuation, digit;
+
+  do {
+    if (aIndex >= strLen) {
+      throw new Error("Expected more digits in base 64 VLQ value.");
+    }
+
+    digit = base64.decode(aStr.charCodeAt(aIndex++));
+    if (digit === -1) {
+      throw new Error("Invalid base64 digit: " + aStr.charAt(aIndex - 1));
+    }
+
+    continuation = !!(digit & VLQ_CONTINUATION_BIT);
+    digit &= VLQ_BASE_MASK;
+    result = result + (digit << shift);
+    shift += VLQ_BASE_SHIFT;
+  } while (continuation);
+
+  aOutParam.value = fromVLQSigned(result);
+  aOutParam.rest = aIndex;
+};
+
+},{"./base64":122}],122:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+var intToCharMap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.split('');
+
+/**
+ * Encode an integer in the range of 0 to 63 to a single base 64 digit.
+ */
+exports.encode = function (number) {
+  if (0 <= number && number < intToCharMap.length) {
+    return intToCharMap[number];
+  }
+  throw new TypeError("Must be between 0 and 63: " + number);
+};
+
+/**
+ * Decode a single base 64 character code digit to an integer. Returns -1 on
+ * failure.
+ */
+exports.decode = function (charCode) {
+  var bigA = 65;     // 'A'
+  var bigZ = 90;     // 'Z'
+
+  var littleA = 97;  // 'a'
+  var littleZ = 122; // 'z'
+
+  var zero = 48;     // '0'
+  var nine = 57;     // '9'
+
+  var plus = 43;     // '+'
+  var slash = 47;    // '/'
+
+  var littleOffset = 26;
+  var numberOffset = 52;
+
+  // 0 - 25: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+  if (bigA <= charCode && charCode <= bigZ) {
+    return (charCode - bigA);
+  }
+
+  // 26 - 51: abcdefghijklmnopqrstuvwxyz
+  if (littleA <= charCode && charCode <= littleZ) {
+    return (charCode - littleA + littleOffset);
+  }
+
+  // 52 - 61: 0123456789
+  if (zero <= charCode && charCode <= nine) {
+    return (charCode - zero + numberOffset);
+  }
+
+  // 62: +
+  if (charCode == plus) {
+    return 62;
+  }
+
+  // 63: /
+  if (charCode == slash) {
+    return 63;
+  }
+
+  // Invalid base64 digit.
+  return -1;
+};
+
+},{}],123:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+exports.GREATEST_LOWER_BOUND = 1;
+exports.LEAST_UPPER_BOUND = 2;
+
+/**
+ * Recursive implementation of binary search.
+ *
+ * @param aLow Indices here and lower do not contain the needle.
+ * @param aHigh Indices here and higher do not contain the needle.
+ * @param aNeedle The element being searched for.
+ * @param aHaystack The non-empty array being searched.
+ * @param aCompare Function which takes two elements and returns -1, 0, or 1.
+ * @param aBias Either 'binarySearch.GREATEST_LOWER_BOUND' or
+ *     'binarySearch.LEAST_UPPER_BOUND'. Specifies whether to return the
+ *     closest element that is smaller than or greater than the one we are
+ *     searching for, respectively, if the exact element cannot be found.
+ */
+function recursiveSearch(aLow, aHigh, aNeedle, aHaystack, aCompare, aBias) {
+  // This function terminates when one of the following is true:
+  //
+  //   1. We find the exact element we are looking for.
+  //
+  //   2. We did not find the exact element, but we can return the index of
+  //      the next-closest element.
+  //
+  //   3. We did not find the exact element, and there is no next-closest
+  //      element than the one we are searching for, so we return -1.
+  var mid = Math.floor((aHigh - aLow) / 2) + aLow;
+  var cmp = aCompare(aNeedle, aHaystack[mid], true);
+  if (cmp === 0) {
+    // Found the element we are looking for.
+    return mid;
+  }
+  else if (cmp > 0) {
+    // Our needle is greater than aHaystack[mid].
+    if (aHigh - mid > 1) {
+      // The element is in the upper half.
+      return recursiveSearch(mid, aHigh, aNeedle, aHaystack, aCompare, aBias);
+    }
+
+    // The exact needle element was not found in this haystack. Determine if
+    // we are in termination case (3) or (2) and return the appropriate thing.
+    if (aBias == exports.LEAST_UPPER_BOUND) {
+      return aHigh < aHaystack.length ? aHigh : -1;
+    } else {
+      return mid;
+    }
+  }
+  else {
+    // Our needle is less than aHaystack[mid].
+    if (mid - aLow > 1) {
+      // The element is in the lower half.
+      return recursiveSearch(aLow, mid, aNeedle, aHaystack, aCompare, aBias);
+    }
+
+    // we are in termination case (3) or (2) and return the appropriate thing.
+    if (aBias == exports.LEAST_UPPER_BOUND) {
+      return mid;
+    } else {
+      return aLow < 0 ? -1 : aLow;
+    }
+  }
+}
+
+/**
+ * This is an implementation of binary search which will always try and return
+ * the index of the closest element if there is no exact hit. This is because
+ * mappings between original and generated line/col pairs are single points,
+ * and there is an implicit region between each of them, so a miss just means
+ * that you aren't on the very start of a region.
+ *
+ * @param aNeedle The element you are looking for.
+ * @param aHaystack The array that is being searched.
+ * @param aCompare A function which takes the needle and an element in the
+ *     array and returns -1, 0, or 1 depending on whether the needle is less
+ *     than, equal to, or greater than the element, respectively.
+ * @param aBias Either 'binarySearch.GREATEST_LOWER_BOUND' or
+ *     'binarySearch.LEAST_UPPER_BOUND'. Specifies whether to return the
+ *     closest element that is smaller than or greater than the one we are
+ *     searching for, respectively, if the exact element cannot be found.
+ *     Defaults to 'binarySearch.GREATEST_LOWER_BOUND'.
+ */
+exports.search = function search(aNeedle, aHaystack, aCompare, aBias) {
+  if (aHaystack.length === 0) {
+    return -1;
+  }
+
+  var index = recursiveSearch(-1, aHaystack.length, aNeedle, aHaystack,
+                              aCompare, aBias || exports.GREATEST_LOWER_BOUND);
+  if (index < 0) {
+    return -1;
+  }
+
+  // We have found either the exact element, or the next-closest element than
+  // the one we are searching for. However, there may be more than one such
+  // element. Make sure we always return the smallest of these.
+  while (index - 1 >= 0) {
+    if (aCompare(aHaystack[index], aHaystack[index - 1], true) !== 0) {
+      break;
+    }
+    --index;
+  }
+
+  return index;
+};
+
+},{}],124:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2014 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+var util = require('./util');
+
+/**
+ * Determine whether mappingB is after mappingA with respect to generated
+ * position.
+ */
+function generatedPositionAfter(mappingA, mappingB) {
+  // Optimized for most common case
+  var lineA = mappingA.generatedLine;
+  var lineB = mappingB.generatedLine;
+  var columnA = mappingA.generatedColumn;
+  var columnB = mappingB.generatedColumn;
+  return lineB > lineA || lineB == lineA && columnB >= columnA ||
+         util.compareByGeneratedPositionsInflated(mappingA, mappingB) <= 0;
+}
+
+/**
+ * A data structure to provide a sorted view of accumulated mappings in a
+ * performance conscious manner. It trades a neglibable overhead in general
+ * case for a large speedup in case of mappings being added in order.
+ */
+function MappingList() {
+  this._array = [];
+  this._sorted = true;
+  // Serves as infimum
+  this._last = {generatedLine: -1, generatedColumn: 0};
+}
+
+/**
+ * Iterate through internal items. This method takes the same arguments that
+ * `Array.prototype.forEach` takes.
+ *
+ * NOTE: The order of the mappings is NOT guaranteed.
+ */
+MappingList.prototype.unsortedForEach =
+  function MappingList_forEach(aCallback, aThisArg) {
+    this._array.forEach(aCallback, aThisArg);
+  };
+
+/**
+ * Add the given source mapping.
+ *
+ * @param Object aMapping
+ */
+MappingList.prototype.add = function MappingList_add(aMapping) {
+  if (generatedPositionAfter(this._last, aMapping)) {
+    this._last = aMapping;
+    this._array.push(aMapping);
+  } else {
+    this._sorted = false;
+    this._array.push(aMapping);
+  }
+};
+
+/**
+ * Returns the flat, sorted array of mappings. The mappings are sorted by
+ * generated position.
+ *
+ * WARNING: This method returns internal data without copying, for
+ * performance. The return value must NOT be mutated, and should be treated as
+ * an immutable borrow. If you want to take ownership, you must make your own
+ * copy.
+ */
+MappingList.prototype.toArray = function MappingList_toArray() {
+  if (!this._sorted) {
+    this._array.sort(util.compareByGeneratedPositionsInflated);
+    this._sorted = true;
+  }
+  return this._array;
+};
+
+exports.MappingList = MappingList;
+
+},{"./util":129}],125:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+// It turns out that some (most?) JavaScript engines don't self-host
+// `Array.prototype.sort`. This makes sense because C++ will likely remain
+// faster than JS when doing raw CPU-intensive sorting. However, when using a
+// custom comparator function, calling back and forth between the VM's C++ and
+// JIT'd JS is rather slow *and* loses JIT type information, resulting in
+// worse generated code for the comparator function than would be optimal. In
+// fact, when sorting with a comparator, these costs outweigh the benefits of
+// sorting in C++. By using our own JS-implemented Quick Sort (below), we get
+// a ~3500ms mean speed-up in `bench/bench.html`.
+
+/**
+ * Swap the elements indexed by `x` and `y` in the array `ary`.
+ *
+ * @param {Array} ary
+ *        The array.
+ * @param {Number} x
+ *        The index of the first item.
+ * @param {Number} y
+ *        The index of the second item.
+ */
+function swap(ary, x, y) {
+  var temp = ary[x];
+  ary[x] = ary[y];
+  ary[y] = temp;
+}
+
+/**
+ * Returns a random integer within the range `low .. high` inclusive.
+ *
+ * @param {Number} low
+ *        The lower bound on the range.
+ * @param {Number} high
+ *        The upper bound on the range.
+ */
+function randomIntInRange(low, high) {
+  return Math.round(low + (Math.random() * (high - low)));
+}
+
+/**
+ * The Quick Sort algorithm.
+ *
+ * @param {Array} ary
+ *        An array to sort.
+ * @param {function} comparator
+ *        Function to use to compare two items.
+ * @param {Number} p
+ *        Start index of the array
+ * @param {Number} r
+ *        End index of the array
+ */
+function doQuickSort(ary, comparator, p, r) {
+  // If our lower bound is less than our upper bound, we (1) partition the
+  // array into two pieces and (2) recurse on each half. If it is not, this is
+  // the empty array and our base case.
+
+  if (p < r) {
+    // (1) Partitioning.
+    //
+    // The partitioning chooses a pivot between `p` and `r` and moves all
+    // elements that are less than or equal to the pivot to the before it, and
+    // all the elements that are greater than it after it. The effect is that
+    // once partition is done, the pivot is in the exact place it will be when
+    // the array is put in sorted order, and it will not need to be moved
+    // again. This runs in O(n) time.
+
+    // Always choose a random pivot so that an input array which is reverse
+    // sorted does not cause O(n^2) running time.
+    var pivotIndex = randomIntInRange(p, r);
+    var i = p - 1;
+
+    swap(ary, pivotIndex, r);
+    var pivot = ary[r];
+
+    // Immediately after `j` is incremented in this loop, the following hold
+    // true:
+    //
+    //   * Every element in `ary[p .. i]` is less than or equal to the pivot.
+    //
+    //   * Every element in `ary[i+1 .. j-1]` is greater than the pivot.
+    for (var j = p; j < r; j++) {
+      if (comparator(ary[j], pivot) <= 0) {
+        i += 1;
+        swap(ary, i, j);
+      }
+    }
+
+    swap(ary, i + 1, j);
+    var q = i + 1;
+
+    // (2) Recurse on each half.
+
+    doQuickSort(ary, comparator, p, q - 1);
+    doQuickSort(ary, comparator, q + 1, r);
+  }
+}
+
+/**
+ * Sort the given array in-place with the given comparator function.
+ *
+ * @param {Array} ary
+ *        An array to sort.
+ * @param {function} comparator
+ *        Function to use to compare two items.
+ */
+exports.quickSort = function (ary, comparator) {
+  doQuickSort(ary, comparator, 0, ary.length - 1);
+};
+
+},{}],126:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+var util = require('./util');
+var binarySearch = require('./binary-search');
+var ArraySet = require('./array-set').ArraySet;
+var base64VLQ = require('./base64-vlq');
+var quickSort = require('./quick-sort').quickSort;
+
+function SourceMapConsumer(aSourceMap) {
+  var sourceMap = aSourceMap;
+  if (typeof aSourceMap === 'string') {
+    sourceMap = JSON.parse(aSourceMap.replace(/^\)\]\}'/, ''));
+  }
+
+  return sourceMap.sections != null
+    ? new IndexedSourceMapConsumer(sourceMap)
+    : new BasicSourceMapConsumer(sourceMap);
+}
+
+SourceMapConsumer.fromSourceMap = function(aSourceMap) {
+  return BasicSourceMapConsumer.fromSourceMap(aSourceMap);
+}
+
+/**
+ * The version of the source mapping spec that we are consuming.
+ */
+SourceMapConsumer.prototype._version = 3;
+
+// `__generatedMappings` and `__originalMappings` are arrays that hold the
+// parsed mapping coordinates from the source map's "mappings" attribute. They
+// are lazily instantiated, accessed via the `_generatedMappings` and
+// `_originalMappings` getters respectively, and we only parse the mappings
+// and create these arrays once queried for a source location. We jump through
+// these hoops because there can be many thousands of mappings, and parsing
+// them is expensive, so we only want to do it if we must.
+//
+// Each object in the arrays is of the form:
+//
+//     {
+//       generatedLine: The line number in the generated code,
+//       generatedColumn: The column number in the generated code,
+//       source: The path to the original source file that generated this
+//               chunk of code,
+//       originalLine: The line number in the original source that
+//                     corresponds to this chunk of generated code,
+//       originalColumn: The column number in the original source that
+//                       corresponds to this chunk of generated code,
+//       name: The name of the original symbol which generated this chunk of
+//             code.
+//     }
+//
+// All properties except for `generatedLine` and `generatedColumn` can be
+// `null`.
+//
+// `_generatedMappings` is ordered by the generated positions.
+//
+// `_originalMappings` is ordered by the original positions.
+
+SourceMapConsumer.prototype.__generatedMappings = null;
+Object.defineProperty(SourceMapConsumer.prototype, '_generatedMappings', {
+  get: function () {
+    if (!this.__generatedMappings) {
+      this._parseMappings(this._mappings, this.sourceRoot);
+    }
+
+    return this.__generatedMappings;
+  }
+});
+
+SourceMapConsumer.prototype.__originalMappings = null;
+Object.defineProperty(SourceMapConsumer.prototype, '_originalMappings', {
+  get: function () {
+    if (!this.__originalMappings) {
+      this._parseMappings(this._mappings, this.sourceRoot);
+    }
+
+    return this.__originalMappings;
+  }
+});
+
+SourceMapConsumer.prototype._charIsMappingSeparator =
+  function SourceMapConsumer_charIsMappingSeparator(aStr, index) {
+    var c = aStr.charAt(index);
+    return c === ";" || c === ",";
+  };
+
+/**
+ * Parse the mappings in a string in to a data structure which we can easily
+ * query (the ordered arrays in the `this.__generatedMappings` and
+ * `this.__originalMappings` properties).
+ */
+SourceMapConsumer.prototype._parseMappings =
+  function SourceMapConsumer_parseMappings(aStr, aSourceRoot) {
+    throw new Error("Subclasses must implement _parseMappings");
+  };
+
+SourceMapConsumer.GENERATED_ORDER = 1;
+SourceMapConsumer.ORIGINAL_ORDER = 2;
+
+SourceMapConsumer.GREATEST_LOWER_BOUND = 1;
+SourceMapConsumer.LEAST_UPPER_BOUND = 2;
+
+/**
+ * Iterate over each mapping between an original source/line/column and a
+ * generated line/column in this source map.
+ *
+ * @param Function aCallback
+ *        The function that is called with each mapping.
+ * @param Object aContext
+ *        Optional. If specified, this object will be the value of `this` every
+ *        time that `aCallback` is called.
+ * @param aOrder
+ *        Either `SourceMapConsumer.GENERATED_ORDER` or
+ *        `SourceMapConsumer.ORIGINAL_ORDER`. Specifies whether you want to
+ *        iterate over the mappings sorted by the generated file's line/column
+ *        order or the original's source/line/column order, respectively. Defaults to
+ *        `SourceMapConsumer.GENERATED_ORDER`.
+ */
+SourceMapConsumer.prototype.eachMapping =
+  function SourceMapConsumer_eachMapping(aCallback, aContext, aOrder) {
+    var context = aContext || null;
+    var order = aOrder || SourceMapConsumer.GENERATED_ORDER;
+
+    var mappings;
+    switch (order) {
+    case SourceMapConsumer.GENERATED_ORDER:
+      mappings = this._generatedMappings;
+      break;
+    case SourceMapConsumer.ORIGINAL_ORDER:
+      mappings = this._originalMappings;
+      break;
+    default:
+      throw new Error("Unknown order of iteration.");
+    }
+
+    var sourceRoot = this.sourceRoot;
+    mappings.map(function (mapping) {
+      var source = mapping.source === null ? null : this._sources.at(mapping.source);
+      if (source != null && sourceRoot != null) {
+        source = util.join(sourceRoot, source);
+      }
+      return {
+        source: source,
+        generatedLine: mapping.generatedLine,
+        generatedColumn: mapping.generatedColumn,
+        originalLine: mapping.originalLine,
+        originalColumn: mapping.originalColumn,
+        name: mapping.name === null ? null : this._names.at(mapping.name)
+      };
+    }, this).forEach(aCallback, context);
+  };
+
+/**
+ * Returns all generated line and column information for the original source,
+ * line, and column provided. If no column is provided, returns all mappings
+ * corresponding to a either the line we are searching for or the next
+ * closest line that has any mappings. Otherwise, returns all mappings
+ * corresponding to the given line and either the column we are searching for
+ * or the next closest column that has any offsets.
+ *
+ * The only argument is an object with the following properties:
+ *
+ *   - source: The filename of the original source.
+ *   - line: The line number in the original source.
+ *   - column: Optional. the column number in the original source.
+ *
+ * and an array of objects is returned, each with the following properties:
+ *
+ *   - line: The line number in the generated source, or null.
+ *   - column: The column number in the generated source, or null.
+ */
+SourceMapConsumer.prototype.allGeneratedPositionsFor =
+  function SourceMapConsumer_allGeneratedPositionsFor(aArgs) {
+    var line = util.getArg(aArgs, 'line');
+
+    // When there is no exact match, BasicSourceMapConsumer.prototype._findMapping
+    // returns the index of the closest mapping less than the needle. By
+    // setting needle.originalColumn to 0, we thus find the last mapping for
+    // the given line, provided such a mapping exists.
+    var needle = {
+      source: util.getArg(aArgs, 'source'),
+      originalLine: line,
+      originalColumn: util.getArg(aArgs, 'column', 0)
+    };
+
+    if (this.sourceRoot != null) {
+      needle.source = util.relative(this.sourceRoot, needle.source);
+    }
+    if (!this._sources.has(needle.source)) {
+      return [];
+    }
+    needle.source = this._sources.indexOf(needle.source);
+
+    var mappings = [];
+
+    var index = this._findMapping(needle,
+                                  this._originalMappings,
+                                  "originalLine",
+                                  "originalColumn",
+                                  util.compareByOriginalPositions,
+                                  binarySearch.LEAST_UPPER_BOUND);
+    if (index >= 0) {
+      var mapping = this._originalMappings[index];
+
+      if (aArgs.column === undefined) {
+        var originalLine = mapping.originalLine;
+
+        // Iterate until either we run out of mappings, or we run into
+        // a mapping for a different line than the one we found. Since
+        // mappings are sorted, this is guaranteed to find all mappings for
+        // the line we found.
+        while (mapping && mapping.originalLine === originalLine) {
+          mappings.push({
+            line: util.getArg(mapping, 'generatedLine', null),
+            column: util.getArg(mapping, 'generatedColumn', null),
+            lastColumn: util.getArg(mapping, 'lastGeneratedColumn', null)
+          });
+
+          mapping = this._originalMappings[++index];
+        }
+      } else {
+        var originalColumn = mapping.originalColumn;
+
+        // Iterate until either we run out of mappings, or we run into
+        // a mapping for a different line than the one we were searching for.
+        // Since mappings are sorted, this is guaranteed to find all mappings for
+        // the line we are searching for.
+        while (mapping &&
+               mapping.originalLine === line &&
+               mapping.originalColumn == originalColumn) {
+          mappings.push({
+            line: util.getArg(mapping, 'generatedLine', null),
+            column: util.getArg(mapping, 'generatedColumn', null),
+            lastColumn: util.getArg(mapping, 'lastGeneratedColumn', null)
+          });
+
+          mapping = this._originalMappings[++index];
+        }
+      }
+    }
+
+    return mappings;
+  };
+
+exports.SourceMapConsumer = SourceMapConsumer;
+
+/**
+ * A BasicSourceMapConsumer instance represents a parsed source map which we can
+ * query for information about the original file positions by giving it a file
+ * position in the generated source.
+ *
+ * The only parameter is the raw source map (either as a JSON string, or
+ * already parsed to an object). According to the spec, source maps have the
+ * following attributes:
+ *
+ *   - version: Which version of the source map spec this map is following.
+ *   - sources: An array of URLs to the original source files.
+ *   - names: An array of identifiers which can be referrenced by individual mappings.
+ *   - sourceRoot: Optional. The URL root from which all sources are relative.
+ *   - sourcesContent: Optional. An array of contents of the original source files.
+ *   - mappings: A string of base64 VLQs which contain the actual mappings.
+ *   - file: Optional. The generated file this source map is associated with.
+ *
+ * Here is an example source map, taken from the source map spec[0]:
+ *
+ *     {
+ *       version : 3,
+ *       file: "out.js",
+ *       sourceRoot : "",
+ *       sources: ["foo.js", "bar.js"],
+ *       names: ["src", "maps", "are", "fun"],
+ *       mappings: "AA,AB;;ABCDE;"
+ *     }
+ *
+ * [0]: https://docs.google.com/document/d/1U1RGAehQwRypUTovF1KRlpiOFze0b-_2gc6fAH0KY0k/edit?pli=1#
+ */
+function BasicSourceMapConsumer(aSourceMap) {
+  var sourceMap = aSourceMap;
+  if (typeof aSourceMap === 'string') {
+    sourceMap = JSON.parse(aSourceMap.replace(/^\)\]\}'/, ''));
+  }
+
+  var version = util.getArg(sourceMap, 'version');
+  var sources = util.getArg(sourceMap, 'sources');
+  // Sass 3.3 leaves out the 'names' array, so we deviate from the spec (which
+  // requires the array) to play nice here.
+  var names = util.getArg(sourceMap, 'names', []);
+  var sourceRoot = util.getArg(sourceMap, 'sourceRoot', null);
+  var sourcesContent = util.getArg(sourceMap, 'sourcesContent', null);
+  var mappings = util.getArg(sourceMap, 'mappings');
+  var file = util.getArg(sourceMap, 'file', null);
+
+  // Once again, Sass deviates from the spec and supplies the version as a
+  // string rather than a number, so we use loose equality checking here.
+  if (version != this._version) {
+    throw new Error('Unsupported version: ' + version);
+  }
+
+  sources = sources
+    .map(String)
+    // Some source maps produce relative source paths like "./foo.js" instead of
+    // "foo.js".  Normalize these first so that future comparisons will succeed.
+    // See bugzil.la/1090768.
+    .map(util.normalize)
+    // Always ensure that absolute sources are internally stored relative to
+    // the source root, if the source root is absolute. Not doing this would
+    // be particularly problematic when the source root is a prefix of the
+    // source (valid, but why??). See github issue #199 and bugzil.la/1188982.
+    .map(function (source) {
+      return sourceRoot && util.isAbsolute(sourceRoot) && util.isAbsolute(source)
+        ? util.relative(sourceRoot, source)
+        : source;
+    });
+
+  // Pass `true` below to allow duplicate names and sources. While source maps
+  // are intended to be compressed and deduplicated, the TypeScript compiler
+  // sometimes generates source maps with duplicates in them. See Github issue
+  // #72 and bugzil.la/889492.
+  this._names = ArraySet.fromArray(names.map(String), true);
+  this._sources = ArraySet.fromArray(sources, true);
+
+  this.sourceRoot = sourceRoot;
+  this.sourcesContent = sourcesContent;
+  this._mappings = mappings;
+  this.file = file;
+}
+
+BasicSourceMapConsumer.prototype = Object.create(SourceMapConsumer.prototype);
+BasicSourceMapConsumer.prototype.consumer = SourceMapConsumer;
+
+/**
+ * Create a BasicSourceMapConsumer from a SourceMapGenerator.
+ *
+ * @param SourceMapGenerator aSourceMap
+ *        The source map that will be consumed.
+ * @returns BasicSourceMapConsumer
+ */
+BasicSourceMapConsumer.fromSourceMap =
+  function SourceMapConsumer_fromSourceMap(aSourceMap) {
+    var smc = Object.create(BasicSourceMapConsumer.prototype);
+
+    var names = smc._names = ArraySet.fromArray(aSourceMap._names.toArray(), true);
+    var sources = smc._sources = ArraySet.fromArray(aSourceMap._sources.toArray(), true);
+    smc.sourceRoot = aSourceMap._sourceRoot;
+    smc.sourcesContent = aSourceMap._generateSourcesContent(smc._sources.toArray(),
+                                                            smc.sourceRoot);
+    smc.file = aSourceMap._file;
+
+    // Because we are modifying the entries (by converting string sources and
+    // names to indices into the sources and names ArraySets), we have to make
+    // a copy of the entry or else bad things happen. Shared mutable state
+    // strikes again! See github issue #191.
+
+    var generatedMappings = aSourceMap._mappings.toArray().slice();
+    var destGeneratedMappings = smc.__generatedMappings = [];
+    var destOriginalMappings = smc.__originalMappings = [];
+
+    for (var i = 0, length = generatedMappings.length; i < length; i++) {
+      var srcMapping = generatedMappings[i];
+      var destMapping = new Mapping;
+      destMapping.generatedLine = srcMapping.generatedLine;
+      destMapping.generatedColumn = srcMapping.generatedColumn;
+
+      if (srcMapping.source) {
+        destMapping.source = sources.indexOf(srcMapping.source);
+        destMapping.originalLine = srcMapping.originalLine;
+        destMapping.originalColumn = srcMapping.originalColumn;
+
+        if (srcMapping.name) {
+          destMapping.name = names.indexOf(srcMapping.name);
+        }
+
+        destOriginalMappings.push(destMapping);
+      }
+
+      destGeneratedMappings.push(destMapping);
+    }
+
+    quickSort(smc.__originalMappings, util.compareByOriginalPositions);
+
+    return smc;
+  };
+
+/**
+ * The version of the source mapping spec that we are consuming.
+ */
+BasicSourceMapConsumer.prototype._version = 3;
+
+/**
+ * The list of original sources.
+ */
+Object.defineProperty(BasicSourceMapConsumer.prototype, 'sources', {
+  get: function () {
+    return this._sources.toArray().map(function (s) {
+      return this.sourceRoot != null ? util.join(this.sourceRoot, s) : s;
+    }, this);
+  }
+});
+
+/**
+ * Provide the JIT with a nice shape / hidden class.
+ */
+function Mapping() {
+  this.generatedLine = 0;
+  this.generatedColumn = 0;
+  this.source = null;
+  this.originalLine = null;
+  this.originalColumn = null;
+  this.name = null;
+}
+
+/**
+ * Parse the mappings in a string in to a data structure which we can easily
+ * query (the ordered arrays in the `this.__generatedMappings` and
+ * `this.__originalMappings` properties).
+ */
+BasicSourceMapConsumer.prototype._parseMappings =
+  function SourceMapConsumer_parseMappings(aStr, aSourceRoot) {
+    var generatedLine = 1;
+    var previousGeneratedColumn = 0;
+    var previousOriginalLine = 0;
+    var previousOriginalColumn = 0;
+    var previousSource = 0;
+    var previousName = 0;
+    var length = aStr.length;
+    var index = 0;
+    var cachedSegments = {};
+    var temp = {};
+    var originalMappings = [];
+    var generatedMappings = [];
+    var mapping, str, segment, end, value;
+
+    while (index < length) {
+      if (aStr.charAt(index) === ';') {
+        generatedLine++;
+        index++;
+        previousGeneratedColumn = 0;
+      }
+      else if (aStr.charAt(index) === ',') {
+        index++;
+      }
+      else {
+        mapping = new Mapping();
+        mapping.generatedLine = generatedLine;
+
+        // Because each offset is encoded relative to the previous one,
+        // many segments often have the same encoding. We can exploit this
+        // fact by caching the parsed variable length fields of each segment,
+        // allowing us to avoid a second parse if we encounter the same
+        // segment again.
+        for (end = index; end < length; end++) {
+          if (this._charIsMappingSeparator(aStr, end)) {
+            break;
+          }
+        }
+        str = aStr.slice(index, end);
+
+        segment = cachedSegments[str];
+        if (segment) {
+          index += str.length;
+        } else {
+          segment = [];
+          while (index < end) {
+            base64VLQ.decode(aStr, index, temp);
+            value = temp.value;
+            index = temp.rest;
+            segment.push(value);
+          }
+
+          if (segment.length === 2) {
+            throw new Error('Found a source, but no line and column');
+          }
+
+          if (segment.length === 3) {
+            throw new Error('Found a source and line, but no column');
+          }
+
+          cachedSegments[str] = segment;
+        }
+
+        // Generated column.
+        mapping.generatedColumn = previousGeneratedColumn + segment[0];
+        previousGeneratedColumn = mapping.generatedColumn;
+
+        if (segment.length > 1) {
+          // Original source.
+          mapping.source = previousSource + segment[1];
+          previousSource += segment[1];
+
+          // Original line.
+          mapping.originalLine = previousOriginalLine + segment[2];
+          previousOriginalLine = mapping.originalLine;
+          // Lines are stored 0-based
+          mapping.originalLine += 1;
+
+          // Original column.
+          mapping.originalColumn = previousOriginalColumn + segment[3];
+          previousOriginalColumn = mapping.originalColumn;
+
+          if (segment.length > 4) {
+            // Original name.
+            mapping.name = previousName + segment[4];
+            previousName += segment[4];
+          }
+        }
+
+        generatedMappings.push(mapping);
+        if (typeof mapping.originalLine === 'number') {
+          originalMappings.push(mapping);
+        }
+      }
+    }
+
+    quickSort(generatedMappings, util.compareByGeneratedPositionsDeflated);
+    this.__generatedMappings = generatedMappings;
+
+    quickSort(originalMappings, util.compareByOriginalPositions);
+    this.__originalMappings = originalMappings;
+  };
+
+/**
+ * Find the mapping that best matches the hypothetical "needle" mapping that
+ * we are searching for in the given "haystack" of mappings.
+ */
+BasicSourceMapConsumer.prototype._findMapping =
+  function SourceMapConsumer_findMapping(aNeedle, aMappings, aLineName,
+                                         aColumnName, aComparator, aBias) {
+    // To return the position we are searching for, we must first find the
+    // mapping for the given position and then return the opposite position it
+    // points to. Because the mappings are sorted, we can use binary search to
+    // find the best mapping.
+
+    if (aNeedle[aLineName] <= 0) {
+      throw new TypeError('Line must be greater than or equal to 1, got '
+                          + aNeedle[aLineName]);
+    }
+    if (aNeedle[aColumnName] < 0) {
+      throw new TypeError('Column must be greater than or equal to 0, got '
+                          + aNeedle[aColumnName]);
+    }
+
+    return binarySearch.search(aNeedle, aMappings, aComparator, aBias);
+  };
+
+/**
+ * Compute the last column for each generated mapping. The last column is
+ * inclusive.
+ */
+BasicSourceMapConsumer.prototype.computeColumnSpans =
+  function SourceMapConsumer_computeColumnSpans() {
+    for (var index = 0; index < this._generatedMappings.length; ++index) {
+      var mapping = this._generatedMappings[index];
+
+      // Mappings do not contain a field for the last generated columnt. We
+      // can come up with an optimistic estimate, however, by assuming that
+      // mappings are contiguous (i.e. given two consecutive mappings, the
+      // first mapping ends where the second one starts).
+      if (index + 1 < this._generatedMappings.length) {
+        var nextMapping = this._generatedMappings[index + 1];
+
+        if (mapping.generatedLine === nextMapping.generatedLine) {
+          mapping.lastGeneratedColumn = nextMapping.generatedColumn - 1;
+          continue;
+        }
+      }
+
+      // The last mapping for each line spans the entire line.
+      mapping.lastGeneratedColumn = Infinity;
+    }
+  };
+
+/**
+ * Returns the original source, line, and column information for the generated
+ * source's line and column positions provided. The only argument is an object
+ * with the following properties:
+ *
+ *   - line: The line number in the generated source.
+ *   - column: The column number in the generated source.
+ *   - bias: Either 'SourceMapConsumer.GREATEST_LOWER_BOUND' or
+ *     'SourceMapConsumer.LEAST_UPPER_BOUND'. Specifies whether to return the
+ *     closest element that is smaller than or greater than the one we are
+ *     searching for, respectively, if the exact element cannot be found.
+ *     Defaults to 'SourceMapConsumer.GREATEST_LOWER_BOUND'.
+ *
+ * and an object is returned with the following properties:
+ *
+ *   - source: The original source file, or null.
+ *   - line: The line number in the original source, or null.
+ *   - column: The column number in the original source, or null.
+ *   - name: The original identifier, or null.
+ */
+BasicSourceMapConsumer.prototype.originalPositionFor =
+  function SourceMapConsumer_originalPositionFor(aArgs) {
+    var needle = {
+      generatedLine: util.getArg(aArgs, 'line'),
+      generatedColumn: util.getArg(aArgs, 'column')
+    };
+
+    var index = this._findMapping(
+      needle,
+      this._generatedMappings,
+      "generatedLine",
+      "generatedColumn",
+      util.compareByGeneratedPositionsDeflated,
+      util.getArg(aArgs, 'bias', SourceMapConsumer.GREATEST_LOWER_BOUND)
+    );
+
+    if (index >= 0) {
+      var mapping = this._generatedMappings[index];
+
+      if (mapping.generatedLine === needle.generatedLine) {
+        var source = util.getArg(mapping, 'source', null);
+        if (source !== null) {
+          source = this._sources.at(source);
+          if (this.sourceRoot != null) {
+            source = util.join(this.sourceRoot, source);
+          }
+        }
+        var name = util.getArg(mapping, 'name', null);
+        if (name !== null) {
+          name = this._names.at(name);
+        }
+        return {
+          source: source,
+          line: util.getArg(mapping, 'originalLine', null),
+          column: util.getArg(mapping, 'originalColumn', null),
+          name: name
+        };
+      }
+    }
+
+    return {
+      source: null,
+      line: null,
+      column: null,
+      name: null
+    };
+  };
+
+/**
+ * Return true if we have the source content for every source in the source
+ * map, false otherwise.
+ */
+BasicSourceMapConsumer.prototype.hasContentsOfAllSources =
+  function BasicSourceMapConsumer_hasContentsOfAllSources() {
+    if (!this.sourcesContent) {
+      return false;
+    }
+    return this.sourcesContent.length >= this._sources.size() &&
+      !this.sourcesContent.some(function (sc) { return sc == null; });
+  };
+
+/**
+ * Returns the original source content. The only argument is the url of the
+ * original source file. Returns null if no original source content is
+ * available.
+ */
+BasicSourceMapConsumer.prototype.sourceContentFor =
+  function SourceMapConsumer_sourceContentFor(aSource, nullOnMissing) {
+    if (!this.sourcesContent) {
+      return null;
+    }
+
+    if (this.sourceRoot != null) {
+      aSource = util.relative(this.sourceRoot, aSource);
+    }
+
+    if (this._sources.has(aSource)) {
+      return this.sourcesContent[this._sources.indexOf(aSource)];
+    }
+
+    var url;
+    if (this.sourceRoot != null
+        && (url = util.urlParse(this.sourceRoot))) {
+      // XXX: file:// URIs and absolute paths lead to unexpected behavior for
+      // many users. We can help them out when they expect file:// URIs to
+      // behave like it would if they were running a local HTTP server. See
+      // https://bugzilla.mozilla.org/show_bug.cgi?id=885597.
+      var fileUriAbsPath = aSource.replace(/^file:\/\//, "");
+      if (url.scheme == "file"
+          && this._sources.has(fileUriAbsPath)) {
+        return this.sourcesContent[this._sources.indexOf(fileUriAbsPath)]
+      }
+
+      if ((!url.path || url.path == "/")
+          && this._sources.has("/" + aSource)) {
+        return this.sourcesContent[this._sources.indexOf("/" + aSource)];
+      }
+    }
+
+    // This function is used recursively from
+    // IndexedSourceMapConsumer.prototype.sourceContentFor. In that case, we
+    // don't want to throw if we can't find the source - we just want to
+    // return null, so we provide a flag to exit gracefully.
+    if (nullOnMissing) {
+      return null;
+    }
+    else {
+      throw new Error('"' + aSource + '" is not in the SourceMap.');
+    }
+  };
+
+/**
+ * Returns the generated line and column information for the original source,
+ * line, and column positions provided. The only argument is an object with
+ * the following properties:
+ *
+ *   - source: The filename of the original source.
+ *   - line: The line number in the original source.
+ *   - column: The column number in the original source.
+ *   - bias: Either 'SourceMapConsumer.GREATEST_LOWER_BOUND' or
+ *     'SourceMapConsumer.LEAST_UPPER_BOUND'. Specifies whether to return the
+ *     closest element that is smaller than or greater than the one we are
+ *     searching for, respectively, if the exact element cannot be found.
+ *     Defaults to 'SourceMapConsumer.GREATEST_LOWER_BOUND'.
+ *
+ * and an object is returned with the following properties:
+ *
+ *   - line: The line number in the generated source, or null.
+ *   - column: The column number in the generated source, or null.
+ */
+BasicSourceMapConsumer.prototype.generatedPositionFor =
+  function SourceMapConsumer_generatedPositionFor(aArgs) {
+    var source = util.getArg(aArgs, 'source');
+    if (this.sourceRoot != null) {
+      source = util.relative(this.sourceRoot, source);
+    }
+    if (!this._sources.has(source)) {
+      return {
+        line: null,
+        column: null,
+        lastColumn: null
+      };
+    }
+    source = this._sources.indexOf(source);
+
+    var needle = {
+      source: source,
+      originalLine: util.getArg(aArgs, 'line'),
+      originalColumn: util.getArg(aArgs, 'column')
+    };
+
+    var index = this._findMapping(
+      needle,
+      this._originalMappings,
+      "originalLine",
+      "originalColumn",
+      util.compareByOriginalPositions,
+      util.getArg(aArgs, 'bias', SourceMapConsumer.GREATEST_LOWER_BOUND)
+    );
+
+    if (index >= 0) {
+      var mapping = this._originalMappings[index];
+
+      if (mapping.source === needle.source) {
+        return {
+          line: util.getArg(mapping, 'generatedLine', null),
+          column: util.getArg(mapping, 'generatedColumn', null),
+          lastColumn: util.getArg(mapping, 'lastGeneratedColumn', null)
+        };
+      }
+    }
+
+    return {
+      line: null,
+      column: null,
+      lastColumn: null
+    };
+  };
+
+exports.BasicSourceMapConsumer = BasicSourceMapConsumer;
+
+/**
+ * An IndexedSourceMapConsumer instance represents a parsed source map which
+ * we can query for information. It differs from BasicSourceMapConsumer in
+ * that it takes "indexed" source maps (i.e. ones with a "sections" field) as
+ * input.
+ *
+ * The only parameter is a raw source map (either as a JSON string, or already
+ * parsed to an object). According to the spec for indexed source maps, they
+ * have the following attributes:
+ *
+ *   - version: Which version of the source map spec this map is following.
+ *   - file: Optional. The generated file this source map is associated with.
+ *   - sections: A list of section definitions.
+ *
+ * Each value under the "sections" field has two fields:
+ *   - offset: The offset into the original specified at which this section
+ *       begins to apply, defined as an object with a "line" and "column"
+ *       field.
+ *   - map: A source map definition. This source map could also be indexed,
+ *       but doesn't have to be.
+ *
+ * Instead of the "map" field, it's also possible to have a "url" field
+ * specifying a URL to retrieve a source map from, but that's currently
+ * unsupported.
+ *
+ * Here's an example source map, taken from the source map spec[0], but
+ * modified to omit a section which uses the "url" field.
+ *
+ *  {
+ *    version : 3,
+ *    file: "app.js",
+ *    sections: [{
+ *      offset: {line:100, column:10},
+ *      map: {
+ *        version : 3,
+ *        file: "section.js",
+ *        sources: ["foo.js", "bar.js"],
+ *        names: ["src", "maps", "are", "fun"],
+ *        mappings: "AAAA,E;;ABCDE;"
+ *      }
+ *    }],
+ *  }
+ *
+ * [0]: https://docs.google.com/document/d/1U1RGAehQwRypUTovF1KRlpiOFze0b-_2gc6fAH0KY0k/edit#heading=h.535es3xeprgt
+ */
+function IndexedSourceMapConsumer(aSourceMap) {
+  var sourceMap = aSourceMap;
+  if (typeof aSourceMap === 'string') {
+    sourceMap = JSON.parse(aSourceMap.replace(/^\)\]\}'/, ''));
+  }
+
+  var version = util.getArg(sourceMap, 'version');
+  var sections = util.getArg(sourceMap, 'sections');
+
+  if (version != this._version) {
+    throw new Error('Unsupported version: ' + version);
+  }
+
+  this._sources = new ArraySet();
+  this._names = new ArraySet();
+
+  var lastOffset = {
+    line: -1,
+    column: 0
+  };
+  this._sections = sections.map(function (s) {
+    if (s.url) {
+      // The url field will require support for asynchronicity.
+      // See https://github.com/mozilla/source-map/issues/16
+      throw new Error('Support for url field in sections not implemented.');
+    }
+    var offset = util.getArg(s, 'offset');
+    var offsetLine = util.getArg(offset, 'line');
+    var offsetColumn = util.getArg(offset, 'column');
+
+    if (offsetLine < lastOffset.line ||
+        (offsetLine === lastOffset.line && offsetColumn < lastOffset.column)) {
+      throw new Error('Section offsets must be ordered and non-overlapping.');
+    }
+    lastOffset = offset;
+
+    return {
+      generatedOffset: {
+        // The offset fields are 0-based, but we use 1-based indices when
+        // encoding/decoding from VLQ.
+        generatedLine: offsetLine + 1,
+        generatedColumn: offsetColumn + 1
+      },
+      consumer: new SourceMapConsumer(util.getArg(s, 'map'))
+    }
+  });
+}
+
+IndexedSourceMapConsumer.prototype = Object.create(SourceMapConsumer.prototype);
+IndexedSourceMapConsumer.prototype.constructor = SourceMapConsumer;
+
+/**
+ * The version of the source mapping spec that we are consuming.
+ */
+IndexedSourceMapConsumer.prototype._version = 3;
+
+/**
+ * The list of original sources.
+ */
+Object.defineProperty(IndexedSourceMapConsumer.prototype, 'sources', {
+  get: function () {
+    var sources = [];
+    for (var i = 0; i < this._sections.length; i++) {
+      for (var j = 0; j < this._sections[i].consumer.sources.length; j++) {
+        sources.push(this._sections[i].consumer.sources[j]);
+      }
+    }
+    return sources;
+  }
+});
+
+/**
+ * Returns the original source, line, and column information for the generated
+ * source's line and column positions provided. The only argument is an object
+ * with the following properties:
+ *
+ *   - line: The line number in the generated source.
+ *   - column: The column number in the generated source.
+ *
+ * and an object is returned with the following properties:
+ *
+ *   - source: The original source file, or null.
+ *   - line: The line number in the original source, or null.
+ *   - column: The column number in the original source, or null.
+ *   - name: The original identifier, or null.
+ */
+IndexedSourceMapConsumer.prototype.originalPositionFor =
+  function IndexedSourceMapConsumer_originalPositionFor(aArgs) {
+    var needle = {
+      generatedLine: util.getArg(aArgs, 'line'),
+      generatedColumn: util.getArg(aArgs, 'column')
+    };
+
+    // Find the section containing the generated position we're trying to map
+    // to an original position.
+    var sectionIndex = binarySearch.search(needle, this._sections,
+      function(needle, section) {
+        var cmp = needle.generatedLine - section.generatedOffset.generatedLine;
+        if (cmp) {
+          return cmp;
+        }
+
+        return (needle.generatedColumn -
+                section.generatedOffset.generatedColumn);
+      });
+    var section = this._sections[sectionIndex];
+
+    if (!section) {
+      return {
+        source: null,
+        line: null,
+        column: null,
+        name: null
+      };
+    }
+
+    return section.consumer.originalPositionFor({
+      line: needle.generatedLine -
+        (section.generatedOffset.generatedLine - 1),
+      column: needle.generatedColumn -
+        (section.generatedOffset.generatedLine === needle.generatedLine
+         ? section.generatedOffset.generatedColumn - 1
+         : 0),
+      bias: aArgs.bias
+    });
+  };
+
+/**
+ * Return true if we have the source content for every source in the source
+ * map, false otherwise.
+ */
+IndexedSourceMapConsumer.prototype.hasContentsOfAllSources =
+  function IndexedSourceMapConsumer_hasContentsOfAllSources() {
+    return this._sections.every(function (s) {
+      return s.consumer.hasContentsOfAllSources();
+    });
+  };
+
+/**
+ * Returns the original source content. The only argument is the url of the
+ * original source file. Returns null if no original source content is
+ * available.
+ */
+IndexedSourceMapConsumer.prototype.sourceContentFor =
+  function IndexedSourceMapConsumer_sourceContentFor(aSource, nullOnMissing) {
+    for (var i = 0; i < this._sections.length; i++) {
+      var section = this._sections[i];
+
+      var content = section.consumer.sourceContentFor(aSource, true);
+      if (content) {
+        return content;
+      }
+    }
+    if (nullOnMissing) {
+      return null;
+    }
+    else {
+      throw new Error('"' + aSource + '" is not in the SourceMap.');
+    }
+  };
+
+/**
+ * Returns the generated line and column information for the original source,
+ * line, and column positions provided. The only argument is an object with
+ * the following properties:
+ *
+ *   - source: The filename of the original source.
+ *   - line: The line number in the original source.
+ *   - column: The column number in the original source.
+ *
+ * and an object is returned with the following properties:
+ *
+ *   - line: The line number in the generated source, or null.
+ *   - column: The column number in the generated source, or null.
+ */
+IndexedSourceMapConsumer.prototype.generatedPositionFor =
+  function IndexedSourceMapConsumer_generatedPositionFor(aArgs) {
+    for (var i = 0; i < this._sections.length; i++) {
+      var section = this._sections[i];
+
+      // Only consider this section if the requested source is in the list of
+      // sources of the consumer.
+      if (section.consumer.sources.indexOf(util.getArg(aArgs, 'source')) === -1) {
+        continue;
+      }
+      var generatedPosition = section.consumer.generatedPositionFor(aArgs);
+      if (generatedPosition) {
+        var ret = {
+          line: generatedPosition.line +
+            (section.generatedOffset.generatedLine - 1),
+          column: generatedPosition.column +
+            (section.generatedOffset.generatedLine === generatedPosition.line
+             ? section.generatedOffset.generatedColumn - 1
+             : 0)
+        };
+        return ret;
+      }
+    }
+
+    return {
+      line: null,
+      column: null
+    };
+  };
+
+/**
+ * Parse the mappings in a string in to a data structure which we can easily
+ * query (the ordered arrays in the `this.__generatedMappings` and
+ * `this.__originalMappings` properties).
+ */
+IndexedSourceMapConsumer.prototype._parseMappings =
+  function IndexedSourceMapConsumer_parseMappings(aStr, aSourceRoot) {
+    this.__generatedMappings = [];
+    this.__originalMappings = [];
+    for (var i = 0; i < this._sections.length; i++) {
+      var section = this._sections[i];
+      var sectionMappings = section.consumer._generatedMappings;
+      for (var j = 0; j < sectionMappings.length; j++) {
+        var mapping = sectionMappings[j];
+
+        var source = section.consumer._sources.at(mapping.source);
+        if (section.consumer.sourceRoot !== null) {
+          source = util.join(section.consumer.sourceRoot, source);
+        }
+        this._sources.add(source);
+        source = this._sources.indexOf(source);
+
+        var name = section.consumer._names.at(mapping.name);
+        this._names.add(name);
+        name = this._names.indexOf(name);
+
+        // The mappings coming from the consumer for the section have
+        // generated positions relative to the start of the section, so we
+        // need to offset them to be relative to the start of the concatenated
+        // generated file.
+        var adjustedMapping = {
+          source: source,
+          generatedLine: mapping.generatedLine +
+            (section.generatedOffset.generatedLine - 1),
+          generatedColumn: mapping.generatedColumn +
+            (section.generatedOffset.generatedLine === mapping.generatedLine
+            ? section.generatedOffset.generatedColumn - 1
+            : 0),
+          originalLine: mapping.originalLine,
+          originalColumn: mapping.originalColumn,
+          name: name
+        };
+
+        this.__generatedMappings.push(adjustedMapping);
+        if (typeof adjustedMapping.originalLine === 'number') {
+          this.__originalMappings.push(adjustedMapping);
+        }
+      }
+    }
+
+    quickSort(this.__generatedMappings, util.compareByGeneratedPositionsDeflated);
+    quickSort(this.__originalMappings, util.compareByOriginalPositions);
+  };
+
+exports.IndexedSourceMapConsumer = IndexedSourceMapConsumer;
+
+},{"./array-set":120,"./base64-vlq":121,"./binary-search":123,"./quick-sort":125,"./util":129}],127:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+var base64VLQ = require('./base64-vlq');
+var util = require('./util');
+var ArraySet = require('./array-set').ArraySet;
+var MappingList = require('./mapping-list').MappingList;
+
+/**
+ * An instance of the SourceMapGenerator represents a source map which is
+ * being built incrementally. You may pass an object with the following
+ * properties:
+ *
+ *   - file: The filename of the generated source.
+ *   - sourceRoot: A root for all relative URLs in this source map.
+ */
+function SourceMapGenerator(aArgs) {
+  if (!aArgs) {
+    aArgs = {};
+  }
+  this._file = util.getArg(aArgs, 'file', null);
+  this._sourceRoot = util.getArg(aArgs, 'sourceRoot', null);
+  this._skipValidation = util.getArg(aArgs, 'skipValidation', false);
+  this._sources = new ArraySet();
+  this._names = new ArraySet();
+  this._mappings = new MappingList();
+  this._sourcesContents = null;
+}
+
+SourceMapGenerator.prototype._version = 3;
+
+/**
+ * Creates a new SourceMapGenerator based on a SourceMapConsumer
+ *
+ * @param aSourceMapConsumer The SourceMap.
+ */
+SourceMapGenerator.fromSourceMap =
+  function SourceMapGenerator_fromSourceMap(aSourceMapConsumer) {
+    var sourceRoot = aSourceMapConsumer.sourceRoot;
+    var generator = new SourceMapGenerator({
+      file: aSourceMapConsumer.file,
+      sourceRoot: sourceRoot
+    });
+    aSourceMapConsumer.eachMapping(function (mapping) {
+      var newMapping = {
+        generated: {
+          line: mapping.generatedLine,
+          column: mapping.generatedColumn
+        }
+      };
+
+      if (mapping.source != null) {
+        newMapping.source = mapping.source;
+        if (sourceRoot != null) {
+          newMapping.source = util.relative(sourceRoot, newMapping.source);
+        }
+
+        newMapping.original = {
+          line: mapping.originalLine,
+          column: mapping.originalColumn
+        };
+
+        if (mapping.name != null) {
+          newMapping.name = mapping.name;
+        }
+      }
+
+      generator.addMapping(newMapping);
+    });
+    aSourceMapConsumer.sources.forEach(function (sourceFile) {
+      var content = aSourceMapConsumer.sourceContentFor(sourceFile);
+      if (content != null) {
+        generator.setSourceContent(sourceFile, content);
+      }
+    });
+    return generator;
+  };
+
+/**
+ * Add a single mapping from original source line and column to the generated
+ * source's line and column for this source map being created. The mapping
+ * object should have the following properties:
+ *
+ *   - generated: An object with the generated line and column positions.
+ *   - original: An object with the original line and column positions.
+ *   - source: The original source file (relative to the sourceRoot).
+ *   - name: An optional original token name for this mapping.
+ */
+SourceMapGenerator.prototype.addMapping =
+  function SourceMapGenerator_addMapping(aArgs) {
+    var generated = util.getArg(aArgs, 'generated');
+    var original = util.getArg(aArgs, 'original', null);
+    var source = util.getArg(aArgs, 'source', null);
+    var name = util.getArg(aArgs, 'name', null);
+
+    if (!this._skipValidation) {
+      this._validateMapping(generated, original, source, name);
+    }
+
+    if (source != null) {
+      source = String(source);
+      if (!this._sources.has(source)) {
+        this._sources.add(source);
+      }
+    }
+
+    if (name != null) {
+      name = String(name);
+      if (!this._names.has(name)) {
+        this._names.add(name);
+      }
+    }
+
+    this._mappings.add({
+      generatedLine: generated.line,
+      generatedColumn: generated.column,
+      originalLine: original != null && original.line,
+      originalColumn: original != null && original.column,
+      source: source,
+      name: name
+    });
+  };
+
+/**
+ * Set the source content for a source file.
+ */
+SourceMapGenerator.prototype.setSourceContent =
+  function SourceMapGenerator_setSourceContent(aSourceFile, aSourceContent) {
+    var source = aSourceFile;
+    if (this._sourceRoot != null) {
+      source = util.relative(this._sourceRoot, source);
+    }
+
+    if (aSourceContent != null) {
+      // Add the source content to the _sourcesContents map.
+      // Create a new _sourcesContents map if the property is null.
+      if (!this._sourcesContents) {
+        this._sourcesContents = Object.create(null);
+      }
+      this._sourcesContents[util.toSetString(source)] = aSourceContent;
+    } else if (this._sourcesContents) {
+      // Remove the source file from the _sourcesContents map.
+      // If the _sourcesContents map is empty, set the property to null.
+      delete this._sourcesContents[util.toSetString(source)];
+      if (Object.keys(this._sourcesContents).length === 0) {
+        this._sourcesContents = null;
+      }
+    }
+  };
+
+/**
+ * Applies the mappings of a sub-source-map for a specific source file to the
+ * source map being generated. Each mapping to the supplied source file is
+ * rewritten using the supplied source map. Note: The resolution for the
+ * resulting mappings is the minimium of this map and the supplied map.
+ *
+ * @param aSourceMapConsumer The source map to be applied.
+ * @param aSourceFile Optional. The filename of the source file.
+ *        If omitted, SourceMapConsumer's file property will be used.
+ * @param aSourceMapPath Optional. The dirname of the path to the source map
+ *        to be applied. If relative, it is relative to the SourceMapConsumer.
+ *        This parameter is needed when the two source maps aren't in the same
+ *        directory, and the source map to be applied contains relative source
+ *        paths. If so, those relative source paths need to be rewritten
+ *        relative to the SourceMapGenerator.
+ */
+SourceMapGenerator.prototype.applySourceMap =
+  function SourceMapGenerator_applySourceMap(aSourceMapConsumer, aSourceFile, aSourceMapPath) {
+    var sourceFile = aSourceFile;
+    // If aSourceFile is omitted, we will use the file property of the SourceMap
+    if (aSourceFile == null) {
+      if (aSourceMapConsumer.file == null) {
+        throw new Error(
+          'SourceMapGenerator.prototype.applySourceMap requires either an explicit source file, ' +
+          'or the source map\'s "file" property. Both were omitted.'
+        );
+      }
+      sourceFile = aSourceMapConsumer.file;
+    }
+    var sourceRoot = this._sourceRoot;
+    // Make "sourceFile" relative if an absolute Url is passed.
+    if (sourceRoot != null) {
+      sourceFile = util.relative(sourceRoot, sourceFile);
+    }
+    // Applying the SourceMap can add and remove items from the sources and
+    // the names array.
+    var newSources = new ArraySet();
+    var newNames = new ArraySet();
+
+    // Find mappings for the "sourceFile"
+    this._mappings.unsortedForEach(function (mapping) {
+      if (mapping.source === sourceFile && mapping.originalLine != null) {
+        // Check if it can be mapped by the source map, then update the mapping.
+        var original = aSourceMapConsumer.originalPositionFor({
+          line: mapping.originalLine,
+          column: mapping.originalColumn
+        });
+        if (original.source != null) {
+          // Copy mapping
+          mapping.source = original.source;
+          if (aSourceMapPath != null) {
+            mapping.source = util.join(aSourceMapPath, mapping.source)
+          }
+          if (sourceRoot != null) {
+            mapping.source = util.relative(sourceRoot, mapping.source);
+          }
+          mapping.originalLine = original.line;
+          mapping.originalColumn = original.column;
+          if (original.name != null) {
+            mapping.name = original.name;
+          }
+        }
+      }
+
+      var source = mapping.source;
+      if (source != null && !newSources.has(source)) {
+        newSources.add(source);
+      }
+
+      var name = mapping.name;
+      if (name != null && !newNames.has(name)) {
+        newNames.add(name);
+      }
+
+    }, this);
+    this._sources = newSources;
+    this._names = newNames;
+
+    // Copy sourcesContents of applied map.
+    aSourceMapConsumer.sources.forEach(function (sourceFile) {
+      var content = aSourceMapConsumer.sourceContentFor(sourceFile);
+      if (content != null) {
+        if (aSourceMapPath != null) {
+          sourceFile = util.join(aSourceMapPath, sourceFile);
+        }
+        if (sourceRoot != null) {
+          sourceFile = util.relative(sourceRoot, sourceFile);
+        }
+        this.setSourceContent(sourceFile, content);
+      }
+    }, this);
+  };
+
+/**
+ * A mapping can have one of the three levels of data:
+ *
+ *   1. Just the generated position.
+ *   2. The Generated position, original position, and original source.
+ *   3. Generated and original position, original source, as well as a name
+ *      token.
+ *
+ * To maintain consistency, we validate that any new mapping being added falls
+ * in to one of these categories.
+ */
+SourceMapGenerator.prototype._validateMapping =
+  function SourceMapGenerator_validateMapping(aGenerated, aOriginal, aSource,
+                                              aName) {
+    // When aOriginal is truthy but has empty values for .line and .column,
+    // it is most likely a programmer error. In this case we throw a very
+    // specific error message to try to guide them the right way.
+    // For example: https://github.com/Polymer/polymer-bundler/pull/519
+    if (aOriginal && typeof aOriginal.line !== 'number' && typeof aOriginal.column !== 'number') {
+        throw new Error(
+            'original.line and original.column are not numbers -- you probably meant to omit ' +
+            'the original mapping entirely and only map the generated position. If so, pass ' +
+            'null for the original mapping instead of an object with empty or null values.'
+        );
+    }
+
+    if (aGenerated && 'line' in aGenerated && 'column' in aGenerated
+        && aGenerated.line > 0 && aGenerated.column >= 0
+        && !aOriginal && !aSource && !aName) {
+      // Case 1.
+      return;
+    }
+    else if (aGenerated && 'line' in aGenerated && 'column' in aGenerated
+             && aOriginal && 'line' in aOriginal && 'column' in aOriginal
+             && aGenerated.line > 0 && aGenerated.column >= 0
+             && aOriginal.line > 0 && aOriginal.column >= 0
+             && aSource) {
+      // Cases 2 and 3.
+      return;
+    }
+    else {
+      throw new Error('Invalid mapping: ' + JSON.stringify({
+        generated: aGenerated,
+        source: aSource,
+        original: aOriginal,
+        name: aName
+      }));
+    }
+  };
+
+/**
+ * Serialize the accumulated mappings in to the stream of base 64 VLQs
+ * specified by the source map format.
+ */
+SourceMapGenerator.prototype._serializeMappings =
+  function SourceMapGenerator_serializeMappings() {
+    var previousGeneratedColumn = 0;
+    var previousGeneratedLine = 1;
+    var previousOriginalColumn = 0;
+    var previousOriginalLine = 0;
+    var previousName = 0;
+    var previousSource = 0;
+    var result = '';
+    var next;
+    var mapping;
+    var nameIdx;
+    var sourceIdx;
+
+    var mappings = this._mappings.toArray();
+    for (var i = 0, len = mappings.length; i < len; i++) {
+      mapping = mappings[i];
+      next = ''
+
+      if (mapping.generatedLine !== previousGeneratedLine) {
+        previousGeneratedColumn = 0;
+        while (mapping.generatedLine !== previousGeneratedLine) {
+          next += ';';
+          previousGeneratedLine++;
+        }
+      }
+      else {
+        if (i > 0) {
+          if (!util.compareByGeneratedPositionsInflated(mapping, mappings[i - 1])) {
+            continue;
+          }
+          next += ',';
+        }
+      }
+
+      next += base64VLQ.encode(mapping.generatedColumn
+                                 - previousGeneratedColumn);
+      previousGeneratedColumn = mapping.generatedColumn;
+
+      if (mapping.source != null) {
+        sourceIdx = this._sources.indexOf(mapping.source);
+        next += base64VLQ.encode(sourceIdx - previousSource);
+        previousSource = sourceIdx;
+
+        // lines are stored 0-based in SourceMap spec version 3
+        next += base64VLQ.encode(mapping.originalLine - 1
+                                   - previousOriginalLine);
+        previousOriginalLine = mapping.originalLine - 1;
+
+        next += base64VLQ.encode(mapping.originalColumn
+                                   - previousOriginalColumn);
+        previousOriginalColumn = mapping.originalColumn;
+
+        if (mapping.name != null) {
+          nameIdx = this._names.indexOf(mapping.name);
+          next += base64VLQ.encode(nameIdx - previousName);
+          previousName = nameIdx;
+        }
+      }
+
+      result += next;
+    }
+
+    return result;
+  };
+
+SourceMapGenerator.prototype._generateSourcesContent =
+  function SourceMapGenerator_generateSourcesContent(aSources, aSourceRoot) {
+    return aSources.map(function (source) {
+      if (!this._sourcesContents) {
+        return null;
+      }
+      if (aSourceRoot != null) {
+        source = util.relative(aSourceRoot, source);
+      }
+      var key = util.toSetString(source);
+      return Object.prototype.hasOwnProperty.call(this._sourcesContents, key)
+        ? this._sourcesContents[key]
+        : null;
+    }, this);
+  };
+
+/**
+ * Externalize the source map.
+ */
+SourceMapGenerator.prototype.toJSON =
+  function SourceMapGenerator_toJSON() {
+    var map = {
+      version: this._version,
+      sources: this._sources.toArray(),
+      names: this._names.toArray(),
+      mappings: this._serializeMappings()
+    };
+    if (this._file != null) {
+      map.file = this._file;
+    }
+    if (this._sourceRoot != null) {
+      map.sourceRoot = this._sourceRoot;
+    }
+    if (this._sourcesContents) {
+      map.sourcesContent = this._generateSourcesContent(map.sources, map.sourceRoot);
+    }
+
+    return map;
+  };
+
+/**
+ * Render the source map being generated to a string.
+ */
+SourceMapGenerator.prototype.toString =
+  function SourceMapGenerator_toString() {
+    return JSON.stringify(this.toJSON());
+  };
+
+exports.SourceMapGenerator = SourceMapGenerator;
+
+},{"./array-set":120,"./base64-vlq":121,"./mapping-list":124,"./util":129}],128:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+var SourceMapGenerator = require('./source-map-generator').SourceMapGenerator;
+var util = require('./util');
+
+// Matches a Windows-style `\r\n` newline or a `\n` newline used by all other
+// operating systems these days (capturing the result).
+var REGEX_NEWLINE = /(\r?\n)/;
+
+// Newline character code for charCodeAt() comparisons
+var NEWLINE_CODE = 10;
+
+// Private symbol for identifying `SourceNode`s when multiple versions of
+// the source-map library are loaded. This MUST NOT CHANGE across
+// versions!
+var isSourceNode = "$$$isSourceNode$$$";
+
+/**
+ * SourceNodes provide a way to abstract over interpolating/concatenating
+ * snippets of generated JavaScript source code while maintaining the line and
+ * column information associated with the original source code.
+ *
+ * @param aLine The original line number.
+ * @param aColumn The original column number.
+ * @param aSource The original source's filename.
+ * @param aChunks Optional. An array of strings which are snippets of
+ *        generated JS, or other SourceNodes.
+ * @param aName The original identifier.
+ */
+function SourceNode(aLine, aColumn, aSource, aChunks, aName) {
+  this.children = [];
+  this.sourceContents = {};
+  this.line = aLine == null ? null : aLine;
+  this.column = aColumn == null ? null : aColumn;
+  this.source = aSource == null ? null : aSource;
+  this.name = aName == null ? null : aName;
+  this[isSourceNode] = true;
+  if (aChunks != null) this.add(aChunks);
+}
+
+/**
+ * Creates a SourceNode from generated code and a SourceMapConsumer.
+ *
+ * @param aGeneratedCode The generated code
+ * @param aSourceMapConsumer The SourceMap for the generated code
+ * @param aRelativePath Optional. The path that relative sources in the
+ *        SourceMapConsumer should be relative to.
+ */
+SourceNode.fromStringWithSourceMap =
+  function SourceNode_fromStringWithSourceMap(aGeneratedCode, aSourceMapConsumer, aRelativePath) {
+    // The SourceNode we want to fill with the generated code
+    // and the SourceMap
+    var node = new SourceNode();
+
+    // All even indices of this array are one line of the generated code,
+    // while all odd indices are the newlines between two adjacent lines
+    // (since `REGEX_NEWLINE` captures its match).
+    // Processed fragments are accessed by calling `shiftNextLine`.
+    var remainingLines = aGeneratedCode.split(REGEX_NEWLINE);
+    var remainingLinesIndex = 0;
+    var shiftNextLine = function() {
+      var lineContents = getNextLine();
+      // The last line of a file might not have a newline.
+      var newLine = getNextLine() || "";
+      return lineContents + newLine;
+
+      function getNextLine() {
+        return remainingLinesIndex < remainingLines.length ?
+            remainingLines[remainingLinesIndex++] : undefined;
+      }
+    };
+
+    // We need to remember the position of "remainingLines"
+    var lastGeneratedLine = 1, lastGeneratedColumn = 0;
+
+    // The generate SourceNodes we need a code range.
+    // To extract it current and last mapping is used.
+    // Here we store the last mapping.
+    var lastMapping = null;
+
+    aSourceMapConsumer.eachMapping(function (mapping) {
+      if (lastMapping !== null) {
+        // We add the code from "lastMapping" to "mapping":
+        // First check if there is a new line in between.
+        if (lastGeneratedLine < mapping.generatedLine) {
+          // Associate first line with "lastMapping"
+          addMappingWithCode(lastMapping, shiftNextLine());
+          lastGeneratedLine++;
+          lastGeneratedColumn = 0;
+          // The remaining code is added without mapping
+        } else {
+          // There is no new line in between.
+          // Associate the code between "lastGeneratedColumn" and
+          // "mapping.generatedColumn" with "lastMapping"
+          var nextLine = remainingLines[remainingLinesIndex];
+          var code = nextLine.substr(0, mapping.generatedColumn -
+                                        lastGeneratedColumn);
+          remainingLines[remainingLinesIndex] = nextLine.substr(mapping.generatedColumn -
+                                              lastGeneratedColumn);
+          lastGeneratedColumn = mapping.generatedColumn;
+          addMappingWithCode(lastMapping, code);
+          // No more remaining code, continue
+          lastMapping = mapping;
+          return;
+        }
+      }
+      // We add the generated code until the first mapping
+      // to the SourceNode without any mapping.
+      // Each line is added as separate string.
+      while (lastGeneratedLine < mapping.generatedLine) {
+        node.add(shiftNextLine());
+        lastGeneratedLine++;
+      }
+      if (lastGeneratedColumn < mapping.generatedColumn) {
+        var nextLine = remainingLines[remainingLinesIndex];
+        node.add(nextLine.substr(0, mapping.generatedColumn));
+        remainingLines[remainingLinesIndex] = nextLine.substr(mapping.generatedColumn);
+        lastGeneratedColumn = mapping.generatedColumn;
+      }
+      lastMapping = mapping;
+    }, this);
+    // We have processed all mappings.
+    if (remainingLinesIndex < remainingLines.length) {
+      if (lastMapping) {
+        // Associate the remaining code in the current line with "lastMapping"
+        addMappingWithCode(lastMapping, shiftNextLine());
+      }
+      // and add the remaining lines without any mapping
+      node.add(remainingLines.splice(remainingLinesIndex).join(""));
+    }
+
+    // Copy sourcesContent into SourceNode
+    aSourceMapConsumer.sources.forEach(function (sourceFile) {
+      var content = aSourceMapConsumer.sourceContentFor(sourceFile);
+      if (content != null) {
+        if (aRelativePath != null) {
+          sourceFile = util.join(aRelativePath, sourceFile);
+        }
+        node.setSourceContent(sourceFile, content);
+      }
+    });
+
+    return node;
+
+    function addMappingWithCode(mapping, code) {
+      if (mapping === null || mapping.source === undefined) {
+        node.add(code);
+      } else {
+        var source = aRelativePath
+          ? util.join(aRelativePath, mapping.source)
+          : mapping.source;
+        node.add(new SourceNode(mapping.originalLine,
+                                mapping.originalColumn,
+                                source,
+                                code,
+                                mapping.name));
+      }
+    }
+  };
+
+/**
+ * Add a chunk of generated JS to this source node.
+ *
+ * @param aChunk A string snippet of generated JS code, another instance of
+ *        SourceNode, or an array where each member is one of those things.
+ */
+SourceNode.prototype.add = function SourceNode_add(aChunk) {
+  if (Array.isArray(aChunk)) {
+    aChunk.forEach(function (chunk) {
+      this.add(chunk);
+    }, this);
+  }
+  else if (aChunk[isSourceNode] || typeof aChunk === "string") {
+    if (aChunk) {
+      this.children.push(aChunk);
+    }
+  }
+  else {
+    throw new TypeError(
+      "Expected a SourceNode, string, or an array of SourceNodes and strings. Got " + aChunk
+    );
+  }
+  return this;
+};
+
+/**
+ * Add a chunk of generated JS to the beginning of this source node.
+ *
+ * @param aChunk A string snippet of generated JS code, another instance of
+ *        SourceNode, or an array where each member is one of those things.
+ */
+SourceNode.prototype.prepend = function SourceNode_prepend(aChunk) {
+  if (Array.isArray(aChunk)) {
+    for (var i = aChunk.length-1; i >= 0; i--) {
+      this.prepend(aChunk[i]);
+    }
+  }
+  else if (aChunk[isSourceNode] || typeof aChunk === "string") {
+    this.children.unshift(aChunk);
+  }
+  else {
+    throw new TypeError(
+      "Expected a SourceNode, string, or an array of SourceNodes and strings. Got " + aChunk
+    );
+  }
+  return this;
+};
+
+/**
+ * Walk over the tree of JS snippets in this node and its children. The
+ * walking function is called once for each snippet of JS and is passed that
+ * snippet and the its original associated source's line/column location.
+ *
+ * @param aFn The traversal function.
+ */
+SourceNode.prototype.walk = function SourceNode_walk(aFn) {
+  var chunk;
+  for (var i = 0, len = this.children.length; i < len; i++) {
+    chunk = this.children[i];
+    if (chunk[isSourceNode]) {
+      chunk.walk(aFn);
+    }
+    else {
+      if (chunk !== '') {
+        aFn(chunk, { source: this.source,
+                     line: this.line,
+                     column: this.column,
+                     name: this.name });
+      }
+    }
+  }
+};
+
+/**
+ * Like `String.prototype.join` except for SourceNodes. Inserts `aStr` between
+ * each of `this.children`.
+ *
+ * @param aSep The separator.
+ */
+SourceNode.prototype.join = function SourceNode_join(aSep) {
+  var newChildren;
+  var i;
+  var len = this.children.length;
+  if (len > 0) {
+    newChildren = [];
+    for (i = 0; i < len-1; i++) {
+      newChildren.push(this.children[i]);
+      newChildren.push(aSep);
+    }
+    newChildren.push(this.children[i]);
+    this.children = newChildren;
+  }
+  return this;
+};
+
+/**
+ * Call String.prototype.replace on the very right-most source snippet. Useful
+ * for trimming whitespace from the end of a source node, etc.
+ *
+ * @param aPattern The pattern to replace.
+ * @param aReplacement The thing to replace the pattern with.
+ */
+SourceNode.prototype.replaceRight = function SourceNode_replaceRight(aPattern, aReplacement) {
+  var lastChild = this.children[this.children.length - 1];
+  if (lastChild[isSourceNode]) {
+    lastChild.replaceRight(aPattern, aReplacement);
+  }
+  else if (typeof lastChild === 'string') {
+    this.children[this.children.length - 1] = lastChild.replace(aPattern, aReplacement);
+  }
+  else {
+    this.children.push(''.replace(aPattern, aReplacement));
+  }
+  return this;
+};
+
+/**
+ * Set the source content for a source file. This will be added to the SourceMapGenerator
+ * in the sourcesContent field.
+ *
+ * @param aSourceFile The filename of the source file
+ * @param aSourceContent The content of the source file
+ */
+SourceNode.prototype.setSourceContent =
+  function SourceNode_setSourceContent(aSourceFile, aSourceContent) {
+    this.sourceContents[util.toSetString(aSourceFile)] = aSourceContent;
+  };
+
+/**
+ * Walk over the tree of SourceNodes. The walking function is called for each
+ * source file content and is passed the filename and source content.
+ *
+ * @param aFn The traversal function.
+ */
+SourceNode.prototype.walkSourceContents =
+  function SourceNode_walkSourceContents(aFn) {
+    for (var i = 0, len = this.children.length; i < len; i++) {
+      if (this.children[i][isSourceNode]) {
+        this.children[i].walkSourceContents(aFn);
+      }
+    }
+
+    var sources = Object.keys(this.sourceContents);
+    for (var i = 0, len = sources.length; i < len; i++) {
+      aFn(util.fromSetString(sources[i]), this.sourceContents[sources[i]]);
+    }
+  };
+
+/**
+ * Return the string representation of this source node. Walks over the tree
+ * and concatenates all the various snippets together to one string.
+ */
+SourceNode.prototype.toString = function SourceNode_toString() {
+  var str = "";
+  this.walk(function (chunk) {
+    str += chunk;
+  });
+  return str;
+};
+
+/**
+ * Returns the string representation of this source node along with a source
+ * map.
+ */
+SourceNode.prototype.toStringWithSourceMap = function SourceNode_toStringWithSourceMap(aArgs) {
+  var generated = {
+    code: "",
+    line: 1,
+    column: 0
+  };
+  var map = new SourceMapGenerator(aArgs);
+  var sourceMappingActive = false;
+  var lastOriginalSource = null;
+  var lastOriginalLine = null;
+  var lastOriginalColumn = null;
+  var lastOriginalName = null;
+  this.walk(function (chunk, original) {
+    generated.code += chunk;
+    if (original.source !== null
+        && original.line !== null
+        && original.column !== null) {
+      if(lastOriginalSource !== original.source
+         || lastOriginalLine !== original.line
+         || lastOriginalColumn !== original.column
+         || lastOriginalName !== original.name) {
+        map.addMapping({
+          source: original.source,
+          original: {
+            line: original.line,
+            column: original.column
+          },
+          generated: {
+            line: generated.line,
+            column: generated.column
+          },
+          name: original.name
+        });
+      }
+      lastOriginalSource = original.source;
+      lastOriginalLine = original.line;
+      lastOriginalColumn = original.column;
+      lastOriginalName = original.name;
+      sourceMappingActive = true;
+    } else if (sourceMappingActive) {
+      map.addMapping({
+        generated: {
+          line: generated.line,
+          column: generated.column
+        }
+      });
+      lastOriginalSource = null;
+      sourceMappingActive = false;
+    }
+    for (var idx = 0, length = chunk.length; idx < length; idx++) {
+      if (chunk.charCodeAt(idx) === NEWLINE_CODE) {
+        generated.line++;
+        generated.column = 0;
+        // Mappings end at eol
+        if (idx + 1 === length) {
+          lastOriginalSource = null;
+          sourceMappingActive = false;
+        } else if (sourceMappingActive) {
+          map.addMapping({
+            source: original.source,
+            original: {
+              line: original.line,
+              column: original.column
+            },
+            generated: {
+              line: generated.line,
+              column: generated.column
+            },
+            name: original.name
+          });
+        }
+      } else {
+        generated.column++;
+      }
+    }
+  });
+  this.walkSourceContents(function (sourceFile, sourceContent) {
+    map.setSourceContent(sourceFile, sourceContent);
+  });
+
+  return { code: generated.code, map: map };
+};
+
+exports.SourceNode = SourceNode;
+
+},{"./source-map-generator":127,"./util":129}],129:[function(require,module,exports){
+/* -*- Mode: js; js-indent-level: 2; -*- */
+/*
+ * Copyright 2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+
+/**
+ * This is a helper function for getting values from parameter/options
+ * objects.
+ *
+ * @param args The object we are extracting values from
+ * @param name The name of the property we are getting.
+ * @param defaultValue An optional value to return if the property is missing
+ * from the object. If this is not specified and the property is missing, an
+ * error will be thrown.
+ */
+function getArg(aArgs, aName, aDefaultValue) {
+  if (aName in aArgs) {
+    return aArgs[aName];
+  } else if (arguments.length === 3) {
+    return aDefaultValue;
+  } else {
+    throw new Error('"' + aName + '" is a required argument.');
+  }
+}
+exports.getArg = getArg;
+
+var urlRegexp = /^(?:([\w+\-.]+):)?\/\/(?:(\w+:\w+)@)?([\w.]*)(?::(\d+))?(\S*)$/;
+var dataUrlRegexp = /^data:.+\,.+$/;
+
+function urlParse(aUrl) {
+  var match = aUrl.match(urlRegexp);
+  if (!match) {
+    return null;
+  }
+  return {
+    scheme: match[1],
+    auth: match[2],
+    host: match[3],
+    port: match[4],
+    path: match[5]
+  };
+}
+exports.urlParse = urlParse;
+
+function urlGenerate(aParsedUrl) {
+  var url = '';
+  if (aParsedUrl.scheme) {
+    url += aParsedUrl.scheme + ':';
+  }
+  url += '//';
+  if (aParsedUrl.auth) {
+    url += aParsedUrl.auth + '@';
+  }
+  if (aParsedUrl.host) {
+    url += aParsedUrl.host;
+  }
+  if (aParsedUrl.port) {
+    url += ":" + aParsedUrl.port
+  }
+  if (aParsedUrl.path) {
+    url += aParsedUrl.path;
+  }
+  return url;
+}
+exports.urlGenerate = urlGenerate;
+
+/**
+ * Normalizes a path, or the path portion of a URL:
+ *
+ * - Replaces consecutive slashes with one slash.
+ * - Removes unnecessary '.' parts.
+ * - Removes unnecessary '<dir>/..' parts.
+ *
+ * Based on code in the Node.js 'path' core module.
+ *
+ * @param aPath The path or url to normalize.
+ */
+function normalize(aPath) {
+  var path = aPath;
+  var url = urlParse(aPath);
+  if (url) {
+    if (!url.path) {
+      return aPath;
+    }
+    path = url.path;
+  }
+  var isAbsolute = exports.isAbsolute(path);
+
+  var parts = path.split(/\/+/);
+  for (var part, up = 0, i = parts.length - 1; i >= 0; i--) {
+    part = parts[i];
+    if (part === '.') {
+      parts.splice(i, 1);
+    } else if (part === '..') {
+      up++;
+    } else if (up > 0) {
+      if (part === '') {
+        // The first part is blank if the path is absolute. Trying to go
+        // above the root is a no-op. Therefore we can remove all '..' parts
+        // directly after the root.
+        parts.splice(i + 1, up);
+        up = 0;
+      } else {
+        parts.splice(i, 2);
+        up--;
+      }
+    }
+  }
+  path = parts.join('/');
+
+  if (path === '') {
+    path = isAbsolute ? '/' : '.';
+  }
+
+  if (url) {
+    url.path = path;
+    return urlGenerate(url);
+  }
+  return path;
+}
+exports.normalize = normalize;
+
+/**
+ * Joins two paths/URLs.
+ *
+ * @param aRoot The root path or URL.
+ * @param aPath The path or URL to be joined with the root.
+ *
+ * - If aPath is a URL or a data URI, aPath is returned, unless aPath is a
+ *   scheme-relative URL: Then the scheme of aRoot, if any, is prepended
+ *   first.
+ * - Otherwise aPath is a path. If aRoot is a URL, then its path portion
+ *   is updated with the result and aRoot is returned. Otherwise the result
+ *   is returned.
+ *   - If aPath is absolute, the result is aPath.
+ *   - Otherwise the two paths are joined with a slash.
+ * - Joining for example 'http://' and 'www.example.com' is also supported.
+ */
+function join(aRoot, aPath) {
+  if (aRoot === "") {
+    aRoot = ".";
+  }
+  if (aPath === "") {
+    aPath = ".";
+  }
+  var aPathUrl = urlParse(aPath);
+  var aRootUrl = urlParse(aRoot);
+  if (aRootUrl) {
+    aRoot = aRootUrl.path || '/';
+  }
+
+  // `join(foo, '//www.example.org')`
+  if (aPathUrl && !aPathUrl.scheme) {
+    if (aRootUrl) {
+      aPathUrl.scheme = aRootUrl.scheme;
+    }
+    return urlGenerate(aPathUrl);
+  }
+
+  if (aPathUrl || aPath.match(dataUrlRegexp)) {
+    return aPath;
+  }
+
+  // `join('http://', 'www.example.com')`
+  if (aRootUrl && !aRootUrl.host && !aRootUrl.path) {
+    aRootUrl.host = aPath;
+    return urlGenerate(aRootUrl);
+  }
+
+  var joined = aPath.charAt(0) === '/'
+    ? aPath
+    : normalize(aRoot.replace(/\/+$/, '') + '/' + aPath);
+
+  if (aRootUrl) {
+    aRootUrl.path = joined;
+    return urlGenerate(aRootUrl);
+  }
+  return joined;
+}
+exports.join = join;
+
+exports.isAbsolute = function (aPath) {
+  return aPath.charAt(0) === '/' || !!aPath.match(urlRegexp);
+};
+
+/**
+ * Make a path relative to a URL or another path.
+ *
+ * @param aRoot The root path or URL.
+ * @param aPath The path or URL to be made relative to aRoot.
+ */
+function relative(aRoot, aPath) {
+  if (aRoot === "") {
+    aRoot = ".";
+  }
+
+  aRoot = aRoot.replace(/\/$/, '');
+
+  // It is possible for the path to be above the root. In this case, simply
+  // checking whether the root is a prefix of the path won't work. Instead, we
+  // need to remove components from the root one by one, until either we find
+  // a prefix that fits, or we run out of components to remove.
+  var level = 0;
+  while (aPath.indexOf(aRoot + '/') !== 0) {
+    var index = aRoot.lastIndexOf("/");
+    if (index < 0) {
+      return aPath;
+    }
+
+    // If the only part of the root that is left is the scheme (i.e. http://,
+    // file:///, etc.), one or more slashes (/), or simply nothing at all, we
+    // have exhausted all components, so the path is not relative to the root.
+    aRoot = aRoot.slice(0, index);
+    if (aRoot.match(/^([^\/]+:\/)?\/*$/)) {
+      return aPath;
+    }
+
+    ++level;
+  }
+
+  // Make sure we add a "../" for each component we removed from the root.
+  return Array(level + 1).join("../") + aPath.substr(aRoot.length + 1);
+}
+exports.relative = relative;
+
+var supportsNullProto = (function () {
+  var obj = Object.create(null);
+  return !('__proto__' in obj);
+}());
+
+function identity (s) {
+  return s;
+}
+
+/**
+ * Because behavior goes wacky when you set `__proto__` on objects, we
+ * have to prefix all the strings in our set with an arbitrary character.
+ *
+ * See https://github.com/mozilla/source-map/pull/31 and
+ * https://github.com/mozilla/source-map/issues/30
+ *
+ * @param String aStr
+ */
+function toSetString(aStr) {
+  if (isProtoString(aStr)) {
+    return '$' + aStr;
+  }
+
+  return aStr;
+}
+exports.toSetString = supportsNullProto ? identity : toSetString;
+
+function fromSetString(aStr) {
+  if (isProtoString(aStr)) {
+    return aStr.slice(1);
+  }
+
+  return aStr;
+}
+exports.fromSetString = supportsNullProto ? identity : fromSetString;
+
+function isProtoString(s) {
+  if (!s) {
+    return false;
+  }
+
+  var length = s.length;
+
+  if (length < 9 /* "__proto__".length */) {
+    return false;
+  }
+
+  if (s.charCodeAt(length - 1) !== 95  /* '_' */ ||
+      s.charCodeAt(length - 2) !== 95  /* '_' */ ||
+      s.charCodeAt(length - 3) !== 111 /* 'o' */ ||
+      s.charCodeAt(length - 4) !== 116 /* 't' */ ||
+      s.charCodeAt(length - 5) !== 111 /* 'o' */ ||
+      s.charCodeAt(length - 6) !== 114 /* 'r' */ ||
+      s.charCodeAt(length - 7) !== 112 /* 'p' */ ||
+      s.charCodeAt(length - 8) !== 95  /* '_' */ ||
+      s.charCodeAt(length - 9) !== 95  /* '_' */) {
+    return false;
+  }
+
+  for (var i = length - 10; i >= 0; i--) {
+    if (s.charCodeAt(i) !== 36 /* '$' */) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Comparator between two mappings where the original positions are compared.
+ *
+ * Optionally pass in `true` as `onlyCompareGenerated` to consider two
+ * mappings with the same original source/line/column, but different generated
+ * line and column the same. Useful when searching for a mapping with a
+ * stubbed out mapping.
+ */
+function compareByOriginalPositions(mappingA, mappingB, onlyCompareOriginal) {
+  var cmp = mappingA.source - mappingB.source;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.originalLine - mappingB.originalLine;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.originalColumn - mappingB.originalColumn;
+  if (cmp !== 0 || onlyCompareOriginal) {
+    return cmp;
+  }
+
+  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.generatedLine - mappingB.generatedLine;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  return mappingA.name - mappingB.name;
+}
+exports.compareByOriginalPositions = compareByOriginalPositions;
+
+/**
+ * Comparator between two mappings with deflated source and name indices where
+ * the generated positions are compared.
+ *
+ * Optionally pass in `true` as `onlyCompareGenerated` to consider two
+ * mappings with the same generated line and column, but different
+ * source/name/original line and column the same. Useful when searching for a
+ * mapping with a stubbed out mapping.
+ */
+function compareByGeneratedPositionsDeflated(mappingA, mappingB, onlyCompareGenerated) {
+  var cmp = mappingA.generatedLine - mappingB.generatedLine;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+  if (cmp !== 0 || onlyCompareGenerated) {
+    return cmp;
+  }
+
+  cmp = mappingA.source - mappingB.source;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.originalLine - mappingB.originalLine;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.originalColumn - mappingB.originalColumn;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  return mappingA.name - mappingB.name;
+}
+exports.compareByGeneratedPositionsDeflated = compareByGeneratedPositionsDeflated;
+
+function strcmp(aStr1, aStr2) {
+  if (aStr1 === aStr2) {
+    return 0;
+  }
+
+  if (aStr1 > aStr2) {
+    return 1;
+  }
+
+  return -1;
+}
+
+/**
+ * Comparator between two mappings with inflated source and name strings where
+ * the generated positions are compared.
+ */
+function compareByGeneratedPositionsInflated(mappingA, mappingB) {
+  var cmp = mappingA.generatedLine - mappingB.generatedLine;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = strcmp(mappingA.source, mappingB.source);
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.originalLine - mappingB.originalLine;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  cmp = mappingA.originalColumn - mappingB.originalColumn;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  return strcmp(mappingA.name, mappingB.name);
+}
+exports.compareByGeneratedPositionsInflated = compareByGeneratedPositionsInflated;
+
+},{}],130:[function(require,module,exports){
+/*
+ * Copyright 2009-2011 Mozilla Foundation and contributors
+ * Licensed under the New BSD license. See LICENSE.txt or:
+ * http://opensource.org/licenses/BSD-3-Clause
+ */
+exports.SourceMapGenerator = require('./lib/source-map-generator').SourceMapGenerator;
+exports.SourceMapConsumer = require('./lib/source-map-consumer').SourceMapConsumer;
+exports.SourceNode = require('./lib/source-node').SourceNode;
+
+},{"./lib/source-map-consumer":126,"./lib/source-map-generator":127,"./lib/source-node":128}],131:[function(require,module,exports){
+'use strict';
+module.exports = false;
+
+},{}],132:[function(require,module,exports){
+module.exports={
+  "_args": [
+    [
+      {
+        "raw": "turbo-carto@0.19.0",
+        "scope": null,
+        "escapedName": "turbo-carto",
+        "name": "turbo-carto",
+        "rawSpec": "0.19.0",
+        "spec": "0.19.0",
+        "type": "version"
+      },
+      "/Users/ruben/Projects/Carto/torque"
+    ]
+  ],
+  "_from": "turbo-carto@0.19.0",
+  "_id": "turbo-carto@0.19.0",
+  "_inCache": true,
+  "_location": "/turbo-carto",
+  "_nodeVersion": "0.10.43",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/turbo-carto-0.19.0.tgz_1481553795718_0.1705001255031675"
+  },
+  "_npmUser": {
+    "name": "xavijam",
+    "email": "xavijam@gmail.com"
+  },
+  "_npmVersion": "2.14.20",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "turbo-carto@0.19.0",
+    "scope": null,
+    "escapedName": "turbo-carto",
+    "name": "turbo-carto",
+    "rawSpec": "0.19.0",
+    "spec": "0.19.0",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "http://registry.npmjs.org/turbo-carto/-/turbo-carto-0.19.0.tgz",
+  "_shasum": "83fb1932acd42acb426312eef216b5f6ac34708e",
+  "_shrinkwrap": null,
+  "_spec": "turbo-carto@0.19.0",
+  "_where": "/Users/ruben/Projects/Carto/torque",
+  "author": {
+    "name": "CartoDB",
+    "email": "wadus@cartodb.com",
+    "url": "http://cartodb.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/CartoDB/turbo-carto/issues"
+  },
+  "contributors": [
+    {
+      "name": "Raul Ochoa",
+      "email": "rochoa@cartodb.com"
+    }
+  ],
+  "dependencies": {
+    "cartocolor": "4.0.0",
+    "colorbrewer": "1.0.0",
+    "debug": "2.2.0",
+    "es6-promise": "3.1.2",
+    "postcss": "5.0.19",
+    "postcss-value-parser": "3.3.0"
+  },
+  "description": "CartoCSS preprocessor",
+  "devDependencies": {
+    "browser-request": "^0.3.3",
+    "browserify": "^12.0.1",
+    "istanbul": "^0.4.1",
+    "jshint": "^2.9.1-rc2",
+    "mocha": "^2.3.4",
+    "querystring": "^0.2.0",
+    "request": "^2.67.0",
+    "semistandard": "^7.0.4",
+    "semistandard-format": "^2.1.0",
+    "yargs": "^3.31.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "83fb1932acd42acb426312eef216b5f6ac34708e",
+    "tarball": "https://registry.npmjs.org/turbo-carto/-/turbo-carto-0.19.0.tgz"
+  },
+  "gitHead": "e4bb6dddbdb5275dd2ba5ca0922c831690c40797",
+  "homepage": "https://github.com/CartoDB/turbo-carto#readme",
+  "license": "BSD-3-Clause",
+  "main": "src/index.js",
+  "maintainers": [
+    {
+      "name": "cartodb",
+      "email": "npm@cartodb.com"
+    },
+    {
+      "name": "dgaubert",
+      "email": "danielgarciaaubert@gmail.com"
+    },
+    {
+      "name": "xavijam",
+      "email": "xavijam@gmail.com"
+    }
+  ],
+  "name": "turbo-carto",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/CartoDB/turbo-carto.git"
+  },
+  "scripts": {
+    "test": "make test-all"
+  },
+  "semistandard": {
+    "globals": [
+      "describe",
+      "it"
+    ],
+    "ignore": [
+      "examples/app.js"
+    ]
+  },
+  "version": "0.19.0"
+}
+
+},{}],133:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var FnExecutor = require('./executor');
+
+function FnBuilder (datasource) {
+  this.datasource = datasource;
+  this.fnExecutors = [];
+}
+
+module.exports = FnBuilder;
+
+FnBuilder.prototype.add = function (decl, fnNode, metadataHolder) {
+  this.fnExecutors.push({ decl: decl, fnExecutor: createFnExecutor(fnNode, this.datasource, decl, metadataHolder) });
+};
+
+function createFnExecutor (fnNode, datasource, decl, metadataHolder) {
+  var fnArgs = [];
+  if (Array.isArray(fnNode.nodes)) {
+    fnArgs = fnNode.nodes.reduce(function (args, nestedFnNode) {
+      switch (nestedFnNode.type) {
+        case 'word':
+          if (Number.isFinite(+nestedFnNode.value)) {
+            args.push(+nestedFnNode.value);
+          } else {
+            args.push(nestedFnNode.value);
+          }
+          break;
+        case 'string':
+          args.push(nestedFnNode.value);
+          break;
+        case 'function':
+          args.push(createFnExecutor(nestedFnNode, datasource, decl, metadataHolder));
+          break;
+        default:
+      // pass: includes 'div', 'space', 'comment'
+      }
+      return args;
+    }, []);
+  }
+  return new FnExecutor(datasource, fnNode.value, fnArgs, decl, metadataHolder);
+}
+
+FnBuilder.prototype.exec = function () {
+  var executorsExec = this.fnExecutors.map(function (fnExecutor) {
+    return fnExecutor.fnExecutor.exec();
+  });
+
+  return Promise.all(executorsExec);
+};
+
+},{"./executor":134,"es6-promise":82}],134:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var debug = require('../helper/debug')('fn-executor');
+var FnFactory = require('./factory');
+
+function FnExecutor (datasource, fnName, fnArgs, decl, metadataHolder) {
+  this.datasource = datasource;
+  this.fnName = fnName;
+  this.args = fnArgs;
+  this.decl = decl;
+  this.metadataHolder = metadataHolder;
+}
+
+module.exports = FnExecutor;
+
+FnExecutor.prototype.exec = function () {
+  var self = this;
+  debug('[ENTERING] Fn.prototype.exec %s(%j)', self.fnName, self.args);
+
+  var backendFn = FnFactory.create(self.fnName, self.datasource, self.decl, self.metadataHolder);
+
+  return Promise.all(self.getNestedFns())
+    .then(function (nestedFnResults) {
+      debug('[QUEUE DONE] %s=%j', self.fnName, nestedFnResults);
+
+      nestedFnResults.forEach(function (nestedFnResult) {
+        self.args[nestedFnResult.index] = nestedFnResult.result;
+      });
+
+      return backendFn.apply(backendFn, self.args);
+    });
+};
+
+FnExecutor.prototype.getNestedFns = function () {
+  var self = this;
+
+  return self.getNestedFnIndexes()
+    .map(function (nestedFnIndex) {
+      return self.execFn(nestedFnIndex);
+    });
+};
+
+FnExecutor.prototype.getNestedFnIndexes = function () {
+  return this.args.reduce(function (nestedFns, arg, index) {
+    if (arg instanceof FnExecutor) {
+      nestedFns.push(index);
+    }
+    return nestedFns;
+  }, []);
+};
+
+FnExecutor.prototype.execFn = function (nestedFnIndex) {
+  return this.args[nestedFnIndex].exec()
+    .then(function (result) {
+      return { index: nestedFnIndex, result: result };
+    });
+};
+
+},{"../helper/debug":149,"./factory":135,"es6-promise":82}],135:[function(require,module,exports){
+'use strict';
+
+var fns = [
+  require('./fn-buckets'),
+  require('./fn-buckets-category'),
+  require('./fn-buckets-equal'),
+  require('./fn-buckets-headtails'),
+  require('./fn-buckets-jenks'),
+  require('./fn-buckets-quantiles'),
+  require('./fn-cartocolor'),
+  require('./fn-colorbrewer'),
+  require('./fn-ramp'),
+  require('./fn-range')
+];
+var fnMap = fns.reduce(function (fnMap, fn) {
+  fnMap[fn.fnName] = fn;
+  return fnMap;
+}, {});
+var fnIdentity = require('./fn-identity');
+var fnAnonymousTuple = require('./fn-anonymous-tuple');
+
+var FnFactory = {
+  create: function (fnName, datasource, decl, metadataHolder) {
+    if (fnName === '') {
+      return fnAnonymousTuple();
+    }
+
+    var fn = fnMap[fnName];
+    if (fn) {
+      return fn(datasource, decl, metadataHolder);
+    }
+
+    return fnIdentity(fnName);
+  }
+};
+
+module.exports = FnFactory;
+
+},{"./fn-anonymous-tuple":136,"./fn-buckets":142,"./fn-buckets-category":137,"./fn-buckets-equal":138,"./fn-buckets-headtails":139,"./fn-buckets-jenks":140,"./fn-buckets-quantiles":141,"./fn-cartocolor":143,"./fn-colorbrewer":144,"./fn-identity":145,"./fn-ramp":146,"./fn-range":147}],136:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var debug = require('../helper/debug')('fn-anonymous-tuple');
+var ValuesResult = require('../model/values-result');
+
+module.exports = function () {
+  return function fn$anonymousTuple () {
+    debug('fn$anonymousTuple(%j)', arguments);
+    var args = arguments;
+    return new Promise(function (resolve) {
+      var tupleValues = Object.keys(args).map(function (k) { return args[k]; });
+      resolve(new ValuesResult(tupleValues));
+    });
+  };
+};
+
+module.exports.fnName = 'anonymousTuple';
+
+},{"../helper/debug":149,"../model/values-result":159,"es6-promise":82}],137:[function(require,module,exports){
+'use strict';
+
+var createBucketsFn = require('./fn-buckets').createBucketsFn;
+
+var FN_NAME = 'category';
+
+module.exports = function (datasource) {
+  return createBucketsFn(datasource, FN_NAME, '==');
+};
+
+module.exports.fnName = FN_NAME;
+
+},{"./fn-buckets":142}],138:[function(require,module,exports){
+'use strict';
+
+var createBucketsFn = require('./fn-buckets').createBucketsFn;
+
+var FN_NAME = 'equal';
+
+module.exports = function (datasource) {
+  return createBucketsFn(datasource, FN_NAME, '>');
+};
+
+module.exports.fnName = FN_NAME;
+
+},{"./fn-buckets":142}],139:[function(require,module,exports){
+'use strict';
+
+var createBucketsFn = require('./fn-buckets').createBucketsFn;
+
+var FN_NAME = 'headtails';
+
+module.exports = function (datasource) {
+  return createBucketsFn(datasource, FN_NAME, '<');
+};
+
+module.exports.fnName = FN_NAME;
+
+},{"./fn-buckets":142}],140:[function(require,module,exports){
+'use strict';
+
+var createBucketsFn = require('./fn-buckets').createBucketsFn;
+
+var FN_NAME = 'jenks';
+
+module.exports = function (datasource) {
+  return createBucketsFn(datasource, FN_NAME, '>');
+};
+
+module.exports.fnName = FN_NAME;
+
+},{"./fn-buckets":142}],141:[function(require,module,exports){
+'use strict';
+
+var createBucketsFn = require('./fn-buckets').createBucketsFn;
+
+var FN_NAME = 'quantiles';
+
+module.exports = function (datasource) {
+  return createBucketsFn(datasource, FN_NAME, '>');
+};
+
+module.exports.fnName = FN_NAME;
+
+},{"./fn-buckets":142}],142:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var debug = require('../helper/debug')('fn-buckets');
+var columnName = require('../helper/column-name');
+var TurboCartoError = require('../helper/turbo-carto-error');
+var FiltersResult = require('../model/filters-result');
+var LazyFiltersResult = require('../model/lazy-filters-result');
+
+function fnBuckets (datasource) {
+  return function fn$buckets (column, quantificationMethod, numBuckets) {
+    debug('fn$buckets(%j)', arguments);
+    debug('Using "%s" datasource to calculate buckets', datasource.getName());
+
+    return new Promise(function (resolve, reject) {
+      if (!quantificationMethod) {
+        return reject(new TurboCartoError('Missing quantification method in buckets function'));
+      }
+      numBuckets = Number.isFinite(+numBuckets) ? +numBuckets : 5;
+      datasource.getRamp(columnName(column), numBuckets, quantificationMethod, function (err, filters) {
+        if (err) {
+          return reject(
+            new TurboCartoError('unable to compute ramp,', err)
+          );
+        }
+        var strategy = 'max';
+        var stats = {};
+        if (!Array.isArray(filters)) {
+          strategy = filters.strategy || 'max';
+          stats = filters.stats;
+          filters = filters.ramp;
+        }
+        resolve(new FiltersResult(filters, strategy, stats));
+      });
+    });
+  };
+}
+
+module.exports = fnBuckets;
+module.exports.fnName = 'buckets';
+
+module.exports.createBucketsFn = function (datasource, alias, defaultStrategy) {
+  return function fn$bucketsFn (numBuckets) {
+    debug('fn$%s(%j)', alias, arguments);
+    debug('Using "%s" datasource to calculate %s', datasource.getName(), alias);
+    return new Promise(function (resolve) {
+      return resolve(new LazyFiltersResult(function (column, strategy) {
+        return fnBuckets(datasource)(column, alias, numBuckets).then(function (filters) {
+          filters.strategy = strategy || defaultStrategy;
+          return new Promise(function (resolve) {
+            return resolve(filters);
+          });
+        });
+      }));
+    });
+  };
+};
+
+},{"../helper/column-name":148,"../helper/debug":149,"../helper/turbo-carto-error":152,"../model/filters-result":154,"../model/lazy-filters-result":156,"es6-promise":82}],143:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var cartocolor = require('cartocolor');
+var ValuesResult = require('../model/values-result');
+var minMaxKeys = require('../helper/min-max-keys');
+var debug = require('../helper/debug')('fn-cartocolor');
+
+module.exports = function () {
+  return function fn$cartocolor (scheme, numberDataClasses) {
+    debug('fn$cartocolor(%j)', arguments);
+    return new Promise(function (resolve, reject) {
+      if (!cartocolor.hasOwnProperty(scheme)) {
+        return reject(new Error('Invalid cartocolor scheme: "' + scheme + '"'));
+      }
+      var result = cartocolor[scheme];
+      var minMax = minMaxKeys(result);
+      numberDataClasses = Math.min(minMax.max, Math.max(minMax.min, numberDataClasses || 5));
+      resolve(new ValuesResult(result, numberDataClasses, null, minMax.max));
+    });
+  };
+};
+
+module.exports.fnName = 'cartocolor';
+
+},{"../helper/debug":149,"../helper/min-max-keys":151,"../model/values-result":159,"cartocolor":76,"es6-promise":82}],144:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var colorbrewer = require('colorbrewer');
+var ValuesResult = require('../model/values-result');
+var minMaxKeys = require('../helper/min-max-keys');
+var debug = require('../helper/debug')('fn-colorbrewer');
+
+module.exports = function () {
+  return function fn$colorbrewer (scheme, numberDataClasses) {
+    debug('fn$colorbrewer(%j)', arguments);
+    return new Promise(function (resolve, reject) {
+      if (!colorbrewer.hasOwnProperty(scheme)) {
+        return reject(new Error('Invalid colorbrewer scheme: "' + scheme + '"'));
+      }
+      var result = colorbrewer[scheme];
+      var minMax = minMaxKeys(result);
+      numberDataClasses = Math.min(minMax.max, Math.max(minMax.min, numberDataClasses || 5));
+      resolve(new ValuesResult(result, numberDataClasses, null, minMax.max));
+    });
+  };
+};
+
+module.exports.fnName = 'colorbrewer';
+
+},{"../helper/debug":149,"../helper/min-max-keys":151,"../model/values-result":159,"colorbrewer":78,"es6-promise":82}],145:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var debug = require('../helper/debug')('fn-identity');
+
+module.exports = function (fnName) {
+  return function fn$identity () {
+    debug('fn$identity(%j)', arguments);
+
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; ++i) {
+      // i is always valid index in the arguments object
+      if (typeof arguments[i] === 'string') {
+        args[i] = '\'' + arguments[i] + '\'';
+      } else {
+        args[i] = arguments[i];
+      }
+    }
+
+    return Promise.resolve(fnName + '(' + args.join(',') + ')');
+  };
+};
+
+module.exports.fnName = 'pass';
+
+},{"../helper/debug":149,"es6-promise":82}],146:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var debug = require('../helper/debug')('fn-ramp');
+var columnName = require('../helper/column-name');
+var TurboCartoError = require('../helper/turbo-carto-error');
+var isResult = require('../model/is-result');
+var linearBuckets = require('../helper/linear-buckets');
+var ValuesResult = require('../model/values-result');
+var FiltersResult = require('../model/filters-result');
+var LazyFiltersResult = require('../model/lazy-filters-result');
+var RampResult = require('../model/ramp/ramp-result');
+
+function createSplitStrategy (mapping) {
+  return function splitStrategy (column, rampResult, stats, decl, metadataHolder) {
+    var allFilters = rampResult.filter(evenIndex);
+    var values = rampResult.filter(reverse(evenIndex));
+    var filters = allFilters.slice(1);
+    if (mapping === '=') {
+      values = values.slice(1).concat([rampResult.filter(reverse(evenIndex))[0]]);
+    }
+    filters = filters.filter(reverse(isNull));
+    var ramp = new RampResult(new ValuesResult(values), new FiltersResult(filters, null, stats), mapping);
+    return ramp.process(column, decl, metadataHolder);
+  };
+}
+
+function evenIndex (value, index) {
+  return index % 2 === 0;
+}
+
+function isNull (val) {
+  return val === null;
+}
+
+function reverse (fn, ctx) {
+  return function () {
+    return !fn.apply(ctx, arguments);
+  };
+}
+
+var strategy = {
+  max: function maxStrategy (column, rampResult, stats, decl, metadataHolder) {
+    var values = rampResult.filter(reverse(evenIndex));
+    var filters = rampResult.filter(evenIndex).filter(reverse(isNull));
+    var ramp = new RampResult(new ValuesResult(values), new FiltersResult(filters, null, stats), '>');
+    return ramp.process(column, decl, metadataHolder);
+  },
+
+  split: createSplitStrategy('>'),
+
+  exact: createSplitStrategy('='),
+
+  '=': createSplitStrategy('=')
+};
+
+module.exports = function (datasource, decl, metadataHolder) {
+  return function fn$ramp (column, /* ... */args) {
+    debug('fn$ramp(%j)', arguments);
+    debug('Using "%s" datasource to calculate ramp', datasource.getName());
+
+    args = Array.prototype.slice.call(arguments, 1);
+
+    return ramp(datasource, column, args)
+      .then(function (rampResult) {
+        if (rampResult.constructor === RampResult) {
+          return rampResult.process(columnName(column), decl, metadataHolder);
+        }
+        var strategyFn = strategy.hasOwnProperty(rampResult.strategy) ? strategy[rampResult.strategy] : strategy.max;
+        return strategyFn(columnName(column), rampResult.ramp, rampResult.stats, decl, metadataHolder);
+      })
+      .catch(function (err) {
+        var context = {};
+        if (decl.parent) {
+          context.selector = decl.parent.selector;
+        }
+        if (decl.source) {
+          context.source = {
+            start: decl.source.start,
+            end: decl.source.end
+          };
+        }
+        throw new TurboCartoError('Failed to process "' + decl.prop + '" property:', err, context);
+      });
+  };
+};
+
+/**
+ * @param datasource
+ * @param {String} column
+ * @param args
+ *
+ * ####################
+ * ###  COLOR RAMP  ###
+ * ####################
+ *
+ * [colorbrewer(Greens, 7), jenks]
+ *  <Array>scheme         , <String>method
+ *
+ * [colorbrewer(Greens, 7)]
+ *  <Array>scheme
+ *
+ * ####################
+ * ### NUMERIC RAMP ###
+ * ####################
+ *
+ * [10            , 20]
+ *  <Number>minVal, <Number>maxValue
+ *
+ * [10            , 20,             , jenks]
+ *  <Number>minVal, <Number>maxValue, <String>method
+ *
+ * [10            , 20,             , 4]
+ *  <Number>minVal, <Number>maxValue, <Number>numBuckets
+ *
+ * [10            , 20,             , 4              , jenks]
+ *  <Number>minVal, <Number>maxValue, <Number>numBuckets, <String>method
+ */
+function ramp (datasource, column, args) {
+  if (args.length === 0) {
+    return Promise.reject(
+      new TurboCartoError('invalid number of arguments')
+    );
+  }
+
+  /**
+   * Overload scenarios to support
+   * marker-width: ramp([price], 4, 100);
+   * marker-width: ramp([price], 4, 100, method);
+   * marker-width: ramp([price], 4, 100, 5, method);
+   * marker-width: ramp([price], 4, 100, 3, (100, 200, 1000));
+   * marker-width: ramp([price], 4, 100, (100, 150, 250, 200, 1000));
+   */
+  if (Number.isFinite(args[0])) {
+    return compatibilityNumericRamp(datasource, column, args);
+  }
+
+  /**
+   * Overload methods to support
+   * marker-fill: ramp([price], colorbrewer(Reds));
+   * marker-fill: ramp([price], colorbrewer(Reds), jenks);
+   */
+  if (!isResult(args[1])) {
+    return compatibilityValuesRamp(datasource, column, args);
+  }
+
+  /**
+   * Overload methods to support from here
+   * marker-fill: ramp([price], colorbrewer(Reds), (100, 200, 300, 400, 500));
+   * marker-fill: ramp([price], colorbrewer(Reds), (100, 200, 300, 400, 500), =);
+   * marker-fill: ramp([price], (...values), (...filters), [mapping]);
+   */
+  var values = args[0];
+  var filters = args[1];
+  var mapping = args[2];
+  var strategy = strategyFromMapping(mapping);
+  filters = filters.is(ValuesResult) ? new FiltersResult(filters.get(), strategy) : filters;
+  if (filters.is(LazyFiltersResult)) {
+    return filters.get(column, strategy).then(createRampFn(values));
+  } else {
+    return Promise.resolve(filters).then(createRampFn(values));
+  }
+}
+
+var oldMappings2Strategies = {
+  quantiles: 'max',
+  equal: 'max',
+  jenks: 'max',
+  headtails: 'split',
+  category: 'exact'
+};
+
+function strategyFromMapping (mapping) {
+  if (oldMappings2Strategies.hasOwnProperty(mapping)) {
+    return oldMappings2Strategies[mapping];
+  }
+  return mapping;
+}
+
+/**
+ * Overload methods to support
+ * marker-fill: ramp([price], colorbrewer(Reds));
+ * marker-fill: ramp([price], colorbrewer(Reds), jenks);
+ */
+function compatibilityValuesRamp (datasource, column, args) {
+  var values = args[0];
+  var method = (args[1] || 'quantiles').toLowerCase();
+  var numBuckets = values.getLength();
+  return getRamp(datasource, column, numBuckets, method).then(compatibilityCreateRampFn(values));
+}
+
+/**
+ * Overload scenarios to support
+ * marker-width: ramp([price], 4, 100);
+ * marker-width: ramp([price], 4, 100, method);
+ * marker-width: ramp([price], 4, 100, 5, method); √
+ * marker-width: ramp([price], 4, 100, 3, (100, 200, 1000)); √
+ * marker-width: ramp([price], 4, 100, (100, 150, 250, 200, 1000)); √
+ */
+function compatibilityNumericRamp (datasource, column, args) {
+  // jshint maxcomplexity:9
+  if (args.length < 2) {
+    return Promise.reject(
+      new TurboCartoError('invalid number of arguments')
+    );
+  }
+
+  var min = +args[0];
+  var max = +args[1];
+
+  var numBuckets;
+  var filters = null;
+  var method;
+
+  if (Number.isFinite(args[2])) {
+    numBuckets = args[2];
+
+    if (isResult(args[3])) {
+      filters = args[3];
+      method = null;
+      if (filters.getLength() !== numBuckets) {
+        return Promise.reject(
+          new TurboCartoError(
+              'invalid ramp length, got ' + filters.getLength() + ' values, expected ' + numBuckets
+          )
+        );
+      }
+    } else {
+      filters = null;
+      method = args[3];
+    }
+  } else if (isResult(args[2])) {
+    filters = args[2];
+    numBuckets = filters.getLength();
+    method = null;
+  } else {
+    filters = null;
+    numBuckets = 5;
+    method = args[2];
+  }
+
+  var values = new ValuesResult([min, max], numBuckets, linearBuckets, Number.POSITIVE_INFINITY);
+
+  if (filters === null) {
+    // normalize method
+    method = (method || 'quantiles').toLowerCase();
+    return getRamp(datasource, column, numBuckets, method).then(compatibilityCreateRampFn(values));
+  }
+
+  filters = filters.is(FiltersResult) ? filters : new FiltersResult(filters.get(), 'max');
+  return Promise.resolve(filters).then(compatibilityCreateRampFn(values));
+}
+
+function getRamp (datasource, column, buckets, method) {
+  return new Promise(function (resolve, reject) {
+    datasource.getRamp(columnName(column), buckets, method, function (err, filters) {
+      if (err) {
+        return reject(
+          new TurboCartoError('unable to compute ramp,', err)
+        );
+      }
+      var strategy = 'max';
+      var stats = {};
+      if (!Array.isArray(filters)) {
+        strategy = filters.strategy || 'max';
+        stats = filters.stats;
+        filters = filters.ramp;
+      }
+      resolve(new FiltersResult(filters, strategy, stats));
+    });
+  });
+}
+
+function compatibilityCreateRampFn (valuesResult) {
+  return function prepareRamp (filtersResult) {
+    var buckets = Math.min(valuesResult.getLength(), filtersResult.getLength());
+
+    var i;
+    var rampResult = [];
+
+    var filters = filtersResult.get();
+    var values = valuesResult.get();
+
+    if (buckets > 0) {
+      for (i = 0; i < buckets; i++) {
+        rampResult.push(filters[i]);
+        rampResult.push(values[i]);
+      }
+    } else {
+      rampResult.push(null, values[0]);
+    }
+
+    return { ramp: rampResult, strategy: filtersResult.getStrategy(), stats: filtersResult.stats };
+  };
+}
+
+function createRampFn (valuesResult) {
+  return function prepareRamp (filtersResult) {
+    if (RampResult.supports(filtersResult.getStrategy())) {
+      return new RampResult(valuesResult, filtersResult, filtersResult.getStrategy());
+    }
+
+    var buckets = Math.min(valuesResult.getMaxSize(), filtersResult.getMaxSize());
+
+    var i;
+    var rampResult = [];
+
+    var filters = filtersResult.get();
+    var values = valuesResult.get(buckets);
+
+    if (buckets > 0) {
+      for (i = 0; i < buckets; i++) {
+        rampResult.push(filters[i]);
+        rampResult.push(values[i]);
+      }
+    } else {
+      rampResult.push(null, values[0]);
+    }
+
+    return { ramp: rampResult, strategy: filtersResult.getStrategy(), stats: filtersResult.stats };
+  };
+}
+
+module.exports.fnName = 'ramp';
+
+},{"../helper/column-name":148,"../helper/debug":149,"../helper/linear-buckets":150,"../helper/turbo-carto-error":152,"../model/filters-result":154,"../model/is-result":155,"../model/lazy-filters-result":156,"../model/ramp/ramp-result":158,"../model/values-result":159,"es6-promise":82}],147:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var ValuesResult = require('../model/values-result');
+var debug = require('../helper/debug')('fn-range');
+var linearBuckets = require('../helper/linear-buckets');
+
+module.exports = function () {
+  return function fn$range (min, max, numBuckets) {
+    debug('fn$range(%j)', arguments);
+    return new Promise(function (resolve) {
+      var result = [min, max];
+      numBuckets = Number.isFinite(numBuckets) ? numBuckets : 5;
+      resolve(new ValuesResult(result, numBuckets, linearBuckets, Number.POSITIVE_INFINITY));
+    });
+  };
+};
+
+module.exports.fnName = 'range';
+
+},{"../helper/debug":149,"../helper/linear-buckets":150,"../model/values-result":159,"es6-promise":82}],148:[function(require,module,exports){
+'use strict';
+
+function columnName (column) {
+  return column.replace('[', '').replace(']', '');
+}
+
+module.exports = columnName;
+
+},{}],149:[function(require,module,exports){
+'use strict';
+
+var debug = require('debug');
+module.exports = function turboCartoDebug (ns) {
+  return debug(['turbo-carto', ns].join(':'));
+};
+
+},{"debug":80}],150:[function(require,module,exports){
+'use strict';
+
+module.exports = function (min, max, numBuckets) {
+  if (Array.isArray(min)) {
+    numBuckets = max;
+    max = min[1];
+    min = min[0];
+  }
+  var buckets = [];
+  var range = max - min;
+  var width = range / (numBuckets - 1);
+  if (width === Number.POSITIVE_INFINITY || width === Number.NEGATIVE_INFINITY) {
+    width = 0;
+  }
+  for (var i = 0; i < numBuckets; i++) {
+    buckets.push(min + i * width);
+  }
+  return buckets;
+};
+
+},{}],151:[function(require,module,exports){
+'use strict';
+
+function minMaxNumericKey (obj) {
+  return Object.keys(obj).reduce(function (minMax, k) {
+    if (Number.isFinite(+k)) {
+      if (minMax.min === null) {
+        minMax.min = +k;
+      }
+      if (minMax.max === null) {
+        minMax.max = +k;
+      }
+      minMax.max = Math.max(minMax.max, +k);
+      minMax.min = Math.min(minMax.min, +k);
+    }
+    return minMax;
+  }, { min: null, max: null });
+}
+
+module.exports = minMaxNumericKey;
+
+},{}],152:[function(require,module,exports){
+'use strict';
+
+function TurboCartoError (message, originalErr, context) {
+  Error.captureStackTrace(this, this.constructor);
+  this.name = this.constructor.name;
+
+  if (originalErr) {
+    message += ' ' + originalErr.message;
+  }
+
+  this.message = message;
+  this.originalErr = originalErr;
+  this.context = context;
+}
+
+require('util').inherits(TurboCartoError, Error);
+
+module.exports = TurboCartoError;
+
+},{"util":166}],153:[function(require,module,exports){
+'use strict';
+
+var TurboCarto = require('./turbo-carto');
+
+function turbocarto (cartocss, datasource, callback) {
+  new TurboCarto(cartocss, datasource).getCartocss(callback);
+}
+
+module.exports = turbocarto;
+module.exports.TurboCarto = TurboCarto;
+module.exports.version = require('../package.json').version;
+
+},{"../package.json":132,"./turbo-carto":161}],154:[function(require,module,exports){
+'use strict';
+
+var util = require('util');
+var ValuesResult = require('./values-result');
+
+function FiltersResult (result, strategy, stats) {
+  ValuesResult.call(this, result, result.length);
+  this.strategy = strategy;
+  this.stats = stats;
+}
+
+util.inherits(FiltersResult, ValuesResult);
+
+module.exports = FiltersResult;
+
+FiltersResult.prototype.getStrategy = function () {
+  if (this.result.some(nonNumeric)) {
+    return '=';
+  }
+  return this.strategy;
+};
+
+function nonNumeric (item) {
+  return !Number.isFinite(item);
+}
+
+},{"./values-result":159,"util":166}],155:[function(require,module,exports){
+'use strict';
+
+var ValuesResult = require('./values-result');
+var FiltersResult = require('./filters-result');
+var LazyFiltersResult = require('./lazy-filters-result');
+
+function isResult (obj) {
+  return typeof obj === 'object' && obj !== null &&
+    (obj.constructor === ValuesResult || obj.constructor === FiltersResult || obj.constructor === LazyFiltersResult);
+}
+
+module.exports = isResult;
+
+},{"./filters-result":154,"./lazy-filters-result":156,"./values-result":159}],156:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var util = require('util');
+var FiltersResult = require('./filters-result');
+
+function LazyFiltersResult (filterGenerator) {
+  this.filterGenerator = filterGenerator;
+}
+
+util.inherits(LazyFiltersResult, FiltersResult);
+
+module.exports = LazyFiltersResult;
+
+LazyFiltersResult.prototype.get = function (column, strategy) {
+  return this.filterGenerator(column, strategy);
+};
+
+
+},{"./filters-result":154,"es6-promise":82,"util":166}],157:[function(require,module,exports){
+'use strict';
+
+function MetadataHolder () {
+  this.rules = [];
+}
+
+module.exports = MetadataHolder;
+
+MetadataHolder.prototype.add = function (rule) {
+  this.rules.push(rule);
+};
+
+},{}],158:[function(require,module,exports){
+'use strict';
+
+var TurboCartoError = require('../../helper/turbo-carto-error');
+var postcss = require('postcss');
+
+function RampResult (values, filters, mapping) {
+  this.values = values;
+  this.filters = filters;
+  this.mapping = mapping || '>';
+  this.mapping = this.mapping === '==' ? '=' : this.mapping;
+}
+
+module.exports = RampResult;
+
+var SUPPORTED_STRATEGIES = {
+  /**
+   * `equality` will get as many values - 1, and will filter `column` with those filters,
+   * last value will be used as default value.
+   * Example:
+   *  ```css
+   *  marker-fill: ramp([cat_column], (red, green, blue, black), (1, 2, 3), ==);
+   *  ```
+   *
+   * will generate:
+   *  ```css
+   *  marker-width: black;
+   *  [cat_column = 1] {
+   *    marker-width: red;
+   *  }
+   *  [cat_column = 2] {
+   *    marker-width: green;
+   *  }
+   *  [cat_column = 3] {
+   *    marker-width: blue;
+   *  }
+   *  ```
+   *
+   * This is useful for category ramps.
+   * This works for numeric and string filters.
+   */
+  '=': 'equality',
+  '==': 'equality',
+
+  /**
+   * `greater_than` and `greater_than_or_equal` will use first value as default value, and will break by first filter.
+   * Example:
+   *  ```css
+   *  marker-width: ramp([price], (4, 8, 16, 32), (100, 200, 500, 600), >);
+   *  ```
+   *
+   * Will generate:
+   *  ```css
+   *  marker-width: 4;
+   *  [price > 100] {
+   *    marker-width: 8;
+   *  }
+   *  [price > 200] {
+   *    marker-width: 16;
+   *  }
+   *  [price > 500] {
+   *    marker-width: 32;
+   *  }
+   *  ```
+   *
+   *
+   *
+   * This is useful for quantification methods like jenks, quantiles, and equal intervals.
+   * This only work for numeric filters, otherwise it will throw an error.
+   */
+  '>': 'greater_than_or_equal',
+  '>=': 'greater_than_or_equal',
+
+  /**
+   * Example:
+   *  ```css
+   *  marker-width: ramp([price], (4, 8, 16, 32), (50, 75.5, 88, 94.5), <);
+   *  ```
+   *
+   * Will generate:
+   *  ```css
+   *  marker-width: 32;
+   *  [price < 50] {
+   *    marker-width: 4;
+   *  }
+   *  [price < 75.5] {
+   *    marker-width: 8;
+   *  }
+   *  [price < 88] {
+   *    marker-width: 16;
+   *  }
+   *  ```
+   *
+   * This is useful for quantification methods like headtails.
+   * This only work for numeric filters, otherwise it will throw an error.
+   */
+  '<': 'less_than_or_equal',
+  '<=': 'less_than_or_equal'
+
+  /**
+   * Future mappings
+   * '!=': 'inequality',
+   * 'in': 'set_inclusion',
+   * '!in': 'set_exclusion',
+   */
+};
+
+var FILTER_TYPE = {
+  CATEGORY: 'category',
+  DEFAULT: 'default',
+  RANGE: 'range'
+};
+
+RampResult.prototype.process = function (column, decl, metadataHolder) {
+  var strategy = SUPPORTED_STRATEGIES[this.mapping];
+  if (strategy === SUPPORTED_STRATEGIES['<']) {
+    return this.processLessThanOrEqual(column, decl, metadataHolder);
+  } else if (strategy === SUPPORTED_STRATEGIES['==']) {
+    return this.processEquality(column, decl, metadataHolder);
+  } else {
+    return this.processGreaterThanOrEqual(column, decl, metadataHolder);
+  }
+};
+
+RampResult.supports = function (strategy) {
+  return SUPPORTED_STRATEGIES.hasOwnProperty(strategy) || !strategy;
+};
+
+RampResult.prototype.processEquality = function (column, decl, metadataHolder) {
+  if ((this.filters.getLength()) > this.values.getMaxSize()) {
+    throw new TurboCartoError('`' + this.mapping + '` requires more or same values than filters to work.');
+  }
+
+  var values = this.values.get(this.filters.getLength() + 1);
+  var filters = this.filters.get();
+
+  var initialDecl = decl;
+  var defaultValue = null;
+  if (values.length !== filters.length) {
+    defaultValue = values[values.length - 1];
+    initialDecl = postcss.decl({ prop: decl.prop, value: defaultValue });
+    decl.replaceWith(initialDecl);
+  }
+
+  var range = {
+    start: 0,
+    end: filters.length
+  };
+  var indexOffset = 0;
+
+  var result = this.processGeneric(initialDecl, column, defaultValue, values, filters, range, indexOffset);
+
+  if (values.length === filters.length) {
+    decl.remove();
+  }
+
+  if (metadataHolder) {
+    var metadataRule = {
+      selector: selector(initialDecl.parent),
+      prop: initialDecl.prop,
+      column: column,
+      mapping: this.mapping,
+      buckets: [],
+      stats: {}
+    };
+
+    metadataRule.buckets = filters.map(function (filterRaw, index) {
+      return {
+        filter: {
+          name: filterRaw,
+          type: FILTER_TYPE.CATEGORY
+        },
+        value: values[index]
+      };
+    });
+
+    if (defaultValue !== null) {
+      metadataRule.buckets.push({
+        filter: {
+          type: FILTER_TYPE.DEFAULT
+        },
+        value: defaultValue
+      });
+    }
+
+    metadataHolder.add(metadataRule);
+  }
+
+  return result;
+};
+
+RampResult.prototype.processGreaterThanOrEqual = function (column, decl, metadataHolder) {
+  var buckets = Math.min(this.values.getMaxSize(), this.filters.getMaxSize());
+
+  var values = this.values.get((buckets <= 1) ? buckets + 1 : buckets);
+  var filters = this.filters.get(buckets);
+
+  var defaultValue = values[0];
+  var initialDecl = postcss.decl({ prop: decl.prop, value: defaultValue });
+  decl.replaceWith(initialDecl);
+
+  var range = {
+    start: 0,
+    end: Math.max(filters.length - 1, 1)
+  };
+  var indexOffset = 1;
+
+  if (metadataHolder) {
+    var stats = defaultStats(this.filters.stats);
+    var metadataRule = {
+      selector: selector(initialDecl.parent),
+      prop: initialDecl.prop,
+      column: column,
+      mapping: this.mapping,
+      buckets: [],
+      stats: {
+        filter_avg: stats.avg
+      }
+    };
+
+    var previousFilter = null;
+    if (Number.isFinite(stats.min)) {
+      previousFilter = stats.min;
+    }
+    var lastIndex = 0;
+    metadataRule.buckets = filters.slice(range.start, range.end).map(function (filterRaw, index) {
+      var bucket = {
+        filter: {
+          type: FILTER_TYPE.RANGE,
+          start: previousFilter,
+          end: filterRaw
+        },
+        value: values[index]
+      };
+
+      previousFilter = filterRaw;
+      lastIndex = index;
+
+      return bucket;
+    });
+
+    metadataRule.buckets.push({
+      filter: {
+        type: FILTER_TYPE.RANGE,
+        start: previousFilter,
+        end: stats.max
+      },
+      value: values[lastIndex + 1]
+    });
+
+    metadataHolder.add(metadataRule);
+  }
+
+  return this.processGeneric(initialDecl, column, defaultValue, values, filters, range, indexOffset);
+};
+
+RampResult.prototype.processLessThanOrEqual = function (column, decl, metadataHolder) {
+  var values = this.values.get(this.filters.getLength());
+  var filters = this.filters.get();
+
+  var defaultValue = values[values.length - 1];
+  var initialDecl = postcss.decl({ prop: decl.prop, value: defaultValue });
+  decl.replaceWith(initialDecl);
+
+  var range = {
+    start: 0,
+    end: filters.length - 1
+  };
+  var indexOffset = 1;
+
+  if (metadataHolder) {
+    var stats = defaultStats(this.filters.stats);
+    var metadataRule = {
+      selector: selector(initialDecl.parent),
+      prop: initialDecl.prop,
+      column: column,
+      mapping: this.mapping,
+      buckets: [],
+      stats: {
+        filter_avg: stats.avg
+      }
+    };
+
+    var previousFilter = null;
+    if (Number.isFinite(stats.min)) {
+      previousFilter = stats.min;
+    }
+    var lastIndex = 0;
+    metadataRule.buckets = filters.slice(range.start, range.end).map(function (filterRaw, index) {
+      var bucket = {
+        filter: {
+          type: FILTER_TYPE.RANGE,
+          start: previousFilter,
+          end: filterRaw
+        },
+        value: values[index]
+      };
+
+      previousFilter = filterRaw;
+      lastIndex = index;
+
+      return bucket;
+    });
+
+    metadataRule.buckets.push({
+      filter: {
+        type: FILTER_TYPE.RANGE,
+        start: previousFilter,
+        end: stats.max
+      },
+      value: values[lastIndex + 1]
+    });
+
+    metadataHolder.add(metadataRule);
+  }
+
+  var reversedValues = values.concat().reverse();
+  var reversedFilters = filters.concat().reverse();
+
+  return this.processGeneric(initialDecl, column, defaultValue, reversedValues, reversedFilters, range, indexOffset);
+};
+
+// jshint maxparams:8
+RampResult.prototype.processGeneric = function (decl, column, defaultValue, values, filters, range, indexOffset) {
+  var previousNode = decl;
+  filters.slice(range.start, range.end).forEach(function (filterRaw, index) {
+    var filter = Number.isFinite(filterRaw) ? filterRaw : '"' + filterRaw + '"';
+    var rule = postcss.rule({
+      selector: '[ ' + column + ' ' + this.mapping + ' ' + filter + ' ]'
+    });
+    rule.append(postcss.decl({ prop: decl.prop, value: values[index + indexOffset] }));
+
+    rule.moveAfter(previousNode);
+    previousNode = rule;
+  }.bind(this));
+
+  return { values: values, filters: filters, mapping: this.mapping };
+};
+
+function defaultStats (stats) {
+  stats = stats || {};
+  return {
+    min: stats.min_val,
+    max: stats.max_val,
+    avg: stats.avg_val
+  };
+}
+
+function selector (node, repr) {
+  repr = repr || '';
+  if (node && node.type !== 'root') {
+    repr = selector(node.parent, node.selector + repr);
+  }
+  return repr;
+}
+
+},{"../../helper/turbo-carto-error":152,"postcss":106}],159:[function(require,module,exports){
+'use strict';
+
+function ValuesResult (result, defaultSize, getter, maxSize) {
+  this.result = result;
+  this.defaultSize = defaultSize || result.length;
+  this.getter = getter;
+  this.maxSize = maxSize || result.length;
+}
+
+module.exports = ValuesResult;
+
+ValuesResult.prototype.get = function (size) {
+  size = size || this.defaultSize;
+  if (this.getter) {
+    return this.getter(this.result, size);
+  }
+
+  if (Array.isArray(this.result)) {
+    if (size > 0) {
+      return this.result.slice(0, size);
+    }
+    return this.result;
+  }
+
+  return this.result.hasOwnProperty(size) ? this.result[size] : this.result[this.defaultSize];
+};
+
+ValuesResult.prototype.getLength = function (size) {
+  return this.get(size).length;
+};
+
+ValuesResult.prototype.getMaxSize = function () {
+  return this.maxSize;
+};
+
+ValuesResult.prototype.toString = function () {
+  return JSON.stringify({
+    result: this.result,
+    defaultSize: this.defaultSize,
+    getter: this.getter && this.getter.toString()
+  });
+};
+
+ValuesResult.prototype.is = function (constructor) {
+  return this.constructor === constructor;
+};
+
+},{}],160:[function(require,module,exports){
+'use strict';
+
+require('es6-promise').polyfill();
+
+var valueParser = require('postcss-value-parser');
+var postcss = require('postcss');
+var FnBuilder = require('./fn/builder');
+
+function PostcssTurboCarto (datasource) {
+  this.datasource = datasource;
+}
+
+module.exports = PostcssTurboCarto;
+
+PostcssTurboCarto.prototype.getPlugin = function (metadataHolder) {
+  var self = this;
+  return postcss.plugin('turbo-carto', function (/* opts */) {
+    return function (css /* , result */) {
+      var fnBuilder = new FnBuilder(self.datasource);
+
+      css.walkDecls(function (decl) {
+        var parsedValue = valueParser(decl.value);
+        parsedValue.walk(function (node) {
+          if (node.type === 'function') {
+            fnBuilder.add(decl, node, metadataHolder);
+            return false;
+          }
+        }, false);
+      });
+
+      return fnBuilder.exec();
+    };
+  });
+};
+
+},{"./fn/builder":133,"es6-promise":82,"postcss":106,"postcss-value-parser":89}],161:[function(require,module,exports){
+'use strict';
+
+var postcss = require('postcss');
+var PostcssTurboCarto = require('./postcss-turbo-carto');
+var MetadataHolder = require('./model/metadata-holder');
+
+function TurboCarto (cartocss, datasource) {
+  this.cartocss = cartocss;
+  this.datasource = datasource;
+  this.metadataHolder = new MetadataHolder();
+}
+
+TurboCarto.prototype.getCartocss = function (callback) {
+  var self = this;
+
+  var postCssTurboCarto = new PostcssTurboCarto(this.datasource);
+
+  postcss([postCssTurboCarto.getPlugin(this.metadataHolder)])
+    .process(this.cartocss)
+    .then(function (result) {
+      callback(null, result.css, self.metadataHolder);
+    })
+    .catch(callback);
+};
+
+TurboCarto.prototype.getMetadata = function (callback) {
+  return callback(null, this.metadataHolder);
+};
+
+module.exports = TurboCarto;
+
+},{"./model/metadata-holder":157,"./postcss-turbo-carto":160,"postcss":106}],162:[function(require,module,exports){
+var ss = require('simple-statistics');
+
+/**
+* Takes a {@FeatureCollection} of any type and returns an array of the [Jenks Natural breaks](http://en.wikipedia.org/wiki/Jenks_natural_breaks_optimization)
+* for a given property
+* @module turf/jenks
+* @param {FeatureCollection} input a FeatureCollection of any type
+* @param {string} field the property in `input` on which to calculate Jenks natural breaks
+* @param {number} numberOfBreaks number of classes in which to group the data
+* @return {Array<number>} the break number for each class plus the minimum and maximum values
+* @example
+* var points = {
+*   "type": "FeatureCollection",
+*   "features": [
+*     {
+*       "type": "Feature",
+*       "properties": {
+*         "population": 200
+*       },
+*       "geometry": {
+*         "type": "Point",
+*         "coordinates": [49.859733, 40.400424]
+*       }
+*     }, {
+*       "type": "Feature",
+*       "properties": {
+*         "population": 600
+*       },
+*       "geometry": {
+*         "type": "Point",
+*         "coordinates": [49.83879, 40.401209]
+*       }
+*     }, {
+*       "type": "Feature",
+*       "properties": {
+*         "population": 100
+*       },
+*       "geometry": {
+*         "type": "Point",
+*         "coordinates": [49.817848, 40.376889]
+*       }
+*     }, {
+*       "type": "Feature",
+*       "properties": {
+*         "population": 200
+*       },
+*       "geometry": {
+*         "type": "Point",
+*         "coordinates": [49.840507, 40.386043]
+*       }
+*     }, {
+*       "type": "Feature",
+*       "properties": {
+*         "population": 300
+*       },
+*       "geometry": {
+*         "type": "Point",
+*         "coordinates": [49.854583, 40.37532]
+*       }
+*     }
+*   ]
+* };
+*
+* var breaks = turf.jenks(points, 'population', 3);
+*
+* //=breaks
+*/
+module.exports = function(fc, field, num){
+  var vals = [];
+  var breaks = [];
+
+  fc.features.forEach(function(feature){
+    if(feature.properties[field]!==undefined){
+      vals.push(feature.properties[field]);
+    }
+  });
+  breaks = ss.jenks(vals, num);
+
+  return breaks;
+};
+
+},{"simple-statistics":119}],163:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -40581,5 +40174,627 @@ module.exports = function(fc, field, num){
   }
 }.call(this));
 
-},{}]},{},[11])(11)
+},{}],164:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],165:[function(require,module,exports){
+module.exports = function isBuffer(arg) {
+  return arg && typeof arg === 'object'
+    && typeof arg.copy === 'function'
+    && typeof arg.fill === 'function'
+    && typeof arg.readUInt8 === 'function';
+}
+},{}],166:[function(require,module,exports){
+(function (process,global){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (!isString(f)) {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j':
+        try {
+          return JSON.stringify(args[i++]);
+        } catch (_) {
+          return '[Circular]';
+        }
+      default:
+        return x;
+    }
+  });
+  for (var x = args[i]; i < len; x = args[++i]) {
+    if (isNull(x) || !isObject(x)) {
+      str += ' ' + x;
+    } else {
+      str += ' ' + inspect(x);
+    }
+  }
+  return str;
+};
+
+
+// Mark that a method should not be used.
+// Returns a modified function which warns once by default.
+// If --no-deprecation is set, then it is a no-op.
+exports.deprecate = function(fn, msg) {
+  // Allow for deprecating things in the process of starting up.
+  if (isUndefined(global.process)) {
+    return function() {
+      return exports.deprecate(fn, msg).apply(this, arguments);
+    };
+  }
+
+  if (process.noDeprecation === true) {
+    return fn;
+  }
+
+  var warned = false;
+  function deprecated() {
+    if (!warned) {
+      if (process.throwDeprecation) {
+        throw new Error(msg);
+      } else if (process.traceDeprecation) {
+        console.trace(msg);
+      } else {
+        console.error(msg);
+      }
+      warned = true;
+    }
+    return fn.apply(this, arguments);
+  }
+
+  return deprecated;
+};
+
+
+var debugs = {};
+var debugEnviron;
+exports.debuglog = function(set) {
+  if (isUndefined(debugEnviron))
+    debugEnviron = process.env.NODE_DEBUG || '';
+  set = set.toUpperCase();
+  if (!debugs[set]) {
+    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
+      var pid = process.pid;
+      debugs[set] = function() {
+        var msg = exports.format.apply(exports, arguments);
+        console.error('%s %d: %s', set, pid, msg);
+      };
+    } else {
+      debugs[set] = function() {};
+    }
+  }
+  return debugs[set];
+};
+
+
+/**
+ * Echos the value of a value. Trys to print the value out
+ * in the best way possible given the different types.
+ *
+ * @param {Object} obj The object to print out.
+ * @param {Object} opts Optional options object that alters the output.
+ */
+/* legacy: obj, showHidden, depth, colors*/
+function inspect(obj, opts) {
+  // default options
+  var ctx = {
+    seen: [],
+    stylize: stylizeNoColor
+  };
+  // legacy...
+  if (arguments.length >= 3) ctx.depth = arguments[2];
+  if (arguments.length >= 4) ctx.colors = arguments[3];
+  if (isBoolean(opts)) {
+    // legacy...
+    ctx.showHidden = opts;
+  } else if (opts) {
+    // got an "options" object
+    exports._extend(ctx, opts);
+  }
+  // set default options
+  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
+  if (isUndefined(ctx.depth)) ctx.depth = 2;
+  if (isUndefined(ctx.colors)) ctx.colors = false;
+  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
+  if (ctx.colors) ctx.stylize = stylizeWithColor;
+  return formatValue(ctx, obj, ctx.depth);
+}
+exports.inspect = inspect;
+
+
+// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+inspect.colors = {
+  'bold' : [1, 22],
+  'italic' : [3, 23],
+  'underline' : [4, 24],
+  'inverse' : [7, 27],
+  'white' : [37, 39],
+  'grey' : [90, 39],
+  'black' : [30, 39],
+  'blue' : [34, 39],
+  'cyan' : [36, 39],
+  'green' : [32, 39],
+  'magenta' : [35, 39],
+  'red' : [31, 39],
+  'yellow' : [33, 39]
+};
+
+// Don't use 'blue' not visible on cmd.exe
+inspect.styles = {
+  'special': 'cyan',
+  'number': 'yellow',
+  'boolean': 'yellow',
+  'undefined': 'grey',
+  'null': 'bold',
+  'string': 'green',
+  'date': 'magenta',
+  // "name": intentionally not styling
+  'regexp': 'red'
+};
+
+
+function stylizeWithColor(str, styleType) {
+  var style = inspect.styles[styleType];
+
+  if (style) {
+    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
+           '\u001b[' + inspect.colors[style][1] + 'm';
+  } else {
+    return str;
+  }
+}
+
+
+function stylizeNoColor(str, styleType) {
+  return str;
+}
+
+
+function arrayToHash(array) {
+  var hash = {};
+
+  array.forEach(function(val, idx) {
+    hash[val] = true;
+  });
+
+  return hash;
+}
+
+
+function formatValue(ctx, value, recurseTimes) {
+  // Provide a hook for user-specified inspect functions.
+  // Check that value is an object with an inspect function on it
+  if (ctx.customInspect &&
+      value &&
+      isFunction(value.inspect) &&
+      // Filter out the util module, it's inspect function is special
+      value.inspect !== exports.inspect &&
+      // Also filter out any prototype objects using the circular check.
+      !(value.constructor && value.constructor.prototype === value)) {
+    var ret = value.inspect(recurseTimes, ctx);
+    if (!isString(ret)) {
+      ret = formatValue(ctx, ret, recurseTimes);
+    }
+    return ret;
+  }
+
+  // Primitive types cannot have properties
+  var primitive = formatPrimitive(ctx, value);
+  if (primitive) {
+    return primitive;
+  }
+
+  // Look up the keys of the object.
+  var keys = Object.keys(value);
+  var visibleKeys = arrayToHash(keys);
+
+  if (ctx.showHidden) {
+    keys = Object.getOwnPropertyNames(value);
+  }
+
+  // IE doesn't make error fields non-enumerable
+  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
+  if (isError(value)
+      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
+    return formatError(value);
+  }
+
+  // Some type of object without properties can be shortcutted.
+  if (keys.length === 0) {
+    if (isFunction(value)) {
+      var name = value.name ? ': ' + value.name : '';
+      return ctx.stylize('[Function' + name + ']', 'special');
+    }
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    }
+    if (isDate(value)) {
+      return ctx.stylize(Date.prototype.toString.call(value), 'date');
+    }
+    if (isError(value)) {
+      return formatError(value);
+    }
+  }
+
+  var base = '', array = false, braces = ['{', '}'];
+
+  // Make Array say that they are Array
+  if (isArray(value)) {
+    array = true;
+    braces = ['[', ']'];
+  }
+
+  // Make functions say that they are functions
+  if (isFunction(value)) {
+    var n = value.name ? ': ' + value.name : '';
+    base = ' [Function' + n + ']';
+  }
+
+  // Make RegExps say that they are RegExps
+  if (isRegExp(value)) {
+    base = ' ' + RegExp.prototype.toString.call(value);
+  }
+
+  // Make dates with properties first say the date
+  if (isDate(value)) {
+    base = ' ' + Date.prototype.toUTCString.call(value);
+  }
+
+  // Make error with message first say the error
+  if (isError(value)) {
+    base = ' ' + formatError(value);
+  }
+
+  if (keys.length === 0 && (!array || value.length == 0)) {
+    return braces[0] + base + braces[1];
+  }
+
+  if (recurseTimes < 0) {
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    } else {
+      return ctx.stylize('[Object]', 'special');
+    }
+  }
+
+  ctx.seen.push(value);
+
+  var output;
+  if (array) {
+    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
+  } else {
+    output = keys.map(function(key) {
+      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
+    });
+  }
+
+  ctx.seen.pop();
+
+  return reduceToSingleString(output, base, braces);
+}
+
+
+function formatPrimitive(ctx, value) {
+  if (isUndefined(value))
+    return ctx.stylize('undefined', 'undefined');
+  if (isString(value)) {
+    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                             .replace(/'/g, "\\'")
+                                             .replace(/\\"/g, '"') + '\'';
+    return ctx.stylize(simple, 'string');
+  }
+  if (isNumber(value))
+    return ctx.stylize('' + value, 'number');
+  if (isBoolean(value))
+    return ctx.stylize('' + value, 'boolean');
+  // For some reason typeof null is "object", so special case here.
+  if (isNull(value))
+    return ctx.stylize('null', 'null');
+}
+
+
+function formatError(value) {
+  return '[' + Error.prototype.toString.call(value) + ']';
+}
+
+
+function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
+  var output = [];
+  for (var i = 0, l = value.length; i < l; ++i) {
+    if (hasOwnProperty(value, String(i))) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          String(i), true));
+    } else {
+      output.push('');
+    }
+  }
+  keys.forEach(function(key) {
+    if (!key.match(/^\d+$/)) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          key, true));
+    }
+  });
+  return output;
+}
+
+
+function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
+  var name, str, desc;
+  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
+  if (desc.get) {
+    if (desc.set) {
+      str = ctx.stylize('[Getter/Setter]', 'special');
+    } else {
+      str = ctx.stylize('[Getter]', 'special');
+    }
+  } else {
+    if (desc.set) {
+      str = ctx.stylize('[Setter]', 'special');
+    }
+  }
+  if (!hasOwnProperty(visibleKeys, key)) {
+    name = '[' + key + ']';
+  }
+  if (!str) {
+    if (ctx.seen.indexOf(desc.value) < 0) {
+      if (isNull(recurseTimes)) {
+        str = formatValue(ctx, desc.value, null);
+      } else {
+        str = formatValue(ctx, desc.value, recurseTimes - 1);
+      }
+      if (str.indexOf('\n') > -1) {
+        if (array) {
+          str = str.split('\n').map(function(line) {
+            return '  ' + line;
+          }).join('\n').substr(2);
+        } else {
+          str = '\n' + str.split('\n').map(function(line) {
+            return '   ' + line;
+          }).join('\n');
+        }
+      }
+    } else {
+      str = ctx.stylize('[Circular]', 'special');
+    }
+  }
+  if (isUndefined(name)) {
+    if (array && key.match(/^\d+$/)) {
+      return str;
+    }
+    name = JSON.stringify('' + key);
+    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+      name = name.substr(1, name.length - 2);
+      name = ctx.stylize(name, 'name');
+    } else {
+      name = name.replace(/'/g, "\\'")
+                 .replace(/\\"/g, '"')
+                 .replace(/(^"|"$)/g, "'");
+      name = ctx.stylize(name, 'string');
+    }
+  }
+
+  return name + ': ' + str;
+}
+
+
+function reduceToSingleString(output, base, braces) {
+  var numLinesEst = 0;
+  var length = output.reduce(function(prev, cur) {
+    numLinesEst++;
+    if (cur.indexOf('\n') >= 0) numLinesEst++;
+    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
+  }, 0);
+
+  if (length > 60) {
+    return braces[0] +
+           (base === '' ? '' : base + '\n ') +
+           ' ' +
+           output.join(',\n  ') +
+           ' ' +
+           braces[1];
+  }
+
+  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+}
+
+
+// NOTE: These type checking functions intentionally don't use `instanceof`
+// because it is fragile and can be easily faked with `Object.create()`.
+function isArray(ar) {
+  return Array.isArray(ar);
+}
+exports.isArray = isArray;
+
+function isBoolean(arg) {
+  return typeof arg === 'boolean';
+}
+exports.isBoolean = isBoolean;
+
+function isNull(arg) {
+  return arg === null;
+}
+exports.isNull = isNull;
+
+function isNullOrUndefined(arg) {
+  return arg == null;
+}
+exports.isNullOrUndefined = isNullOrUndefined;
+
+function isNumber(arg) {
+  return typeof arg === 'number';
+}
+exports.isNumber = isNumber;
+
+function isString(arg) {
+  return typeof arg === 'string';
+}
+exports.isString = isString;
+
+function isSymbol(arg) {
+  return typeof arg === 'symbol';
+}
+exports.isSymbol = isSymbol;
+
+function isUndefined(arg) {
+  return arg === void 0;
+}
+exports.isUndefined = isUndefined;
+
+function isRegExp(re) {
+  return isObject(re) && objectToString(re) === '[object RegExp]';
+}
+exports.isRegExp = isRegExp;
+
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null;
+}
+exports.isObject = isObject;
+
+function isDate(d) {
+  return isObject(d) && objectToString(d) === '[object Date]';
+}
+exports.isDate = isDate;
+
+function isError(e) {
+  return isObject(e) &&
+      (objectToString(e) === '[object Error]' || e instanceof Error);
+}
+exports.isError = isError;
+
+function isFunction(arg) {
+  return typeof arg === 'function';
+}
+exports.isFunction = isFunction;
+
+function isPrimitive(arg) {
+  return arg === null ||
+         typeof arg === 'boolean' ||
+         typeof arg === 'number' ||
+         typeof arg === 'string' ||
+         typeof arg === 'symbol' ||  // ES6 symbol
+         typeof arg === 'undefined';
+}
+exports.isPrimitive = isPrimitive;
+
+exports.isBuffer = require('./support/isBuffer');
+
+function objectToString(o) {
+  return Object.prototype.toString.call(o);
+}
+
+
+function pad(n) {
+  return n < 10 ? '0' + n.toString(10) : n.toString(10);
+}
+
+
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+              'Oct', 'Nov', 'Dec'];
+
+// 26 Feb 16:19:34
+function timestamp() {
+  var d = new Date();
+  var time = [pad(d.getHours()),
+              pad(d.getMinutes()),
+              pad(d.getSeconds())].join(':');
+  return [d.getDate(), months[d.getMonth()], time].join(' ');
+}
+
+
+// log is just a thin wrapper to console.log that prepends a timestamp
+exports.log = function() {
+  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
+};
+
+
+/**
+ * Inherit the prototype methods from one constructor into another.
+ *
+ * The Function.prototype.inherits from lang.js rewritten as a standalone
+ * function (not on Function.prototype). NOTE: If this file is to be loaded
+ * during bootstrapping this function needs to be rewritten using some native
+ * functions as prototype setup using normal JavaScript does not work as
+ * expected during bootstrapping (see mirror.js in r114903).
+ *
+ * @param {function} ctor Constructor function which needs to inherit the
+ *     prototype.
+ * @param {function} superCtor Constructor function to inherit prototype from.
+ */
+exports.inherits = require('inherits');
+
+exports._extend = function(origin, add) {
+  // Don't do anything if add isn't an object
+  if (!add || !isObject(add)) return origin;
+
+  var keys = Object.keys(add);
+  var i = keys.length;
+  while (i--) {
+    origin[keys[i]] = add[keys[i]];
+  }
+  return origin;
+};
+
+function hasOwnProperty(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+}
+
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":165,"_process":118,"inherits":164}]},{},[11])(11)
 });

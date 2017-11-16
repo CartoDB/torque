@@ -22,7 +22,11 @@ var DEFAULT_CARTOCSS = [
 var renderer = null;
 QUnit.testStart(function() {
     var canvas = document.createElement('canvas');
-    renderer = new torque.renderer.Point(canvas, {});
+    renderer = new torque.renderer.Point(canvas, {
+      layer: {
+        showLimitErros: false
+      }
+    });
 });
 
 test('render shader layers', function() {
