@@ -10,9 +10,9 @@ test('time moves', function(assert) {
 	animatora.start();
 	setTimeout(function(){
 		assert.notEqual(animatora._time, 0);
+		animatora.pause();
 		done();
 	}, 20)
-	animatora.pause();
 });
 
 test("rescale should resume animation if previously playing", function(assert){
