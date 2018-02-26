@@ -1,4 +1,4 @@
-# Getting Started
+## Getting Started
 
 Although the most straightforward way to use Torque is through either CARTO Builder, or by passing the layer's viz.json to [CARTO.js](https://carto.com/docs/carto-engine/carto-js/getting-started/), many use cases work best with the standalone [Torque.js](https://github.com/CartoDB/torque/tree/master/dist). Assuming you have a public dataset with a `date` column, it is really simple to create an animated map with the library. First, you need to have a Leaflet map prepared in an HTML page:
 
@@ -73,14 +73,14 @@ Optionally, it is also possible to use a custom SQL query for your visualization
 
 Like in a video player, you can use animation control methods such as `play`, `stop` and `pause` at any point. Torque's animator fires a `change:time` event each time the animation "ticks" to the next frame, and there are a number of properties and methods that can be run during playback, which are detailed in the [API documentation](https://carto.com/docs/carto-engine/torque/torqueapi/). At any point, for example, the styling of the layer's markers can be changed using the `layer.setCartoCSS('##style##')`.
 
-## Usage Examples
+### Usage Examples
 The best way to start learning about the library is by taking a look at some of the examples below:
 
 * A basic example using the WWI British Navy dataset - ([view live](http://cartodb.github.io/torque/examples/navy_leaflet.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/navy_leaflet.html))
 * Using tileJSON to fetch tiles - ([view live](http://cartodb.github.io/torque/examples/tilejson.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/tilejson.html))
 * A car's route at the Nürburgring track mapped in Torque - ([view live](http://cartodb.github.io/torque/examples/car.html) / [source code](https://github.com/CartoDB/torque/blob/master/examples/car.html))
 
-## Additional Torque Resources
+### Additional Torque Resources
 
 The following links contain examples, and other public information, about using Torque maps.
 

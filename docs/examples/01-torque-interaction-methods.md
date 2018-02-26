@@ -1,14 +1,14 @@
-# Advanced Torque.js Interaction Methods
+## Advanced Torque.js Interaction Methods
 
-## Torque Layers
+### Torque Layers
 
 While you can add multiple layers with Torque.js, this is not recommended as it effects performance.
 
-### Torque Layer Source Object (_type: 'torque'_)
+#### Torque Layer Source Object (_type: 'torque'_)
 
 This layer source object is used for Torque maps. Note that it does not allow sublayers.
 
-#### Example
+##### Example
 
 ```javascript
 {
@@ -24,7 +24,7 @@ This layer source object is used for Torque maps. Note that it does not allow su
 ```
 
 
-## Interaction Methods for a Torque Layer
+### Interaction Methods for a Torque Layer
 
 Used to create an animated torque layer with customized settings.
 
@@ -37,46 +37,46 @@ var torqueLayer = new L.TorqueLayer({
 });
 ```
 
-### getValueForPos(_x, y[, step]_)
+#### getValueForPos(_x, y[, step]_)
 
-#### Arguments
+##### Arguments
 
 Name | Description
 --- | --- 
 `getValueForPos(_x, y[, step]_)` |  Allows to get the value for the coordinate (in map reference system) for a concrete step. If a step is not specified, the animation step is used. Use caution, as this method increases CPU usage
 
-#### Returns
+##### Returns
 
 An object, such as a { bbox:[], value: VALUE } if there is value for the pos, otherwise, it is null. 
  It returns the value from the raster data, not the rendered data.
 
-### getValueForBBox(_xstart, ystart, xend, yend_)
+#### getValueForBBox(_xstart, ystart, xend, yend_)
 
-#### Arguments
+##### Arguments
 
 Name | Description
 --- | --- 
 `getValueForBBox(_xstart, ystart, xend, yend_)` |  An accumulated numerical value from all the torque areas, within the specified bounds
 
-#### Returns
+##### Returns
 
 Returns a number.
 
-### getActivePointsBBox(_step_)
+#### getActivePointsBBox(_step_)
 
-#### Arguments
+##### Arguments
 
 Name | Description
 --- | --- 
 `getActivePointsBBox(_step_)` |  The list of bounding boxes active for `step`
 
-#### Returns
+##### Returns
 
 Returns a list of values.
 
-### invalidate()
+#### invalidate()
 
-#### Arguments
+##### Arguments
 
 Name | Description
 --- | --- 
@@ -84,7 +84,7 @@ Name | Description
 
 **Tip:** All of these interaction methods are available for Google Map layers, with the exception of `invalidate`.
 
-#### Example of Interaction Methods for a Torque Layer
+##### Example of Interaction Methods for a Torque Layer
 
 ```javascript
 <script>

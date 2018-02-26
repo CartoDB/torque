@@ -1,6 +1,6 @@
-# Torque API
+## Torque API
 
-### L.TorqueLayer(options)
+#### L.TorqueLayer(options)
 
 A layer to be added to a Leaflet map. It works as a regular tiled layer within the Leaflet tile pane, but instead of containing `<img>` elements, it's composed of a single [`<canvas>`](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) where all markers are drawn.
 
@@ -14,7 +14,7 @@ var torqueLayer = new L.TorqueLayer({
 map.addLayer(torqueLayer);
 ```
 
-#### Options
+##### Options
 
 Name | Description
 --- | ---
@@ -28,14 +28,14 @@ attribution | Attribution to be added in the bottom right of the map
 maxZoom | Maximum zoom for the layer. 
 tileSize | Size, in pixels of the tiles
 
-##### Using a CARTO table directly
+###### Using a CARTO table directly
 
 Name | Description
 --- | ---
 user | A string object, your CARTO [account name](https://carto.com/docs/carto-editor/your-account/#account). Default value is  ```null```
 table | A string object, the CARTO table name where data is found (also known as a dataset.) Default value is  ```null```
 
-##### Using a custom SQL query
+###### Using a custom SQL query
 
 Name | Description
 --- | ---
@@ -43,13 +43,13 @@ query | A string object, the SQL query to be performed to fetch the data. Defaul
 
 **Tip:** For a Torque category layer that is created dynamically with `cartodb.createLayer`, the SQL query must explicitly include how to build the torque_category column. You must include both the `sql` and `table_name` parameters. See this [createLayer with torque category layer](https://gist.github.com/danicarrion/dcaf6f00a71aa55134b4) example.
 
-##### Providing a TileJSON file
+###### Providing a TileJSON file
 
 Name | Description
 --- | ---
 tileJSON | A URL pointing to a valid [TileJSON](https://github.com/mapbox/tilejson-spec) file from which to get the Torque tile templates
 
-#### Time Methods
+##### Time Methods
 
 Method | Options | Returns | Description |
 ---|---|---|---|
@@ -64,14 +64,14 @@ Method | Options | Returns | Description |
 
 **Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row. 
 
-#### Layer Control Methods
+##### Layer Control Methods
 
  Method | Options | Returns | Description
 ---|---|---|---
 `hide()` | none | `this` | hides the Torque layer
 `show()` | none| `this` | shows the Torque layer
 
-#### Style Methods 
+##### Style Methods
 
 Method | Options | Returns | Description
 ---|---|---|---|
@@ -81,7 +81,7 @@ Torque supports a limited subset of CartoCSS rules defined in the [torque-refere
 
 TorqueLayer currently expects `marker` styling.
 
-#### Example
+##### Example
 
 This is how a minimal example of a stylesheet for a Torque visualisation would look like.
 
@@ -106,14 +106,14 @@ Map {
 }
 ```
 
-### Data Methods
+#### Data Methods
 
 Method | Options | Returns | Description
 ---|---|---|---
 `setSQL(sql statement)` | `SQL string` | `this` | Change the SQL on the data table (not available with named maps)
 `error(callback)` | `callback function with a list of errors as argument` | `this` | specifies a callback function to run if there are query errors
 
-#### Example
+##### Example
 
 SQL Example to limit the data used in the Torque map.
 
@@ -121,7 +121,7 @@ SQL Example to limit the data used in the Torque map.
 torqueLayer.setSQL("SELECT * FROM table LIMIT 100");
 ```
 
-### Events
+#### Events
 
 Events in Torque follow the format:
 
@@ -140,7 +140,7 @@ Events | Callback Object | Description
 `stop` | none | Triggered when the Torque layer is stopped
 `load` | none | Triggered when the Torque layer is loaded
 
-#### Example
+##### Example
 
 An event example to print the current step to the console log.
 
@@ -151,14 +151,14 @@ torqueLayer.on('change:steps', function(step) {
 });
 ```
 
-## Google Maps Layers
+### Google Maps Layers
 
-### GMapsTorqueLayer(_options_)
+#### GMapsTorqueLayer(_options_)
 
 This class does exactly the same as ``L.TorqueLayer`` but using Google Maps instead. The main difference is that this class
 is not a layer but is an overlay, so in order to add it to the a map use, ``layer.setMap`` instead of ``overlayMapTypes``. See the [Overlay View](https://developers.google.com/maps/documentation/javascript/reference#OverlayView) reference in Google Maps API doc.
 
-#### Options
+##### Options
 
 Name | Description
 --- | ---
