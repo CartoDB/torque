@@ -14,7 +14,7 @@ If you want to open a new issue in our repository, please follow these instructi
 
 ## Contributing code
 
-Best part of open source, collaborate in Torque.js code!. We like hearing from you, so if you have any bug fixed, or a new feature ready to be merged, those are the steps you should follow:
+Best part of open source, collaborate in Auth API code!. We like hearing from you, so if you have any bug fixed, or a new feature ready to be merged, those are the steps you should follow:
 
 1. Fork the repository.
 2. Create a new branch in your forked repository.
@@ -27,7 +27,7 @@ If you want more detailed information, this [GitHub guide](https://guides.github
 
 ## Completing documentation
 
-Torque.js documentation is located in ```docs/```. That folder is the content that appears in the [Developer Center](http://carto.com/developer-center/torque-js/). Just follow the instructions described in [contributing code](#contributing-code) and after accepting your pull request, we will make it appear online :).
+Auth API documentation is located in ```docs/```. That folder is the content that appears in the [Developer Center](http://carto.com/developer-center/auth-api/). Just follow the instructions described in [contributing code](#contributing-code) and after accepting your pull request, we will make it appear online :).
 
 **Tip:** A convenient, easy way of proposing changes in documentation is by using the GitHub editor directly on the web. You can easily create a branch with your changes and make a PR from there.
 
