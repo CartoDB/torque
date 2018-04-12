@@ -1,6 +1,6 @@
 ## Getting Started
 
-Although the most straightforward way to use Torque is through either CARTO Builder, or by passing the layer's viz.json to [CARTO.js]({{site.cartojs_docs}}/), many use cases work best with the standalone [Torque.js](https://github.com/CartoDB/torque/tree/master/dist). Assuming you have a public dataset with a `date` column, it is really simple to create an animated map with the library. First, you need to have a Leaflet map prepared in an HTML page:
+Although the most straightforward way to use Torque is through either CARTO Builder, or by passing the layer's viz.json to [CARTO.js]({{site.cartojs_docs}}/), many use cases work best with the standalone Torque.js. Assuming you have a public dataset with a `date` column, it is really simple to create an animated map with the library. First, you need to have a Leaflet map prepared in an HTML page:
 
 ```html
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
