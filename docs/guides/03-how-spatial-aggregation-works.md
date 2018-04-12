@@ -65,5 +65,5 @@ Map {
 }
 ```      
 
-
+**Tip:** CartoCSS is one the tools of the CARTO platform. You can learn more about the different [components of CARTO platform]({{site.fundamental_docs}}/components/), or directly dig into [CartoCSS too]({{site.tools_cartocss}}/) details.
 
