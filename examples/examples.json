@@ -1,31 +1,76 @@
 {
     "main": {
-        "file": "misc/torque-interactions-methods.md"
+        "file": "car.html"
     },
     "categories": [
         {
             "title": "Misc",
             "samples": [
                 {
-                    "title": "Torque Interactions",
-                    "desc": "Methods to manage interactions.",
-                    "file": "misc/torque-interactions-methods.md"
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/car.html"
                 },
                 {
-                    "title": "Torque Interactions",
-                    "desc": "Methods to manage interactions.",
-                    "file": "misc/torque-interactions-methods.md"
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/data_peek.html"
                 },
                 {
-                    "title": "Torque Interactions",
-                    "desc": "Methods to manage interactions.",
-                    "file": "misc/torque-interactions-methods.md"
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/dual_encode.html"
                 },
                 {
-                    "title": "Torque Interactions",
-                    "desc": "Methods to manage interactions.",
-                    "file": "misc/torque-interactions-methods.md"
-                }
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/leafleft_interaction.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/light_bright.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/navy_gmaps.html"
+                },            
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/navy_leafletf.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/navy_ol.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/render-range_leafleft.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/sql.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/static_bubble_map.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/static_heat_map.html"
+                },
+                {
+                    "title": "Car",
+                    "desc": "description",
+                    "file": "misc/static_heat_map_simple.html"
+                }                
             ]
         }
     ]
