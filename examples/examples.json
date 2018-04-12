@@ -9,67 +9,67 @@
                 {
                     "title": "Car",
                     "desc": "A car's route at the Nürburgring track mapped in Torque.",
-                    "file": "misc/car.html"
+                    "file": "car.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/data_peek.html"
+                    "file": "data_peek.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/dual_encode.html"
+                    "file": "dual_encode.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/leafleft_interaction.html"
+                    "file": "leafleft_interaction.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/light_bright.html"
+                    "file": "light_bright.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/navy_gmaps.html"
+                    "file": "navy_gmaps.html"
                 },            
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/navy_leafletf.html"
+                    "file": "navy_leafletf.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/navy_ol.html"
+                    "file": "navy_ol.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/render-range_leafleft.html"
+                    "file": "render-range_leafleft.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/sql.html"
+                    "file": "sql.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/static_bubble_map.html"
+                    "file": "static_bubble_map.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/static_heat_map.html"
+                    "file": "static_heat_map.html"
                 },
                 {
                     "title": "Car",
                     "desc": "description",
-                    "file": "misc/static_heat_map_simple.html"
+                    "file": "static_heat_map_simple.html"
                 }                
             ]
         }
