@@ -8,7 +8,7 @@
             "samples": [
                 {
                     "title": "Car",
-                    "desc": "description",
+                    "desc": "A car's route at the Nürburgring track mapped in Torque.",
                     "file": "misc/car.html"
                 },
                 {
