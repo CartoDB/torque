@@ -1,4 +1,4 @@
-### Layer Control Methods
+## Layer Control Methods
 
  Method | Options | Returns | Description
 ---|---|---|---
