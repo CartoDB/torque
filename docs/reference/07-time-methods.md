@@ -1,4 +1,4 @@
-### Time Methods
+## Time Methods
 
 Method | Options | Returns | Description |
 ---|---|---|---|
