@@ -1,4 +1,4 @@
-### Using a custom SQL query
+## Using a custom SQL query
 Name | Description
 --- | ---
 query | A string object, the SQL query to be performed to fetch the data. Default value is ```null```.<br/><br/>You must use this param or table, but not at the same time
