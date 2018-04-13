@@ -1,4 +1,4 @@
-### Events
+## Events
 
 Events in Torque follow the format:
 
