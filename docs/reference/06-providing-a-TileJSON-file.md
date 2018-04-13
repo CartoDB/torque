@@ -1,4 +1,4 @@
-### Providing a TileJSON file
+## Providing a TileJSON file
 
 Name | Description
 --- | ---
