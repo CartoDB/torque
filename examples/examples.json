@@ -7,68 +7,68 @@
             "title": "Misc",
             "samples": [
                 {
-                    "title": "Car",
+                    "title": "Nürburgring track",
                     "desc": "A car's route at the Nürburgring track mapped in Torque.",
                     "file": "car.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Data peek",
+                    "desc": "",
                     "file": "data_peek.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Dual Encode",
+                    "desc": "",
                     "file": "dual_encode.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Leafleft Interaction",
+                    "desc": "",
                     "file": "leafleft_interaction.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Light Bright",
+                    "desc": "",
                     "file": "light_bright.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Navy Ships",
+                    "desc": "Navy Ships over Google Maps",
                     "file": "navy_gmaps.html"
                 },            
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Navy Ships",
+                    "desc": "Navy Ships over Leafleft",
                     "file": "navy_leafletf.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Navy",
+                    "desc": "",
                     "file": "navy_ol.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Render range Leafleft",
+                    "desc": "",
                     "file": "render-range_leafleft.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "SQL",
+                    "desc": "",
                     "file": "sql.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Static Bubble Map",
+                    "desc": "",
                     "file": "static_bubble_map.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Static Heatmap",
+                    "desc": "",
                     "file": "static_heat_map.html"
                 },
                 {
-                    "title": "Car",
-                    "desc": "description",
+                    "title": "Static Heat Map Simle",
+                    "desc": "",
                     "file": "static_heat_map_simple.html"
                 }                
             ]
