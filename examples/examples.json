@@ -1,11 +1,41 @@
 {
     "main": {
-        "file": "car.html"
+        "file": "static_bubble_map.html"
     },
     "categories": [
         {
             "title": "Misc",
             "samples": [
+                {
+                    "title": "Static Bubble Map",
+                    "desc": "",
+                    "file": "static_bubble_map.html"
+                },
+                {
+                    "title": "Static Heatmap",
+                    "desc": "",
+                    "file": "static_heat_map.html"
+                },
+                {
+                    "title": "Static Heat Map Simle",
+                    "desc": "",
+                    "file": "static_heat_map_simple.html"
+                }, 
+                {
+                    "title": "Leafleft Interaction",
+                    "desc": "",
+                    "file": "leafleft_interaction.html"
+                },
+                {
+                    "title": "Light Bright",
+                    "desc": "",
+                    "file": "light_bright.html"
+                },
+                {
+                    "title": "Navy Ships",
+                    "desc": "Navy Ships over Google Maps",
+                    "file": "navy_gmaps.html"
+                },                     
                 {
                     "title": "Nürburgring track",
                     "desc": "A car's route at the Nürburgring track mapped in Torque.",
@@ -21,21 +51,6 @@
                     "desc": "",
                     "file": "dual_encode.html"
                 },
-                {
-                    "title": "Leafleft Interaction",
-                    "desc": "",
-                    "file": "leafleft_interaction.html"
-                },
-                {
-                    "title": "Light Bright",
-                    "desc": "",
-                    "file": "light_bright.html"
-                },
-                {
-                    "title": "Navy Ships",
-                    "desc": "Navy Ships over Google Maps",
-                    "file": "navy_gmaps.html"
-                },            
                 {
                     "title": "Navy Ships",
                     "desc": "Navy Ships over Leafleft",
@@ -55,22 +70,7 @@
                     "title": "SQL",
                     "desc": "",
                     "file": "sql.html"
-                },
-                {
-                    "title": "Static Bubble Map",
-                    "desc": "",
-                    "file": "static_bubble_map.html"
-                },
-                {
-                    "title": "Static Heatmap",
-                    "desc": "",
-                    "file": "static_heat_map.html"
-                },
-                {
-                    "title": "Static Heat Map Simle",
-                    "desc": "",
-                    "file": "static_heat_map_simple.html"
-                }                
+                }
             ]
         }
     ]
