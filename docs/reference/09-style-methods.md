@@ -1,4 +1,4 @@
-### Style Methods
+## Style Methods
 
 Method | Options | Returns | Description
 ---|---|---|---|
