@@ -1,4 +1,4 @@
-### Data Methods
+## Data Methods
 
 Method | Options | Returns | Description
 ---|---|---|---
