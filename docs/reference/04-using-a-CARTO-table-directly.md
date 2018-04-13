@@ -1,4 +1,4 @@
-### Using a CARTO table directly
+## Using a CARTO table directly
 
 Name | Description
 --- | ---
