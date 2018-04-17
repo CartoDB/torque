@@ -12,9 +12,9 @@
         margin: 0;
       }
     </style>
-    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.css" />
+    <link rel="stylesheet" href="https://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.css" />
     <!--[if lte IE 8]>
-      <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.ie.css" />
+      <link rel="stylesheet" href="https://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.ie.css" />
     <![endif]-->
     <script type="sql/html" id="cartocss_template">
         Map { 
@@ -57,7 +57,7 @@
     <div id="map"></div>
     
     <!-- include cartodb.js library -->
-    <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
+    <script src="https://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
 
     <script>
       function main() {
@@ -67,7 +67,7 @@
           zoom: 8
         });
         var layer = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{
-          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>'
         }).addTo(map);
 
         cartodb.createLayer(map, {
