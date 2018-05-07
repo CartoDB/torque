@@ -21,7 +21,7 @@ Although the most straightforward way to use Torque is through either CARTO Buil
   </body>
 ```
 
-This HTML file automatically generates the Torque.js library, which includes any Torque dependencies. For Torque to work with your table, you only need a username, the name of the table, and a [CartoCSS]({{site.tools_cartocsss}}/) string to style the map. Leaflet's method `addTo` adds the Torque layer to the map. `play` runs the animation with the options specified in the CartoCSS properties.
+This HTML file automatically generates the Torque.js library, which includes any Torque dependencies. For Torque to work with your table, you only need a username, the name of the table, and a [CartoCSS]({{site.styling_cartocsss}}/) string to style the map. Leaflet's method `addTo` adds the Torque layer to the map. `play` runs the animation with the options specified in the CartoCSS properties.
 
 ```html
   <script>
