@@ -45,7 +45,11 @@
     "sinon": "~1.15.4"
   },
   "scripts": {
-    "test": "make test-all"
+    "test": "make test-all",
+    "bump": "npm version patch",
+    "bump:major": "npm version major",
+    "bump:minor": "npm version minor",
+    "postversion": "git push origin master --follow-tags"
   },
   "main": "./lib/torque/index.js"
 }
