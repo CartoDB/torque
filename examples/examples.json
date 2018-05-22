@@ -22,9 +22,9 @@
                     "file": "static_heat_map_simple.html"
                 }, 
                 {
-                    "title": "Leafleft Interaction",
+                    "title": "Leaflet Interaction",
                     "desc": "",
-                    "file": "leafleft_interaction.html"
+                    "file": "leaflet_interaction.html"
                 },
                 {
                     "title": "Light Bright",
@@ -53,8 +53,8 @@
                 },
                 {
                     "title": "Navy Ships",
-                    "desc": "Navy Ships over Leafleft",
-                    "file": "navy_leafletf.html"
+                    "desc": "Navy Ships over Leaflet",
+                    "file": "navy_leaflet.html"
                 },
                 {
                     "title": "Navy",
@@ -62,9 +62,9 @@
                     "file": "navy_ol.html"
                 },
                 {
-                    "title": "Render range Leafleft",
+                    "title": "Render range Leaflet",
                     "desc": "",
-                    "file": "render-range_leafleft.html"
+                    "file": "render-range_leaflet.html"
                 },
                 {
                     "title": "SQL",
