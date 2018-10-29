@@ -33,7 +33,7 @@
   "devDependencies": {
     "@carto/mapnik": "^3.6.2-carto.11",
     "browserify": "~7.0.0",
-    "canvas": "^2.0.1",
+    "canvas": "^1.6.9",
     "leaflet": "1.0.3",
     "node-qunit-phantomjs": "1.6.0",
     "phantomjs-polyfill": "0.0.2",
