@@ -51,7 +51,7 @@
     <div id="map"></div>
     
     <!-- include cartodb.js library -->
-    <script src="https://cartodb-libs.global.ssl.fastly.net/cartodb.js/v3/cartodb.js"></script>
+    <script src="https://cartodb-libs.global.ssl.fastly.net/cartodb.js/v3/3.15/cartodb.js"></script>
 
     <script>
       function main() {
@@ -74,7 +74,7 @@
             user_name: "andrew",
             tile_style: $('#cartocss_template').html()
             }
-        }).done(function(layer) {
+        }, {https: true}).done(function(layer) {
           map.addLayer(layer);
         });
       }
