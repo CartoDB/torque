@@ -1,4 +1,4 @@
-var mapnik = require('mapnik');
+var mapnik = require('@carto/mapnik');
 
 function compare(buffer, fixtureRelPath) {
     save(__dirname + '/../results/' + fixtureRelPath, buffer);

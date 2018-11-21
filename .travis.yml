@@ -1,6 +1,8 @@
 language: node_js
 node_js:
-  - 6.9.2
+  - '6'
+  - '8'
+  - '10'
 before_install:
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
 addons:
