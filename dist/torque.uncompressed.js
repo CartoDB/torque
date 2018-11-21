@@ -1,5 +1,5 @@
 /**
-Torque 2.16.3
+Torque 2.16.5
 Temporal mapping for CARTO
 https://github.com/cartodb/torque
 **/
@@ -1634,6 +1634,8 @@ function GMapsTorqueLayer(options) {
   if(options.tileJSON) this.options.provider = "tileJSON";
 
   this.hidden = !this.options.visible;
+
+  this.showLimitErrors = options.showLimitErrors;
 
   this.animator = new torque.Animator(function(time) {
     var k = time | 0;
@@ -6093,7 +6095,7 @@ var CartoDatasource = require('./datasource');
       this._shader = shader;
       this._Map = this._shader.getDefault().getStyle({}, { zoom: 0 });
       var img_names = this._shader.getImageURLs();
-      if (this.layer.showLimitErrors) {
+      if (this.layer && this.layer.showLimitErrors) {
         img_names.push(ERROR_IMG_URL);
       }
 

@@ -3,3 +3,4 @@
 *.swp
 node_modules
 test/dist/suite-bundle.js
+secrets.js
