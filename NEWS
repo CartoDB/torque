@@ -1,4 +1,4 @@
-2.17.0 (2018-mm-dd)
+2.17.0 (2018-11-21)
     - Use our current fork of mapnik while testing
     - Add support for Node 8 & 10
     - Support package-lock.json file
