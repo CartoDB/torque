@@ -37,7 +37,7 @@
         zoom: 3
       });
 
-      L.tileLayer('https://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
@@ -45,10 +45,13 @@
         user       : 'fdansv',
         table      : 'snow',
         cartocss: CARTOCSS,
-        tiler_protocol: 'https'
+        tiler_protocol: 'https',
+        tiler_port: 443,
+        zIndex: 10
       });
       torqueLayer.addTo(map);
       torqueLayer.play();
+      torqueLayer.bringToFront();
       var rect = document.createElement("div");
       var size = 50;
       rect.setAttribute('style', "position:absolute; background-color: #fff; width: 100px; height: 30px;");

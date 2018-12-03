@@ -50,7 +50,7 @@
             }),
             layers: [
                 new ol.layer.Tile({
-                    source: new ol.source.XYZ({ url: 'https://api.cartocdn.com/base-dark/{z}/{x}/{y}.png'})
+                    source: new ol.source.XYZ({ url: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'})
                 })
             ],
             interactions: ol.interaction.defaults({
@@ -64,7 +64,8 @@
             user       : 'viz2',
             table      : 'ow',
             cartocss: CARTOCSS,
-            tiler_protocol: 'https'
+            tiler_protocol: 'https',
+            tiler_port: 443
         });
 
         torqueLayer.onAdd(map);

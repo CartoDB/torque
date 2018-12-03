@@ -46,7 +46,7 @@
         zoom: 3
       });
 
-      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
@@ -55,7 +55,8 @@
         table      : 'ow',
         zIndex: 100,
         cartocss: CARTOCSS,
-        tiler_protocol: 'https'
+        tiler_protocol: 'https',
+        tiler_port: 443
       });
       torqueLayer.error(function(err){
         for(error in err){
