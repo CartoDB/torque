@@ -32,14 +32,9 @@
                     "file": "light_bright.html"
                 },
                 {
-                    "title": "Navy Ships",
+                    "title": "Navy Ships GMaps",
                     "desc": "Navy Ships over Google Maps",
                     "file": "navy_gmaps.html"
-                },                     
-                {
-                    "title": "Nurburgring track",
-                    "desc": "A car's route at the Nürburgring track mapped in Torque.",
-                    "file": "car.html"
                 },
                 {
                     "title": "Data peek",
@@ -52,7 +47,7 @@
                     "file": "dual_encode.html"
                 },
                 {
-                    "title": "Navy Ships",
+                    "title": "Navy Ships Leaflet",
                     "desc": "Navy Ships over Leaflet",
                     "file": "navy_leaflet.html"
                 },
@@ -65,11 +60,6 @@
                     "title": "Render range Leaflet",
                     "desc": "",
                     "file": "render-range_leaflet.html"
-                },
-                {
-                    "title": "SQL",
-                    "desc": "",
-                    "file": "sql.html"
                 }
             ]
         }

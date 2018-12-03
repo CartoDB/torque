@@ -8,8 +8,8 @@
     <div id="map"></div>
 
 
-    <script src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
-    <script src="../dist/torque.full.uncompressed.js"  type="application/javascript" charset="utf-8"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>
+    <script src="https://libs.cartocdn.com/torque.js/2.16.5/torque.full.js"  type="application/javascript" charset="utf-8"></script>
 
 
     <script>
@@ -74,7 +74,8 @@
       var torqueLayer = new torque.GMapsTorqueLayer({
         user       : 'viz2',
         table      : 'ow',
-        cartocss: CARTOCSS
+        cartocss: CARTOCSS,
+        tiler_protocol: 'https'
       });
       torqueLayer.error(function(err){
         for(error in err){
