@@ -18,9 +18,9 @@
     <div id="map"></div>
     <div id="title">Average temperature collected by Britain's Royal Navy (1913-1925)</div>
 
-    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
-    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
-    <script src="../dist/torque.full.uncompressed.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/leaflet.js"></script>
+    <script src="https://libs.cartocdn.com/torque.js/2.16.5/torque.full.js"></script>
 
 
     <script>
@@ -57,14 +57,15 @@
         zoom: 3
       });
 
-      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
         user       : 'viz2',
         table      : 'ow',
-        cartocss: CARTOCSS
+        cartocss: CARTOCSS,
+        tiler_protocol: 'https'
       });
       torqueLayer.addTo(map);
 

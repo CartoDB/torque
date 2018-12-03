@@ -9,7 +9,7 @@
     <div id="map"></div>
 
     <script src="vendor/leaflet.js"></script>
-    <script src="../dist/torque.full.uncompressed.js"></script>
+    <script src="https://libs.cartocdn.com/torque.js/2.16.5/torque.full.js"></script>
 
 
     <script>
@@ -24,7 +24,7 @@
           '}',
           '#layer {',
           'image-filters: colorize-alpha(blue, cyan, lightgreen, yellow , orange, red);',
-          'marker-file: url(http://s3.amazonaws.com/com.cartodb.assets.static/alphamarker.png);',
+          'marker-file: url(https://s3.amazonaws.com/com.cartodb.assets.static/alphamarker.png);',
           'marker-fill-opacity: 0.4;',
           'marker-width: 35;',
           '}'
@@ -37,14 +37,15 @@
         zoom: 3
       });
 
-      L.tileLayer('http://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.api.cartocdn.com/base-dark/{z}/{x}/{y}.png', {
         attribution: 'CartoDB'
       }).addTo(map);
 
       var torqueLayer = new L.TorqueLayer({
         user       : 'fdansv',
         table      : 'snow',
-        cartocss: CARTOCSS
+        cartocss: CARTOCSS,
+        tiler_protocol: 'https'
       });
       torqueLayer.addTo(map);
       torqueLayer.play();

@@ -20,7 +20,7 @@
     <div id="map"></div>
 
     <script src="vendor/leaflet.js"></script>
-    <script src="../dist/torque.full.uncompressed.js"></script>
+    <script src="https://libs.cartocdn.com/torque.js/2.16.5/torque.full.js"></script>
 
 
     <script>
@@ -60,7 +60,8 @@
       var torqueLayer = new L.TorqueLayer({
         user: 'documentation',
         sql: 'SELECT s + 181 as cartodb_id, st_transform(ST_SetSRID (st_makepoint(s, 10*sin(s)), 4326), 3857) as the_geom_webmercator FROM generate_series(-180, 180, 1) as s',
-        cartocss: CARTOCSS
+        cartocss: CARTOCSS,
+        tiler_protocol: 'https'
       });
       torqueLayer.error(console.warn);
       torqueLayer.addTo(map);
