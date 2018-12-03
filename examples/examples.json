@@ -17,15 +17,10 @@
                     "file": "static_heat_map.html"
                 },
                 {
-                    "title": "Static Heat Map Simle",
+                    "title": "Static Heat Map Simple",
                     "desc": "",
                     "file": "static_heat_map_simple.html"
                 }, 
-                {
-                    "title": "Leaflet Interaction",
-                    "desc": "",
-                    "file": "leaflet_interaction.html"
-                },
                 {
                     "title": "Light Bright",
                     "desc": "",
@@ -35,11 +30,6 @@
                     "title": "Navy Ships GMaps",
                     "desc": "Navy Ships over Google Maps",
                     "file": "navy_gmaps.html"
-                },
-                {
-                    "title": "Data peek",
-                    "desc": "",
-                    "file": "data_peek.html"
                 },
                 {
                     "title": "Dual Encode",
@@ -55,11 +45,6 @@
                     "title": "Navy",
                     "desc": "",
                     "file": "navy_ol.html"
-                },
-                {
-                    "title": "Render range Leaflet",
-                    "desc": "",
-                    "file": "render-range_leaflet.html"
                 }
             ]
         }
