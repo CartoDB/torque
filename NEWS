@@ -1,4 +1,11 @@
 2.17.1 (2018-mm-dd)
+    - Upgrade deps:
+        - turbo-carto@0.21.1
+    - Upgrade devel deps:
+        - browserify@16.2.3
+        - qunitz@0.7.7
+        - request@2.88.0
+        - uglify-js@3.4.9
 
 2.17.0 (2018-11-21)
     - Use our current fork of mapnik while testing
