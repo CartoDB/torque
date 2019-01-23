@@ -19,4 +19,3 @@ test('reference test with canvas', function() {
 
     equal(imageDiff, 0);
 });
-
