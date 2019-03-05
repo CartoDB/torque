@@ -6,13 +6,15 @@ var fs = require('fs');
 var torque = require('../../lib/torque/index');
 
 
-function getTile(jsonRelPath, cartocss, z, x, y, step, callback) {
-    step = step || 0;
-
+function getTile(jsonRelPath, cartocss, z, x, y, step, options, callback) {
+    if (!callback) {
+        callback = options;
+        options = {};
+    }
     var cartoCssOptions = torque.common.TorqueLayer.optionsFromCartoCSS(cartocss);
 
     var provider = new torque.providers.windshaft(_.extend({ no_fetch_map: true }, cartoCssOptions));
-    var rendererOptions = _.extend({cartocss: cartocss}, cartoCssOptions, {
+    var rendererOptions = _.extend(options, {cartocss: cartocss}, cartoCssOptions, {
         canvasClass: Canvas,
         imageClass: Canvas.Image,
         setImageSrc: function(img, url, callback) {
@@ -45,7 +47,8 @@ function getTile(jsonRelPath, cartocss, z, x, y, step, callback) {
 
     var rows = JSON.parse(fs.readFileSync(__dirname + '/../fixtures/json/' + jsonRelPath));
 
-    var canvas = new Canvas(256, 256);
+    var tileSize = options.tileSize || 256;
+    var canvas = new Canvas(tileSize, tileSize);
     var pointRenderer = new torque.renderer.Point(canvas, rendererOptions);
 
     pointRenderer.renderTile(provider.proccessTile(rows, {x: x, y: y}, z), step, function(err) {
