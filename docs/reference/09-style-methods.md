@@ -2,9 +2,9 @@
 
 Method | Options | Returns | Description
 ---|---|---|---|
-`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](https://carto.com/docs/carto-engine/maps-api/named-maps/))
+`setCartoCSS(cartocss)` | `cartocss string` | `this` | style the map rendering using client-side CartoCSS (not available with [Named maps](https://carto.com/docs/{{site.mapsapi_docs}}/guides/named-maps//maps-api/named-maps/))
 
-Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/cartodb/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
+Torque supports a limited subset of CartoCSS rules defined in the [torque-reference](https://github.com/cartodb/torque-reference). To see the full list of supported rules, read the [Torque CartoCSS documentation]({{site.styling_cartocss}}/#cartocss-properties-for-torque-style-maps). `value` and `zoom` variables can be used. `value` is the value of aggregation. `zoom` is the current zoom being rendered.
 
 TorqueLayer currently expects `marker` styling.
 

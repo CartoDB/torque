@@ -11,4 +11,4 @@ Method | Options | Returns | Description |
 `getTime()` | | current animation time (Date) | gets the real animation time
 `isRunning()` | | `true`/`false` | describes whether the Torque layer is playing or is stopped
 
-**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row.
+**Note:** Torque.js interprets the beginning and ending date/time from your "Time Column" as one block, then divides that up into [Steps]({{site.styling_cartocss}}/#-torque-frame-count-number), depending on the number you set. It does not necessarily draw one frame for each row.

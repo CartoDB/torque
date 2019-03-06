@@ -1,25 +1,25 @@
 ## Torque Time Slider
 
-You can use the `time_slider` option to show an animated time slider with Torque layers. This option is enabled by default when creating visualizations with [cartodb.createVis](https://carto.com/docs/carto-engine/carto-js/api-methods/#cartodbcreatevis) and [createLayer](https://carto.com/docs/carto-engine/carto-js/api-methods/#cartodbcreatelayermap-layersource--options--callback). Both require a map_id DOM object.
+You can use the `time_slider` option to show an animated time slider with Torque layers. This option is enabled by default when creating visualizations with [cartodb.createVis]({{site.cartojs_docs}}/v3/reference/#cartodbcreatevis) and [createLayer]({{site.cartojs_docs}}/v3/reference/#cartodbcreatelayermap-layersource--options--callback). Both require a map_id DOM object.
 
 **Enable / Disable the Torque Time Slider**
 
 Description | The Torque time slider is enabled by default, for your visualization or layer.
 Sample Torque.js Code | `{ time_slider: true });`
 Default Value | `true`, enabled by default.
-Available Values | See [boolean](https://carto.com/docs/carto-engine/cartocss/properties/#boolean).
+Available Values | See [boolean]({{site.styling_cartocss}}/#boolean).
 Related Examples | To disable the time slider option, use `time_slider: false`. See [No Torque Time Slider - Example Code](http://bl.ocks.org/michellechandra/081ca7160a8c782266d2).<br/><br/>For a code example about how to use the `time_slider` option to modify a Torque map, see [Torque with a Custom Time Slider](http://bl.ocks.org/csobier/cebdd47242d7ca98ec5e).
 
-**Note:** The `time_slider` option is specific for Torque.js only. All the other CARTO.js options are also supported for Torque.js. For the complete list of arguments, options, and returns, see [CARTO.js API Methods](https://carto.com/docs/carto-engine/carto-js/api-methods/#api-methods).
+**Note:** The `time_slider` option is specific for Torque.js only. All the other CARTO.js options are also supported for Torque.js. For the complete list of arguments, options, and returns, see [CARTO.js API Methods]({{site.cartojs_docs}}/v3/reference/#api-methods).
 
 
 ### Customize Animation for your Time Slider
 
-You can customize the animation of your Torque time slider by editing the `-torque-frame-count` and `-torque-animation-duration` CartoCSS properties. (Optionally, you can create a [CARTO.js](https://carto.com/docs/carto-engine/carto-js/api-methods/#api-methods) map to create a custom time slider). This section also describes how time interval data is aggregated, and describes the formula used to calculate time buckets.
+You can customize the animation of your Torque time slider by editing the `-torque-frame-count` and `-torque-animation-duration` CartoCSS properties. (Optionally, you can create a [CARTO.js]({{site.cartojs_docs}}/v3/reference/#api-methods) map to create a custom time slider). This section also describes how time interval data is aggregated, and describes the formula used to calculate time buckets.
 
-- [`-torque-frame-count`](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number) specifies the number of animation steps/frames in your torque animation. You can change the time slider timestamp by adjusting the number of steps.<br /><br />**Tip:** In CARTO Builder, this is the STEPS value when the style is ANIMATED.
+- [`-torque-frame-count`]({{site.styling_cartocss}}/#-torque-frame-count-number) specifies the number of animation steps/frames in your torque animation. You can change the time slider timestamp by adjusting the number of steps.<br /><br />**Tip:** In CARTO Builder, this is the STEPS value when the style is ANIMATED.
 
-- [`-torque-animation-duration`](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-animation-duration-number) specifies the length of time for your animation, in seconds. You can adjust the duration of the animation as needed.<br /><br />**Tip:** In CARTO Builder, this is the DURATION value when the style is ANIMATED.
+- [`-torque-animation-duration`]({{site.styling_cartocss}}/#-torque-animation-duration-number) specifies the length of time for your animation, in seconds. You can adjust the duration of the animation as needed.<br /><br />**Tip:** In CARTO Builder, this is the DURATION value when the style is ANIMATED.
 
 #### Aggregating Time Interval Data
 
@@ -29,7 +29,7 @@ Before customizing the time slider, you should understand how Torque time interv
 - Reads the last date/time stamp to from your dataset
 - Aggregates the time period based on the first and last date/time stamp (including seconds)
 - Once the time interval is defined, it breaks the time period up in smaller "buckets"
-- The number of buckets is based on the number of [Steps](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number) you select for your Torque map
+- The number of buckets is based on the number of [Steps]({{site.styling_cartocss}}/#-torque-frame-count-number) you select for your Torque map
 - Each bucket, or step, is one animation frame
   
 Thus, the start and end time for each bucket depends on the number of divided steps (not a specific start time or end time that you entered). 
@@ -48,7 +48,7 @@ Where:
 - `times.start` = the earliest time in your date/time column
 - `times.end` = the latest time in your date/time column
 
-The Torque time slider displays these buckets of time, animating the entire sequence of your dataset, and divides the time according to the number of specified steps. You can alter the [duration](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-animation-duration-number) of the animation, and adjust the time slider timestamp with the number of [Steps](https://carto.com/docs/carto-engine/cartocss/properties-for-torque/#torque-frame-count-number).
+The Torque time slider displays these buckets of time, animating the entire sequence of your dataset, and divides the time according to the number of specified steps. You can alter the [duration]({{site.styling_cartocss}}/#-torque-animation-duration-number) of the animation, and adjust the time slider timestamp with the number of [Steps]({{site.styling_cartocss}}/#-torque-frame-count-number).
 
 ##### Calculating the Time Slider in CARTO Builder
 
