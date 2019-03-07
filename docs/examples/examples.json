@@ -42,8 +42,8 @@
                     "file": "navy_leaflet.html"
                 },
                 {
-                    "title": "Navy",
-                    "desc": "",
+                    "title": "Navy Ships OpenLayers",
+                    "desc": "Navy Ships over OpenLayers",
                     "file": "navy_ol.html"
                 }
             ]
