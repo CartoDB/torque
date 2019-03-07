@@ -1,30 +1,50 @@
 {
     "main": {
-        "file": "car.html"
+        "file": "static_bubble_map.html"
     },
     "categories": [
         {
             "title": "Misc",
             "samples": [
                 {
-                    "title": "A car in Nürburgring track",
+                    "title": "Static Bubble Map",
                     "desc": "",
-                    "file": "car.html"
+                    "file": "static_bubble_map.html"
                 },
                 {
-                    "title": "Leafleft Interaction",
+                    "title": "Static Heatmap",
                     "desc": "",
-                    "file": "leafleaft_interaction.html"
+                    "file": "static_heat_map.html"
                 },
                 {
-                    "title": "Light bright",
+                    "title": "Static Heat Map Simple",
+                    "desc": "",
+                    "file": "static_heat_map_simple.html"
+                },
+                {
+                    "title": "Light Bright",
                     "desc": "",
                     "file": "light_bright.html"
                 },
                 {
-                    "title": "Roral Navy Ships",
-                    "desc": "",
+                    "title": "Navy Ships GMaps",
+                    "desc": "Navy Ships over Google Maps",
                     "file": "navy_gmaps.html"
+                },
+                {
+                    "title": "Dual Encode",
+                    "desc": "",
+                    "file": "dual_encode.html"
+                },
+                {
+                    "title": "Navy Ships Leaflet",
+                    "desc": "Navy Ships over Leaflet",
+                    "file": "navy_leaflet.html"
+                },
+                {
+                    "title": "Navy",
+                    "desc": "",
+                    "file": "navy_ol.html"
                 }
             ]
         }
