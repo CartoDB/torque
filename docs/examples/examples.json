@@ -4,32 +4,32 @@
     },
     "categories": [
         {
-            "title": "Misc",
+            "title": "Static",
             "samples": [
                 {
-                    "title": "Static Bubble Map",
+                    "title": "Bubble Map",
                     "desc": "",
                     "file": "static_bubble_map.html"
                 },
                 {
-                    "title": "Static Heatmap",
+                    "title": "Heatmap",
                     "desc": "",
                     "file": "static_heat_map.html"
                 },
                 {
-                    "title": "Static Heat Map Simple",
+                    "title": "Heatmap Simple",
                     "desc": "",
                     "file": "static_heat_map_simple.html"
-                },
+                }
+            ]
+        },
+        {
+            "title": "Misc",
+            "samples": [
                 {
                     "title": "Light Bright",
                     "desc": "",
                     "file": "light_bright.html"
-                },
-                {
-                    "title": "Navy Ships GMaps",
-                    "desc": "Navy Ships over Google Maps",
-                    "file": "navy_gmaps.html"
                 },
                 {
                     "title": "Dual Encode",
@@ -37,13 +37,18 @@
                     "file": "dual_encode.html"
                 },
                 {
+                    "title": "Navy Ships GMaps",
+                    "desc": "",
+                    "file": "navy_gmaps.html"
+                },
+                {
                     "title": "Navy Ships Leaflet",
-                    "desc": "Navy Ships over Leaflet",
+                    "desc": "",
                     "file": "navy_leaflet.html"
                 },
                 {
                     "title": "Navy Ships OpenLayers",
-                    "desc": "Navy Ships over OpenLayers",
+                    "desc": "",
                     "file": "navy_ol.html"
                 }
             ]
