@@ -1,0 +1,99 @@
+<html>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/leaflet.css" />
+  <style>
+    #map, html, body {
+      width: 100%; height: 100%; padding: 0; margin: 0;
+    }
+  </style>
+  <body>
+    <div id="map"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/leaflet.js"></script>
+    <script src="https://libs.cartocdn.com/torque.js/2.16.5/torque.full.js"></script>
+
+
+    <script>
+      // define the torque layer style using cartocss
+      var CARTOCSS = [
+          'Map {',
+          '-torque-time-attribute: "cartodb_id";',
+          '-torque-aggregation-function: "count(cartodb_id)";',
+          '-torque-frame-count: 1;',
+          '-torque-animation-duration: 15;',
+          '-torque-resolution: 2',
+          '}',
+          '#layer {',
+          'image-filters: colorize-alpha(blue, cyan, lightgreen, yellow , orange, red);',
+          'marker-file: url(https://s3.amazonaws.com/com.cartodb.assets.static/alphamarker.png);',
+          'marker-fill-opacity: 0.4;',
+          'marker-width: 35;',
+          '}'
+      ].join('\n');
+
+        
+      var map = new L.Map('map', {
+        zoomControl: true,
+        center: [40, 0],
+        zoom: 3
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+        attribution: 'CartoDB'
+      }).addTo(map);
+
+      var torqueLayer = new L.TorqueLayer({
+        user       : 'fdansv',
+        table      : 'snow',
+        cartocss: CARTOCSS,
+        tiler_protocol: 'https',
+        tiler_port: 443,
+        zIndex: 10
+      });
+      torqueLayer.addTo(map);
+      torqueLayer.play();
+      torqueLayer.bringToFront();
+      var rect = document.createElement("div");
+      var size = 50;
+      rect.setAttribute('style', "position:absolute; background-color: #fff; width: 100px; height: 30px;");
+      document.getElementById("map").appendChild(rect);
+      var curBounds = [];
+      var curRect;
+      var lastX =0, lastY=0;
+      var calc = function(e){
+        var x = e.clientX || lastX;
+        var y = e.clientY || lastY;
+        lastX = x;
+        lastY = y;
+        rect.style.display = "block";
+        rect.style.left = x + 20;
+        rect.style.top = y - 20;
+        rect.style.padding = 10;
+        var val = torqueLayer.getValueForBBox(x-size/2, y-size/2, size, size);
+        rect.textContent = val;
+        var nw = map.containerPointToLatLng([x-size/2, y-size/2]);
+        var se = map.containerPointToLatLng([x+size/2, y+size/2]);
+        curBounds = [[nw.lat, nw.lng], [se.lat, se.lng]];
+        if(curRect){
+          map.removeLayer(curRect);
+        }
+        curRect = L.rectangle(curBounds, {color: "#ff7800", weight: 1}).addTo(map);
+      };
+      document.onmousemove = calc;
+      document.onmouseout = function(e){
+        if (e.toElement == null && e.relatedTarget == null) {
+          rect.style.display = "none";
+        }
+      };
+      document.onkeypress = function(e){
+        if(e.keyCode === 97){
+          size +=4;
+        }
+        if(e.keyCode === 115){
+          size -=4;
+        }
+        calc(e);
+      }
+    </script>
+  </body>
+</html>
+

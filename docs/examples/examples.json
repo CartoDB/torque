@@ -1,0 +1,57 @@
+{
+    "main": {
+        "file": "static_bubble_map.html"
+    },
+    "categories": [
+        {
+            "title": "Static",
+            "samples": [
+                {
+                    "title": "Bubble Map",
+                    "desc": "",
+                    "file": "static_bubble_map.html"
+                },
+                {
+                    "title": "Heatmap",
+                    "desc": "",
+                    "file": "static_heat_map.html"
+                },
+                {
+                    "title": "Heatmap Simple",
+                    "desc": "",
+                    "file": "static_heat_map_simple.html"
+                }
+            ]
+        },
+        {
+            "title": "Misc",
+            "samples": [
+                {
+                    "title": "Light Bright",
+                    "desc": "",
+                    "file": "light_bright.html"
+                },
+                {
+                    "title": "Dual Encode",
+                    "desc": "",
+                    "file": "dual_encode.html"
+                },
+                {
+                    "title": "Navy Ships GMaps",
+                    "desc": "",
+                    "file": "navy_gmaps.html"
+                },
+                {
+                    "title": "Navy Ships Leaflet",
+                    "desc": "",
+                    "file": "navy_leaflet.html"
+                },
+                {
+                    "title": "Navy Ships OpenLayers",
+                    "desc": "",
+                    "file": "navy_ol.html"
+                }
+            ]
+        }
+    ]
+}

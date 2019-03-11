@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Heat map simple | CartoDB.js</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <link rel="shortcut icon" href="https://cartodb.com/assets/favicon.ico" />
+    <style>
+      html, body, #map {
+        height: 100%;
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+    <link rel="stylesheet" href="https://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.css" />
+    <!--[if lte IE 8]>
+      <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.ie.css" />
+    <![endif]-->
+    <script type="sql/html" id="cartocss_template">
+      /** torque_cat visualization */
+
+      Map {
+      -torque-frame-count:64;
+      -torque-animation-duration:30;
+      -torque-time-attribute:"posttime";
+      -torque-aggregation-function:"sum(1)+CDB_Math_Mode(direction)*100";
+      -torque-resolution:2;
+      -torque-data-aggregation:linear;
+      }
+
+      #cleveland_spring_points{
+        comp-op: source-over;
+        marker-fill-opacity: 1;
+        marker-line-color: #FFF;
+        marker-line-width: 0;
+        marker-line-opacity: 1;
+        marker-type: ellipse;
+        marker-width: 1;
+        marker-fill: #F84F40;
+      }
+      #cleveland_spring_points[value>101] {
+       marker-width:2;
+      }
+      #cleveland_spring_points[value>102] {
+       marker-width:3;
+      }
+      #cleveland_spring_points[value>103] {
+       marker-width:5;
+      }
+      #cleveland_spring_points[value>104] {
+       marker-width:8; 
+      }
+      #cleveland_spring_points[value>105] {
+       marker-width:12; 
+      }
+      #cleveland_spring_points[value>106] {
+       marker-width:15; 
+      }
+
+
+      #cleveland_spring_points[value>200] {
+        marker-fill: #5CA2D1;
+       marker-width:1;
+      }
+      #cleveland_spring_points[value>201] {
+       marker-width:2;
+      }
+      #cleveland_spring_points[value>202] {
+       marker-width:3;
+      }
+      #cleveland_spring_points[value>203] {
+       marker-width:5;
+      }
+      #cleveland_spring_points[value>204] {
+       marker-width:8; 
+      }
+      #cleveland_spring_points[value>205] {
+       marker-width:12; 
+      }
+      #cleveland_spring_points[value>206] {
+       marker-width:15; 
+      }
+
+      #cleveland_spring_points[frame-offset=1] {
+       marker-width:2;
+       marker-fill-opacity:0.45; 
+      }
+      #cleveland_spring_points[frame-offset=2] {
+       marker-width:4;
+       marker-fill-opacity:0.225; 
+      }
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+    
+    <!-- include cartodb.js library -->
+    <script src="https://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
+
+    <script>
+      function main() {
+        var map = new L.Map('map', {
+          zoomControl: false,
+          center: [40.72209113, -73.99824792],
+          zoom: 14
+        });
+        
+        var layer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',{
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+        }).addTo(map);
+
+        cartodb.createLayer(map, {
+          type: "torque",
+          order: 1,
+          options: {
+            query: "",
+            table_name: "cleveland_spring_points",
+            user_name: "andrew",
+            tile_style: $('#cartocss_template').html()
+            }
+        }, {
+          https: true,
+          tiler_protocol: 'https',
+          tiler_port: 443
+        }).done(function(layer) {
+          map.addLayer(layer);
+        });
+      }
+
+      // you could use $(window).load(main);
+      window.onload = main;
+    </script>
+  </body>
+</html>
