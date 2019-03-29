@@ -1,4 +1,4 @@
-3.0.0 (2019-03-dd)
+3.0.0 (2019-03-29)
     - Drop support for Node.js 6 and 8
     - Handle exception: Image given has not completed loading
 
