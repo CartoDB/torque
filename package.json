@@ -21,7 +21,8 @@
     "Nicklas Gummesson <nicklas@cartodb.com>",
     "Francisco Dans <francisco@cartodb.com>",
     "Carlos Matallín <matallo@carto.com>",
-    "Rubén Moya <ruben@carto.com"
+    "Rubén Moya <ruben@carto.com>",
+    "Daniel García Aubert <dgaubert@carto.com>"
   ],
   "license": "BSD-3-Clause",
   "dependencies": {
