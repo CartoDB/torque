@@ -1,12 +1,12 @@
-var Canvas = require('canvas');
-var image = require('../support/image');
+const { createCanvas }= require('canvas');
+const image = require('../support/image');
 
 QUnit.module('example');
 
 test('reference test with canvas', function() {
     var circleRadius = 20;
     var canvasSize = circleRadius * 2 + 2;
-    var canvas = new Canvas(canvasSize, canvasSize);
+    var canvas = createCanvas(canvasSize, canvasSize);
 
     var ctx = canvas.getContext('2d');
 

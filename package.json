@@ -1,6 +1,6 @@
 {
   "name": "torque.js",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "description": "Temporal mapping for CARTO",
   "repository": {
     "type": "git",
@@ -21,7 +21,8 @@
     "Nicklas Gummesson <nicklas@cartodb.com>",
     "Francisco Dans <francisco@cartodb.com>",
     "Carlos Matallín <matallo@carto.com>",
-    "Rubén Moya <ruben@carto.com"
+    "Rubén Moya <ruben@carto.com>",
+    "Daniel García Aubert <dgaubert@carto.com>"
   ],
   "license": "BSD-3-Clause",
   "dependencies": {
@@ -33,7 +34,7 @@
   "devDependencies": {
     "@carto/mapnik": "^3.6.2-carto.11",
     "browserify": "^16.2.3",
-    "canvas": "^1.6.9",
+    "canvas": "^2.4.1",
     "leaflet": "1.0.3",
     "node-qunit-phantomjs": "1.6.0",
     "phantomjs-polyfill": "0.0.2",
