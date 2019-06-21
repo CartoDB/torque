@@ -1,5 +1,5 @@
-3.1.0 (2019-mm-dd)
-
+3.1.1 (2019-06-21)
+    - Fixed reading undefined layer #306
 
 3.1.0 (2019-04-02)
     - Upgrade canvas to version 2.4.1
