@@ -137,3 +137,38 @@ test('get values for tile', function() {
   equal(v[0], 5);
   equal(v[1], 7);
 });
+
+test('should deal with no layer and commented out cartocss', function() {
+  var css = [
+    'Map {',
+    '  -torque-frame-count: 1;',
+    '  -torque-animation-duration: 30;',
+    '  -torque-time-attribute: "cartodb_id";',
+    '  -torque-aggregation-function: "count(1)";',
+    '  -torque-resolution: 4;',
+    '  -torque-data-aggregation: linear;',
+    '}',
+    '#layer {',
+    '  marker-width: 16.6;',
+    '  /*marker-width: ramp([value], range(2, 40), jenks(6));*/',
+    '  marker-fill-opacity: 1;',
+    '  marker-file: url(http://cartodb-libs.global.ssl.fastly.net/cartodbui/assets/unversioned/images/alphamarker.png);',
+    '  marker-allow-overlap: true;',
+    '  marker-line-width: 1;',
+    '  marker-line-color: #FFFFFF;',
+    '  marker-line-opacity: 1;',
+    '  marker-comp-op: darken;',
+    '  image-filters: colorize-alpha(#4b2991,#872ca2,#c0369d,#ea4f88,#fa7876,#f6a97a,#edd9a3);',
+    '}'
+  ].join('\n');
+
+  var canvas = document.createElement('canvas');
+  var myRenderer = new torque.renderer.Point(canvas, {
+    layer: undefined
+  });
+
+  myRenderer.setCartoCSS(css);
+  var shader = renderer._shader.getLayers()[0];
+  var sprite = myRenderer.generateSprite(shader, 0, { zoom: 0 });
+  notEqual(sprite, null);
+});
