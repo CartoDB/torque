@@ -43,7 +43,7 @@
     "request": "^2.88.0",
     "sinon": "~1.15.4",
     "uglify-js": "^3.4.9",
-    "underscore": "1.8.3"
+    "underscore": "1.12.1"
   },
   "scripts": {
     "test": "make test-all",
